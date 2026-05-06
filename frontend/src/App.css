@@ -1,0 +1,55 @@
+.app {
+  font-family: Arial, sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.main-page {
+  text-align: center;
+}
+
+.main-page h1 {
+  margin-bottom: 40px;
+}
+
+.main-page button {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.form {
+  margin-top: 20px;
+}
+
+.form label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.form input, .form select, .form textarea {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 15px;
+  box-sizing: border-box;
+}
+
+.form button {
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.result {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.loading {
+  text-align: center;
+  margin: 20px 0;
+}

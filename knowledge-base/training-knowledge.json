@@ -1,0 +1,40 @@
+{
+  "trainingPrinciples": [
+    "Progressive overload: Gradually increase weight, reps, or intensity to build strength.",
+    "Recovery: Allow adequate rest between workouts for muscle repair.",
+    "Nutrition: Fuel your body with balanced meals including protein, carbs, and fats.",
+    "Consistency: Regular training is key to achieving fitness goals."
+  ],
+  "workoutSplits": {
+    "beginner": [
+      "Full body workouts 3 times per week.",
+      "Focus on compound movements like squats, push-ups, and rows."
+    ],
+    "intermediate": [
+      "Upper/Lower split or Push/Pull/Legs.",
+      "Incorporate isolation exercises alongside compounds."
+    ],
+    "advanced": [
+      "Specialized splits like chest/tris, back/bis, legs, shoulders.",
+      "Include advanced techniques like drop sets or supersets."
+    ]
+  },
+  "safetyNotes": [
+    "Always warm up before workouts.",
+    "Use proper form to prevent injury.",
+    "Consult a doctor before starting if you have health concerns.",
+    "Stop if you feel pain (beyond normal muscle fatigue)."
+  ],
+  "injuryLimitations": {
+    "kneePain": "Avoid deep squats; focus on leg presses or lunges with lighter weight.",
+    "backPain": "Skip deadlifts; emphasize core stability exercises.",
+    "shoulderInjury": "Avoid overhead presses; use chest presses instead."
+  },
+  "examples": {
+    "beginnerFullBody": [
+      {"name": "Squats", "sets": "3", "reps": "10-12", "notes": "Bodyweight or with light dumbbells"},
+      {"name": "Push-ups", "sets": "3", "reps": "8-10", "notes": "Knee push-ups if needed"},
+      {"name": "Bent-over rows", "sets": "3", "reps": "10-12", "notes": "Use dumbbells or resistance band"}
+    ]
+  }
+}
