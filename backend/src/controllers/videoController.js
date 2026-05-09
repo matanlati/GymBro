@@ -11,6 +11,7 @@ const videoController = {
     }
 
     try {
+      videoFile.exerciseType = req.body?.exerciseType
       const result = await VideoAnalysisService.analyze(videoFile)
       res.json(result)
     } catch (error) {
