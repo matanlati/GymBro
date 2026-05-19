@@ -1,6 +1,75 @@
 import { useState } from 'react'
 
+const steps = [
+  {
+    title: 'Body Details',
+    eyebrow: 'Help us understand your starting point'
+  },
+  {
+    title: 'Training Preferences',
+    eyebrow: 'Tell us how you want to train'
+  },
+  {
+    title: 'Goals & Availability',
+    eyebrow: 'Build the plan around your routine'
+  }
+]
+
+const goalOptions = [
+  { value: 'weight_loss', label: 'Lose Fat', icon: 'target' },
+  { value: 'muscle_gain', label: 'Build Muscle', icon: 'dumbbell' },
+  { value: 'strength', label: 'Strength', icon: 'bolt' },
+  { value: 'endurance', label: 'Endurance', icon: 'rings' },
+  { value: 'general_fitness', label: 'General Fitness', icon: 'home' }
+]
+
+const levelOptions = [
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced', label: 'Advanced' }
+]
+
+const workoutTypes = [
+  { value: 'strength', label: 'Strength Training' },
+  { value: 'cardio', label: 'Cardio' },
+  { value: 'mixed', label: 'Mixed Training' }
+]
+
+const equipmentOptions = ['Gym', 'Home', 'Dumbbells', 'Machines', 'Bodyweight', 'Barbell', 'Kettlebells']
+
+function FormIcon({ name }) {
+  const common = {
+    width: '28',
+    height: '28',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    'aria-hidden': 'true'
+  }
+
+  switch (name) {
+    case 'target':
+      return <svg {...common}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg>
+    case 'dumbbell':
+      return <svg {...common}><path d="m6 6 12 12" /><path d="m4 8 4-4" /><path d="m16 20 4-4" /><path d="m2 10 8-8" /><path d="m14 22 8-8" /></svg>
+    case 'bolt':
+      return <svg {...common}><path d="M13 2 4 14h7l-1 8 9-12h-7Z" /></svg>
+    case 'rings':
+      return <svg {...common}><circle cx="9" cy="12" r="5" /><circle cx="15" cy="12" r="5" /></svg>
+    case 'home':
+      return <svg {...common}><path d="m3 10 9-7 9 7" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></svg>
+    case 'brand':
+      return <svg {...common}><path d="m6 6 12 12" /><path d="m4 8 4-4" /><path d="m16 20 4-4" /><path d="m2 10 8-8" /><path d="m14 22 8-8" /></svg>
+    default:
+      return null
+  }
+}
+
 function Questionnaire({ onBack }) {
+  const [step, setStep] = useState(0)
   const [formData, setFormData] = useState({
     age: '',
     gender: '',
@@ -11,37 +80,83 @@ function Questionnaire({ onBack }) {
     trainingDays: '',
     injuries: '',
     preferredWorkoutType: '',
-    equipmentAvailable: ''
+    equipmentAvailable: []
   })
+  const [submitted, setSubmitted] = useState(false)
   const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    setFormData({ ...formData, [name]: value })
   }
 
-  const handleSubmit = async (e) => {
+  const selectValue = (name, value) => {
+    setFormData({ ...formData, [name]: value })
+  }
+
+  const toggleEquipment = (item) => {
+    const selected = formData.equipmentAvailable.includes(item)
+    const equipmentAvailable = selected
+      ? formData.equipmentAvailable.filter((current) => current !== item)
+      : [...formData.equipmentAvailable, item]
+
+    setFormData({ ...formData, equipmentAvailable })
+  }
+
+  const nextStep = () => {
+    setSubmitted(false)
+    setStep((current) => Math.min(current + 1, steps.length - 1))
+  }
+
+  const previousStep = () => {
+    setSubmitted(false)
+    setStep((current) => Math.max(current - 1, 0))
+  }
+
+  const handleSubmit = (e) => {
     e.preventDefault()
+    generateWorkoutPlan()
+  }
+
+  const buildPayload = () => ({
+    ...formData,
+    equipmentAvailable: formData.equipmentAvailable.length
+      ? formData.equipmentAvailable.join(', ')
+      : ''
+  })
+
+  const generateWorkoutPlan = async () => {
     setLoading(true)
+    setSubmitted(false)
+    setError('')
+    setResult(null)
 
     try {
       const response = await fetch('/api/workout-plan/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(buildPayload())
       })
 
       const text = await response.text()
       let data
+
       try {
         data = JSON.parse(text)
       } catch (parseError) {
-        data = { error: text || 'Invalid server response' }
+        throw new Error(text || 'Invalid server response')
+      }
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to generate workout plan')
       }
 
       setResult(data)
-    } catch (error) {
-      setResult({ error: error.message || 'Failed to generate workout plan' })
+      setSubmitted(true)
+    } catch (requestError) {
+      setError(requestError.message || 'Failed to generate workout plan')
     } finally {
       setLoading(false)
     }
@@ -49,168 +164,257 @@ function Questionnaire({ onBack }) {
 
   const renderPlan = () => {
     if (!result) return null
-    if (result.error) {
-      return <div className="error-box">{result.error}</div>
-    }
-
-    const { summary, weeklyPlan, safetyNotes, progressionNotes } = result
 
     return (
-      <div className="result">
-        <div className="result-header">
-          <h3>Workout Plan</h3>
-          <p className="plan-summary">{summary}</p>
+      <section className="generated-plan">
+        <div className="generated-plan-header">
+          <h2>Your Workout Plan</h2>
+          {result.summary && <p>{result.summary}</p>}
         </div>
 
-        {Array.isArray(weeklyPlan) && weeklyPlan.length > 0 && (
-          <div className="plan-section">
-            <h4>Weekly Plan</h4>
-            <div className="plan-grid">
-              {weeklyPlan.map((day, index) => (
-                <div className="plan-card" key={index}>
-                  <div className="plan-card-header">
-                    <span className="day-label">{day.day || `Day ${index + 1}`}</span>
-                    <strong>{day.focus}</strong>
-                  </div>
-                  <ul className="exercise-list">
-                    {Array.isArray(day.exercises) && day.exercises.map((exercise, exIndex) => (
-                      <li key={exIndex} className="exercise-item">
-                        <strong>{exercise.name}</strong>
-                        <div className="exercise-meta">
-                          <span>Sets: {exercise.sets}</span>
-                          <span>Reps: {exercise.reps}</span>
+        {Array.isArray(result.weeklyPlan) && result.weeklyPlan.length > 0 && (
+          <div className="generated-days">
+            {result.weeklyPlan.map((day, index) => (
+              <article className="generated-day-card" key={`${day.day}-${index}`}>
+                <div className="generated-day-header">
+                  <span>{day.day || `Day ${index + 1}`}</span>
+                  <strong>{day.focus}</strong>
+                </div>
+
+                {Array.isArray(day.exercises) && (
+                  <ul className="generated-exercises">
+                    {day.exercises.map((exercise, exerciseIndex) => (
+                      <li key={`${exercise.name}-${exerciseIndex}`}>
+                        <div>
+                          <strong>{exercise.name}</strong>
+                          {exercise.notes && <p>{exercise.notes}</p>}
                         </div>
-                        {exercise.notes && <p>{exercise.notes}</p>}
+                        <span>{exercise.sets} x {exercise.reps}</span>
                       </li>
                     ))}
                   </ul>
-                </div>
-              ))}
-            </div>
+                )}
+              </article>
+            ))}
           </div>
         )}
 
-        {Array.isArray(safetyNotes) && safetyNotes.length > 0 && (
-          <div className="plan-section">
-            <h4>Safety Notes</h4>
-            <ul className="notes-list">
-              {safetyNotes.map((note, index) => (
-                <li key={index}>{note}</li>
+        {Array.isArray(result.safetyNotes) && result.safetyNotes.length > 0 && (
+          <div className="generated-notes">
+            <h3>Safety Notes</h3>
+            <ul>
+              {result.safetyNotes.map((note, index) => (
+                <li key={`${note}-${index}`}>{note}</li>
               ))}
             </ul>
           </div>
         )}
 
-        {progressionNotes && (
-          <div className="plan-section">
-            <h4>Progression Notes</h4>
-            <p>{progressionNotes}</p>
+        {result.progressionNotes && (
+          <div className="generated-notes">
+            <h3>Progression</h3>
+            <p>{result.progressionNotes}</p>
           </div>
         )}
-      </div>
+      </section>
     )
   }
 
-  return (
-    <div className="questionnaire-page">
-      <button className="back-button" onClick={onBack}>← Back</button>
-      <div className="questionnaire-header">
-        <h2>Fitness Questionnaire</h2>
-        <p>Fill in the details below and get a personalized weekly workout plan.</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="form">
-        <div className="form-row">
-          <div>
-            <label>Age</label>
-            <input type="number" name="age" value={formData.age} onChange={handleChange} required />
+  const renderStep = () => {
+    if (step === 0) {
+      return (
+        <>
+          <div className="form-field">
+            <label htmlFor="age">Age</label>
+            <input id="age" type="number" name="age" placeholder="28" value={formData.age} onChange={handleChange} required />
           </div>
 
-          <div>
-            <label>Gender</label>
-            <select name="gender" value={formData.gender} onChange={handleChange} required>
-              <option value="">Select</option>
+          <div className="form-field">
+            <label htmlFor="gender">Gender</label>
+            <select id="gender" name="gender" value={formData.gender} onChange={handleChange} required>
+              <option value="">Select gender</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
             </select>
           </div>
-        </div>
 
-        <div className="form-row">
-          <div>
-            <label>Height (cm)</label>
-            <input type="number" name="height" value={formData.height} onChange={handleChange} required />
+          <div className="form-row">
+            <div className="form-field">
+              <label htmlFor="weight">Weight (kg)</label>
+              <input id="weight" type="number" name="weight" placeholder="75" value={formData.weight} onChange={handleChange} required />
+            </div>
+            <div className="form-field">
+              <label htmlFor="height">Height (cm)</label>
+              <input id="height" type="number" name="height" placeholder="178" value={formData.height} onChange={handleChange} required />
+            </div>
           </div>
 
-          <div>
-            <label>Weight (kg)</label>
-            <input type="number" name="weight" value={formData.weight} onChange={handleChange} required />
-          </div>
-        </div>
+          <div className="info-strip">This information helps us create a more personalized workout plan for you</div>
+        </>
+      )
+    }
 
-        <div className="form-row">
-          <div>
-            <label>Fitness Goal</label>
-            <select name="fitnessGoal" value={formData.fitnessGoal} onChange={handleChange} required>
-              <option value="">Select</option>
-              <option value="weight_loss">Weight Loss</option>
-              <option value="muscle_gain">Muscle Gain</option>
-              <option value="strength">Strength</option>
-              <option value="endurance">Endurance</option>
-            </select>
-          </div>
-
-          <div>
+    if (step === 1) {
+      return (
+        <>
+          <div className="form-field">
             <label>Training Level</label>
-            <select name="trainingLevel" value={formData.trainingLevel} onChange={handleChange} required>
-              <option value="">Select</option>
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
+            <div className="segmented-options">
+              {levelOptions.map((option) => (
+                <button
+                  className={formData.trainingLevel === option.value ? 'segment-option active' : 'segment-option'}
+                  key={option.value}
+                  type="button"
+                  onClick={() => selectValue('trainingLevel', option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="form-row">
-          <div>
-            <label>Available Training Days per Week</label>
-            <input type="number" name="trainingDays" value={formData.trainingDays} onChange={handleChange} required />
-          </div>
-
-          <div>
+          <div className="form-field">
             <label>Preferred Workout Type</label>
-            <select name="preferredWorkoutType" value={formData.preferredWorkoutType} onChange={handleChange} required>
-              <option value="">Select</option>
-              <option value="strength">Strength Training</option>
-              <option value="cardio">Cardio</option>
-              <option value="mixed">Mixed</option>
-            </select>
+            <div className="segmented-options">
+              {workoutTypes.map((option) => (
+                <button
+                  className={formData.preferredWorkoutType === option.value ? 'segment-option active' : 'segment-option'}
+                  key={option.value}
+                  type="button"
+                  onClick={() => selectValue('preferredWorkoutType', option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="injuries">Injuries or Limitations</label>
+            <textarea
+              id="injuries"
+              name="injuries"
+              placeholder="Tell us about pain, past injuries, mobility limits, or exercises to avoid"
+              value={formData.injuries}
+              onChange={handleChange}
+            />
+          </div>
+        </>
+      )
+    }
+
+    return (
+      <>
+        <div className="form-field">
+          <label>Primary Goal</label>
+          <div className="goal-grid">
+            {goalOptions.map((option) => (
+              <button
+                className={formData.fitnessGoal === option.value ? 'goal-card active' : 'goal-card'}
+                key={option.value}
+                type="button"
+                onClick={() => selectValue('fitnessGoal', option.value)}
+              >
+                <FormIcon name={option.icon} />
+                <span>{option.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="form-row">
-          <div>
-            <label>Injuries or Limitations</label>
-            <textarea name="injuries" value={formData.injuries} onChange={handleChange}></textarea>
-          </div>
+        <div className="form-field">
+          <label htmlFor="trainingDays">Workouts per week</label>
+          <select id="trainingDays" name="trainingDays" value={formData.trainingDays} onChange={handleChange} required>
+            <option value="">Select frequency</option>
+            <option value="2">2 days per week</option>
+            <option value="3">3 days per week</option>
+            <option value="4">4 days per week</option>
+            <option value="5">5 days per week</option>
+            <option value="6">6 days per week</option>
+          </select>
         </div>
 
-        <div className="form-row">
-          <div>
-            <label>Equipment Available</label>
-            <textarea name="equipmentAvailable" value={formData.equipmentAvailable} onChange={handleChange}></textarea>
+        <div className="form-field">
+          <label>Equipment Access</label>
+          <div className="chip-group">
+            {equipmentOptions.map((item) => (
+              <button
+                className={formData.equipmentAvailable.includes(item) ? 'equipment-chip active' : 'equipment-chip'}
+                key={item}
+                type="button"
+                onClick={() => toggleEquipment(item)}
+              >
+                {item}
+              </button>
+            ))}
           </div>
         </div>
+      </>
+    )
+  }
 
-        <button type="submit" className="primary-button" disabled={loading}>
-          {loading ? 'Generating...' : 'Generate Workout Plan'}
-        </button>
+  return (
+    <main className="questionnaire-page">
+      <button className="questionnaire-back" type="button" onClick={step === 0 ? onBack : previousStep}>
+        <span aria-hidden="true">←</span>
+        Back
+      </button>
+
+      <div className="questionnaire-brand">
+        <span><FormIcon name="brand" /></span>
+        <strong>GymBro</strong>
+      </div>
+
+      <div className="questionnaire-header">
+        <h1>Create Your Workout Plan</h1>
+        <p>Step {step + 1} of {steps.length}</p>
+      </div>
+
+      <div className="progress-steps" aria-label={`Step ${step + 1} of ${steps.length}`}>
+        {steps.map((item, index) => (
+          <span className={index <= step ? 'active' : ''} key={item.title} />
+        ))}
+      </div>
+
+      <form className="questionnaire-card" onSubmit={handleSubmit}>
+        <div className="questionnaire-card-header">
+          <h2>{steps[step].title}</h2>
+          <p>{steps[step].eyebrow}</p>
+        </div>
+
+        <div className="questionnaire-fields">
+          {renderStep()}
+        </div>
+
+        <div className="questionnaire-actions">
+          {step > 0 && (
+            <button className="secondary-action" type="button" onClick={previousStep}>
+              Back
+            </button>
+          )}
+          {step < steps.length - 1 ? (
+            <button className="primary-action" type="button" onClick={nextStep}>
+              Continue
+            </button>
+          ) : (
+            <button className="primary-action" type="submit" disabled={loading}>
+              {loading ? 'Creating Plan...' : 'Create My Plan'}
+            </button>
+          )}
+        </div>
+
+        {error && <div className="error-strip">{error}</div>}
+
+        {submitted && (
+          <div className="success-strip">
+            Your workout plan was generated successfully.
+          </div>
+        )}
       </form>
 
-      {loading && <div className="loading">Generating workout plan...</div>}
       {renderPlan()}
-    </div>
+    </main>
   )
 }
 
