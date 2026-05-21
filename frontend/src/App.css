@@ -848,6 +848,88 @@ button {
   font-weight: 650;
 }
 
+.plan-page {
+  width: min(1120px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 54px 0 70px;
+}
+
+.plan-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 34px;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(135deg, #ff7a1a, #ef3442);
+  box-shadow: 0 18px 42px rgba(239, 68, 68, 0.18);
+}
+
+.plan-kicker {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.plan-hero h1 {
+  max-width: 650px;
+  margin: 0 0 12px;
+  font-size: 38px;
+  line-height: 1.05;
+}
+
+.plan-hero p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.plan-edit-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 140px;
+  color: #c2410c;
+  background: #fff;
+}
+
+.plan-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.plan-metrics div {
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.plan-metrics span {
+  display: block;
+  margin-bottom: 7px;
+  color: #0f172a;
+  font-size: 26px;
+  font-weight: 850;
+  text-transform: capitalize;
+}
+
+.plan-metrics p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .generated-plan {
   margin-top: 30px;
   padding: 34px;
@@ -876,24 +958,32 @@ button {
 
 .generated-days {
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
 }
 
 .generated-day-card {
-  padding: 20px;
-  border: 1px solid #fed7aa;
-  border-radius: 10px;
-  background: #fffaf5;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
 }
 
 .generated-day-header {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 20px;
+  border-bottom: 1px solid #ffedd5;
+  background: #fff7ed;
 }
 
 .generated-day-header span {
+  display: block;
+  margin-bottom: 6px;
   color: #ea580c;
   font-size: 13px;
   font-weight: 800;
@@ -901,26 +991,54 @@ button {
 }
 
 .generated-day-header strong {
+  display: block;
   color: #0f172a;
   font-size: 18px;
+  line-height: 1.25;
+}
+
+.generated-day-header small {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #9a3412;
+  background: #fed7aa;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .generated-exercises {
   display: grid;
-  gap: 12px;
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .generated-exercises li {
-  display: flex;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 14px;
-  border-radius: 8px;
+  gap: 14px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
   background: #fff;
+}
+
+.generated-exercises li:last-child {
+  border-bottom: 0;
+}
+
+.exercise-number {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: #ea580c;
+  background: #fff7ed;
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .generated-exercises strong {
@@ -936,17 +1054,31 @@ button {
   line-height: 1.45;
 }
 
-.generated-exercises li > span {
+.exercise-dose {
   flex: 0 0 auto;
+  padding: 8px 10px;
+  border-radius: 8px;
   color: #c2410c;
+  background: #fff7ed;
+  font-size: 13px;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.plan-guidance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 24px;
 }
 
 .generated-notes {
-  margin-top: 22px;
-  padding: 18px;
-  border-radius: 10px;
-  background: #f8fafc;
+  margin-top: 0;
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
 .generated-notes h3 {
@@ -1008,6 +1140,27 @@ button {
   .questionnaire-page {
     width: min(100% - 36px, 720px);
     padding-top: 34px;
+  }
+
+  .plan-page {
+    width: min(100% - 36px, 760px);
+    padding-top: 34px;
+  }
+
+  .plan-hero {
+    flex-direction: column;
+  }
+
+  .plan-edit-button {
+    width: 100%;
+  }
+
+  .plan-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .plan-guidance-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1076,6 +1229,22 @@ button {
     padding: 24px 18px;
   }
 
+  .plan-page {
+    width: min(100% - 32px, 520px);
+  }
+
+  .plan-hero {
+    padding: 26px 20px;
+  }
+
+  .plan-hero h1 {
+    font-size: 29px;
+  }
+
+  .plan-metrics {
+    grid-template-columns: 1fr;
+  }
+
   .segmented-options,
   .goal-grid {
     grid-template-columns: 1fr;
@@ -1083,8 +1252,24 @@ button {
 
   .generated-day-header,
   .generated-exercises li {
-    flex-direction: column;
     gap: 8px;
+  }
+
+  .generated-days {
+    grid-template-columns: 1fr;
+  }
+
+  .generated-day-header {
+    flex-direction: column;
+  }
+
+  .generated-exercises li {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .exercise-dose {
+    grid-column: 2;
+    width: max-content;
   }
 
   .questionnaire-actions {

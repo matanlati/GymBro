@@ -70,6 +70,7 @@ function FormIcon({ name }) {
 
 function Questionnaire({ onBack }) {
   const [step, setStep] = useState(0)
+  const [view, setView] = useState('form')
   const [formData, setFormData] = useState({
     age: '',
     gender: '',
@@ -115,6 +116,12 @@ function Questionnaire({ onBack }) {
     setStep((current) => Math.max(current - 1, 0))
   }
 
+  const editAnswers = () => {
+    setSubmitted(false)
+    setError('')
+    setView('form')
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
     generateWorkoutPlan()
@@ -155,6 +162,7 @@ function Questionnaire({ onBack }) {
 
       setResult(data)
       setSubmitted(true)
+      setView('result')
     } catch (requestError) {
       setError(requestError.message || 'Failed to generate workout plan')
     } finally {
@@ -165,58 +173,99 @@ function Questionnaire({ onBack }) {
   const renderPlan = () => {
     if (!result) return null
 
+    const dayCount = Array.isArray(result.weeklyPlan) ? result.weeklyPlan.length : 0
+    const exerciseCount = Array.isArray(result.weeklyPlan)
+      ? result.weeklyPlan.reduce((total, day) => total + (Array.isArray(day.exercises) ? day.exercises.length : 0), 0)
+      : 0
+
     return (
-      <section className="generated-plan">
-        <div className="generated-plan-header">
-          <h2>Your Workout Plan</h2>
-          {result.summary && <p>{result.summary}</p>}
+      <main className="plan-page">
+        <button className="questionnaire-back" type="button" onClick={onBack}>
+          <span aria-hidden="true">←</span>
+          Dashboard
+        </button>
+
+        <section className="plan-hero">
+          <div>
+            <span className="plan-kicker">Generated Workout Plan</span>
+            <h1>Your {dayCount || formData.trainingDays || ''}-Day Training Plan</h1>
+            {result.summary && <p>{result.summary}</p>}
+          </div>
+          <button className="secondary-action plan-edit-button" type="button" onClick={editAnswers}>
+            Edit Answers
+          </button>
+        </section>
+
+        <div className="plan-metrics" aria-label="Plan summary">
+          <div>
+            <span>{dayCount || '-'}</span>
+            <p>Training Days</p>
+          </div>
+          <div>
+            <span>{exerciseCount || '-'}</span>
+            <p>Total Exercises</p>
+          </div>
+          <div>
+            <span>{formData.trainingLevel || '-'}</span>
+            <p>Level</p>
+          </div>
+          <div>
+            <span>{formData.equipmentAvailable.length || '-'}</span>
+            <p>Equipment Picks</p>
+          </div>
         </div>
 
         {Array.isArray(result.weeklyPlan) && result.weeklyPlan.length > 0 && (
-          <div className="generated-days">
+          <section className="generated-days">
             {result.weeklyPlan.map((day, index) => (
               <article className="generated-day-card" key={`${day.day}-${index}`}>
                 <div className="generated-day-header">
-                  <span>{day.day || `Day ${index + 1}`}</span>
-                  <strong>{day.focus}</strong>
+                  <div>
+                    <span>{day.day || `Day ${index + 1}`}</span>
+                    <strong>{day.focus}</strong>
+                  </div>
+                  <small>{Array.isArray(day.exercises) ? day.exercises.length : 0} exercises</small>
                 </div>
 
                 {Array.isArray(day.exercises) && (
                   <ul className="generated-exercises">
                     {day.exercises.map((exercise, exerciseIndex) => (
                       <li key={`${exercise.name}-${exerciseIndex}`}>
+                        <span className="exercise-number">{exerciseIndex + 1}</span>
                         <div>
                           <strong>{exercise.name}</strong>
                           {exercise.notes && <p>{exercise.notes}</p>}
                         </div>
-                        <span>{exercise.sets} x {exercise.reps}</span>
+                        <span className="exercise-dose">{exercise.sets} x {exercise.reps}</span>
                       </li>
                     ))}
                   </ul>
                 )}
               </article>
             ))}
-          </div>
+          </section>
         )}
 
-        {Array.isArray(result.safetyNotes) && result.safetyNotes.length > 0 && (
-          <div className="generated-notes">
-            <h3>Safety Notes</h3>
-            <ul>
-              {result.safetyNotes.map((note, index) => (
-                <li key={`${note}-${index}`}>{note}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <section className="plan-guidance-grid">
+          {Array.isArray(result.safetyNotes) && result.safetyNotes.length > 0 && (
+            <div className="generated-notes">
+              <h3>Safety Notes</h3>
+              <ul>
+                {result.safetyNotes.map((note, index) => (
+                  <li key={`${note}-${index}`}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-        {result.progressionNotes && (
-          <div className="generated-notes">
-            <h3>Progression</h3>
-            <p>{result.progressionNotes}</p>
-          </div>
-        )}
-      </section>
+          {result.progressionNotes && (
+            <div className="generated-notes">
+              <h3>Progression</h3>
+              <p>{result.progressionNotes}</p>
+            </div>
+          )}
+        </section>
+      </main>
     )
   }
 
@@ -354,6 +403,10 @@ function Questionnaire({ onBack }) {
     )
   }
 
+  if (view === 'result' && result) {
+    return renderPlan()
+  }
+
   return (
     <main className="questionnaire-page">
       <button className="questionnaire-back" type="button" onClick={step === 0 ? onBack : previousStep}>
@@ -412,8 +465,6 @@ function Questionnaire({ onBack }) {
           </div>
         )}
       </form>
-
-      {renderPlan()}
     </main>
   )
 }
