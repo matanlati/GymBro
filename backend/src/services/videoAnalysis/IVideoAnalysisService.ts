@@ -1,5 +1,5 @@
-import { VideoFile } from '../../types'
+import { VideoFile, VideoAnalysisResult } from '../../types'
 
 export abstract class IVideoAnalysisService {
-  abstract analyze(videoFile: VideoFile): Promise<unknown>
+  abstract analyze(videoFile: VideoFile): Promise<VideoAnalysisResult>
 }
