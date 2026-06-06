@@ -3,15 +3,7 @@ import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div style={{ padding: 32, fontFamily: 'system-ui', color: '#111827' }}>
-      <h1>{title}</h1>
-      <p style={{ color: '#6B7280' }}>This page is coming soon.</p>
-    </div>
-  )
-}
+import HomePage from './pages/HomePage'
 
 export default function App() {
   return (
@@ -24,7 +16,7 @@ export default function App() {
             path="/home"
             element={
               <ProtectedRoute>
-                <PlaceholderPage title="Dashboard" />
+                <HomePage />
               </ProtectedRoute>
             }
           />
