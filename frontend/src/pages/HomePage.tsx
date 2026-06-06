@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import VideoUpload from '../components/VideoUpload'
 import Questionnaire from '../components/Questionnaire'
 
@@ -25,6 +25,7 @@ export default function HomePage() {
         <h1 style={styles.title}>GymBro</h1>
         <div style={styles.headerRight}>
           {user && <span style={styles.userName}>Hi, {user.name}</span>}
+          <Link to="/profile" style={styles.profileLink}>Profile</Link>
           <button onClick={handleLogout} style={styles.logoutBtn}>Log out</button>
         </div>
       </div>
@@ -78,6 +79,12 @@ const styles: Record<string, React.CSSProperties> = {
   userName: {
     fontSize: 14,
     color: '#374151',
+  },
+  profileLink: {
+    fontSize: 13,
+    color: '#F97316',
+    fontWeight: 600,
+    textDecoration: 'none',
   },
   logoutBtn: {
     fontSize: 13,
