@@ -20,26 +20,18 @@ function Icon({ name }: { name: IconName }) {
   }
 }
 
-const navItems: { id: string; label: string; icon: IconName; view?: string; path: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'home',     path: '/home' },
-  { id: 'workouts',  label: 'Workouts',  icon: 'dumbbell', path: '/home?view=workouts' },
-  { id: 'ai',        label: 'AI Coach',  icon: 'spark',    path: '/home?view=ai' },
-  { id: 'progress',  label: 'Progress',  icon: 'chart',    path: '/home?view=progress' },
-  { id: 'profile',   label: 'Profile',   icon: 'user',     path: '/profile' },
+const navItems: { id: string; label: string; icon: IconName; path: string }[] = [
+  { id: '/home',      label: 'Dashboard', icon: 'home',     path: '/home' },
+  { id: '/workouts',  label: 'Workouts',  icon: 'dumbbell', path: '/workouts' },
+  { id: '/ai-coach',  label: 'AI Coach',  icon: 'spark',    path: '/ai-coach' },
+  { id: '/progress',  label: 'Progress',  icon: 'chart',    path: '/progress' },
+  { id: '/profile',   label: 'Profile',   icon: 'user',     path: '/profile' },
 ]
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { logout } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
-
-  const currentView = new URLSearchParams(location.search).get('view') ?? 'dashboard'
-  const isProfile = location.pathname === '/profile'
-
-  function activeId() {
-    if (isProfile) return 'profile'
-    return currentView
-  }
+  const { pathname } = useLocation()
 
   function handleLogout() {
     logout()
@@ -58,7 +50,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           {navItems.map(item => (
             <button
               key={item.id}
-              className={activeId() === item.id ? 'nav-tab active' : 'nav-tab'}
+              className={pathname === item.path ? 'nav-tab active' : 'nav-tab'}
               type="button"
               onClick={() => navigate(item.path)}
             >

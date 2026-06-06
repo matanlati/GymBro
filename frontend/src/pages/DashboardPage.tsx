@@ -1,7 +1,6 @@
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import VideoUpload from '../components/VideoUpload'
-import Questionnaire from '../components/Questionnaire'
+
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
@@ -49,11 +48,9 @@ const progressDays = [
   { day: 'Sun', value: 49, active: false },
 ]
 
-// ── Sub-views ─────────────────────────────────────────────────────────────────
-type View = 'dashboard' | 'workouts' | 'questionnaire' | 'ai' | 'video' | 'progress'
-
-function Dashboard({ setView }: { setView: (v: View) => void }) {
+function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   return (
     <main className="dashboard">
       <section className="dashboard-hero">
@@ -88,7 +85,7 @@ function Dashboard({ setView }: { setView: (v: View) => void }) {
               <p>5 exercises</p>
               <span>45 min</span>
             </div>
-            <button type="button" onClick={() => setView('questionnaire')}>Start Workout</button>
+            <button type="button" onClick={() => navigate('/workouts')}>Start Workout</button>
           </div>
           <div className="week-progress">
             <h3>This Week's Progress</h3>
@@ -118,7 +115,7 @@ function Dashboard({ setView }: { setView: (v: View) => void }) {
           <section className="coach-panel">
             <h2>AI Coach Available</h2>
             <p>Upload your workout video for real-time form analysis and feedback</p>
-            <button type="button" onClick={() => setView('video')}>Try AI Coach</button>
+            <button type="button" onClick={() => navigate('/ai-coach')}>Try AI Coach</button>
           </section>
         </aside>
       </section>
@@ -126,36 +123,6 @@ function Dashboard({ setView }: { setView: (v: View) => void }) {
   )
 }
 
-function PlaceholderView({ title, description, onBack }: { title: string; description: string; onBack: () => void }) {
-  return (
-    <main className="placeholder-view">
-      <button className="back-button" type="button" onClick={onBack}>Back</button>
-      <h1>{title}</h1>
-      <p>{description}</p>
-    </main>
-  )
-}
-
-// ── Main Component ────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const view = (searchParams.get('view') ?? 'dashboard') as View
-
-  function setView(v: View) {
-    navigate(v === 'dashboard' ? '/home' : `/home?view=${v}`)
-  }
-
-  switch (view) {
-    case 'video':
-    case 'ai':
-      return <VideoUpload onBack={() => setView('dashboard')} />
-    case 'questionnaire':
-    case 'workouts':
-      return <Questionnaire onBack={() => setView('dashboard')} />
-    case 'progress':
-      return <PlaceholderView title="Progress" description="Progress tracking coming soon." onBack={() => setView('dashboard')} />
-    default:
-      return <Dashboard setView={setView} />
-  }
+  return <Dashboard />
 }
