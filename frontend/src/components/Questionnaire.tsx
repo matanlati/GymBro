@@ -1,47 +1,67 @@
-import { useState } from 'react'
+import { useState, FormEvent, ChangeEvent } from 'react'
+import client from '../api/client'
 
-function Questionnaire({ onBack }) {
-  const [formData, setFormData] = useState({
-    age: '',
-    gender: '',
-    height: '',
-    weight: '',
-    fitnessGoal: '',
-    trainingLevel: '',
-    trainingDays: '',
-    injuries: '',
-    preferredWorkoutType: '',
-    equipmentAvailable: ''
-  })
-  const [result, setResult] = useState(null)
+interface QuestionnaireData {
+  age: string
+  gender: string
+  height: string
+  weight: string
+  fitnessGoal: string
+  trainingLevel: string
+  trainingDays: string
+  injuries: string
+  preferredWorkoutType: string
+  equipmentAvailable: string
+}
+
+interface Exercise {
+  name: string
+  sets: string
+  reps: string
+  notes?: string
+}
+
+interface DayPlan {
+  day: string
+  focus: string
+  exercises: Exercise[]
+}
+
+interface WorkoutPlan {
+  summary: string
+  weeklyPlan: DayPlan[]
+  safetyNotes: string[]
+  progressionNotes: string
+  error?: string
+}
+
+interface Props {
+  onBack: () => void
+}
+
+const initialForm: QuestionnaireData = {
+  age: '', gender: '', height: '', weight: '',
+  fitnessGoal: '', trainingLevel: '', trainingDays: '',
+  injuries: '', preferredWorkoutType: '', equipmentAvailable: '',
+}
+
+export default function Questionnaire({ onBack }: Props) {
+  const [formData, setFormData] = useState<QuestionnaireData>(initialForm)
+  const [result, setResult] = useState<WorkoutPlan | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     try {
-      const response = await fetch('/api/workout-plan/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
-
-      const text = await response.text()
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch (parseError) {
-        data = { error: text || 'Invalid server response' }
-      }
-
+      const { data } = await client.post<WorkoutPlan>('/workout-plan/generate', formData)
       setResult(data)
     } catch (error) {
-      setResult({ error: error.message || 'Failed to generate workout plan' })
+      setResult({ error: error instanceof Error ? error.message : 'Failed to generate workout plan' } as WorkoutPlan)
     } finally {
       setLoading(false)
     }
@@ -49,12 +69,9 @@ function Questionnaire({ onBack }) {
 
   const renderPlan = () => {
     if (!result) return null
-    if (result.error) {
-      return <div className="error-box">{result.error}</div>
-    }
+    if (result.error) return <div className="error-box">{result.error}</div>
 
     const { summary, weeklyPlan, safetyNotes, progressionNotes } = result
-
     return (
       <div className="result">
         <div className="result-header">
@@ -66,21 +83,21 @@ function Questionnaire({ onBack }) {
           <div className="plan-section">
             <h4>Weekly Plan</h4>
             <div className="plan-grid">
-              {weeklyPlan.map((day, index) => (
-                <div className="plan-card" key={index}>
+              {weeklyPlan.map((day, i) => (
+                <div className="plan-card" key={i}>
                   <div className="plan-card-header">
-                    <span className="day-label">{day.day || `Day ${index + 1}`}</span>
+                    <span className="day-label">{day.day || `Day ${i + 1}`}</span>
                     <strong>{day.focus}</strong>
                   </div>
                   <ul className="exercise-list">
-                    {Array.isArray(day.exercises) && day.exercises.map((exercise, exIndex) => (
-                      <li key={exIndex} className="exercise-item">
-                        <strong>{exercise.name}</strong>
+                    {day.exercises.map((ex, j) => (
+                      <li key={j} className="exercise-item">
+                        <strong>{ex.name}</strong>
                         <div className="exercise-meta">
-                          <span>Sets: {exercise.sets}</span>
-                          <span>Reps: {exercise.reps}</span>
+                          <span>Sets: {ex.sets}</span>
+                          <span>Reps: {ex.reps}</span>
                         </div>
-                        {exercise.notes && <p>{exercise.notes}</p>}
+                        {ex.notes && <p>{ex.notes}</p>}
                       </li>
                     ))}
                   </ul>
@@ -94,9 +111,7 @@ function Questionnaire({ onBack }) {
           <div className="plan-section">
             <h4>Safety Notes</h4>
             <ul className="notes-list">
-              {safetyNotes.map((note, index) => (
-                <li key={index}>{note}</li>
-              ))}
+              {safetyNotes.map((note, i) => <li key={i}>{note}</li>)}
             </ul>
           </div>
         )}
@@ -125,7 +140,6 @@ function Questionnaire({ onBack }) {
             <label>Age</label>
             <input type="number" name="age" value={formData.age} onChange={handleChange} required />
           </div>
-
           <div>
             <label>Gender</label>
             <select name="gender" value={formData.gender} onChange={handleChange} required>
@@ -142,7 +156,6 @@ function Questionnaire({ onBack }) {
             <label>Height (cm)</label>
             <input type="number" name="height" value={formData.height} onChange={handleChange} required />
           </div>
-
           <div>
             <label>Weight (kg)</label>
             <input type="number" name="weight" value={formData.weight} onChange={handleChange} required />
@@ -160,7 +173,6 @@ function Questionnaire({ onBack }) {
               <option value="endurance">Endurance</option>
             </select>
           </div>
-
           <div>
             <label>Training Level</label>
             <select name="trainingLevel" value={formData.trainingLevel} onChange={handleChange} required>
@@ -177,7 +189,6 @@ function Questionnaire({ onBack }) {
             <label>Available Training Days per Week</label>
             <input type="number" name="trainingDays" value={formData.trainingDays} onChange={handleChange} required />
           </div>
-
           <div>
             <label>Preferred Workout Type</label>
             <select name="preferredWorkoutType" value={formData.preferredWorkoutType} onChange={handleChange} required>
@@ -192,14 +203,14 @@ function Questionnaire({ onBack }) {
         <div className="form-row">
           <div>
             <label>Injuries or Limitations</label>
-            <textarea name="injuries" value={formData.injuries} onChange={handleChange}></textarea>
+            <textarea name="injuries" value={formData.injuries} onChange={handleChange} />
           </div>
         </div>
 
         <div className="form-row">
           <div>
             <label>Equipment Available</label>
-            <textarea name="equipmentAvailable" value={formData.equipmentAvailable} onChange={handleChange}></textarea>
+            <textarea name="equipmentAvailable" value={formData.equipmentAvailable} onChange={handleChange} />
           </div>
         </div>
 
@@ -213,5 +224,3 @@ function Questionnaire({ onBack }) {
     </div>
   )
 }
-
-export default Questionnaire

@@ -1,26 +1,22 @@
-import { useState } from 'react'
+import { useState, FormEvent, ChangeEvent } from 'react'
+import client from '../api/client'
 
-function VideoUpload({ onBack }) {
-  const [file, setFile] = useState(null)
+interface Props {
+  onBack: () => void
+}
+
+interface AnalysisResult {
+  evaluation?: unknown
+  error?: string
+}
+
+export default function VideoUpload({ onBack }: Props) {
+  const [file, setFile] = useState<File | null>(null)
   const [exerciseType, setExerciseType] = useState('squat')
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState<AnalysisResult | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const renderEvaluation = () => {
-    if (!result) return null
-
-    if (result.error) {
-      return <p className="error">{result.error}</p>
-    }
-
-    if (!result.evaluation) {
-      return <p>No evaluation was returned.</p>
-    }
-
-    return <pre>{JSON.stringify(result.evaluation, null, 2)}</pre>
-  }
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!file) return
 
@@ -30,17 +26,20 @@ function VideoUpload({ onBack }) {
     formData.append('exerciseType', exerciseType)
 
     try {
-      const response = await fetch('/api/video/analyze', {
-        method: 'POST',
-        body: formData
-      })
-      const data = await response.json()
+      const { data } = await client.post<AnalysisResult>('/video/analyze', formData)
       setResult(data)
-    } catch (error) {
+    } catch {
       setResult({ error: 'Failed to analyze video' })
     } finally {
       setLoading(false)
     }
+  }
+
+  const renderEvaluation = () => {
+    if (!result) return null
+    if (result.error) return <p className="error">{result.error}</p>
+    if (!result.evaluation) return <p>No evaluation was returned.</p>
+    return <pre>{JSON.stringify(result.evaluation, null, 2)}</pre>
   }
 
   return (
@@ -50,7 +49,7 @@ function VideoUpload({ onBack }) {
       <form onSubmit={handleSubmit} className="form">
         <label>
           Exercise type
-          <select value={exerciseType} onChange={(e) => setExerciseType(e.target.value)} required>
+          <select value={exerciseType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setExerciseType(e.target.value)} required>
             <option value="squat">Squat</option>
             <option value="deadlift">Deadlift</option>
             <option value="push-up">Push-up</option>
@@ -62,7 +61,7 @@ function VideoUpload({ onBack }) {
         <input
           type="file"
           accept="video/*"
-          onChange={(e) => setFile(e.target.files[0])}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null)}
           required
         />
         <button type="submit" disabled={loading}>
@@ -79,5 +78,3 @@ function VideoUpload({ onBack }) {
     </div>
   )
 }
-
-export default VideoUpload
