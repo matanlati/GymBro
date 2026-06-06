@@ -10,6 +10,7 @@ export interface IUser extends Document {
   fitnessLevel?: 'beginner' | 'intermediate' | 'advanced'
   goals?: string
   limitations?: string
+  photo?: string
   createdAt: Date
 }
 
@@ -24,6 +25,7 @@ const userSchema = new Schema<IUser>(
     fitnessLevel: { type: String, enum: ['beginner', 'intermediate', 'advanced'] },
     goals: String,
     limitations: String,
+    photo: String,
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 )
