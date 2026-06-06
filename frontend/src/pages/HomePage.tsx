@@ -4,6 +4,24 @@ import { useNavigate, Link } from 'react-router-dom'
 import VideoUpload from '../components/VideoUpload'
 import Questionnaire from '../components/Questionnaire'
 
+function IconVideo() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="6" width="14" height="12" rx="2" />
+      <path d="M16 10l5-3v10l-5-3V10z" />
+    </svg>
+  )
+}
+
+function IconClipboard() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M9 3h6M9 8h6M9 12h4" />
+    </svg>
+  )
+}
+
 type View = 'main' | 'video' | 'questionnaire'
 
 export default function HomePage() {
@@ -34,12 +52,12 @@ export default function HomePage() {
         <h2 style={styles.heading}>AI Fitness Assistant</h2>
         <div style={styles.cards}>
           <button style={styles.card} onClick={() => setView('video')}>
-            <span style={styles.cardIcon}>🎥</span>
+            <IconVideo />
             <span style={styles.cardTitle}>Upload Workout Video</span>
             <span style={styles.cardDesc}>Get AI-powered form analysis</span>
           </button>
           <button style={styles.card} onClick={() => setView('questionnaire')}>
-            <span style={styles.cardIcon}>📋</span>
+            <IconClipboard />
             <span style={styles.cardTitle}>Fitness Questionnaire</span>
             <span style={styles.cardDesc}>Generate a personalized workout plan</span>
           </button>
