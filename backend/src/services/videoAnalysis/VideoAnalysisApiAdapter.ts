@@ -1,30 +1,39 @@
-const fs = require('fs')
-const http = require('http')
-const https = require('https')
-const { randomUUID } = require('crypto')
-const IVideoAnalysisService = require('./IVideoAnalysisService')
+import fs from 'fs'
+import http from 'http'
+import https from 'https'
+import { randomUUID } from 'crypto'
+import { IVideoAnalysisService } from './IVideoAnalysisService'
+import { VideoFile } from '../../types'
+
+interface RequestResponse {
+  ok: boolean
+  status: number
+  text: string
+}
 
 class VideoAnalysisApiAdapter extends IVideoAnalysisService {
-  getServiceUrl() {
+  private getServiceUrl(): string {
     const serviceUrl = process.env.VIDEO_ANALYSIS_SERVICE_URL
-    if (!serviceUrl) {
-      throw new Error('VIDEO_ANALYSIS_SERVICE_URL environment variable is required for the real video analysis service')
-    }
+    if (!serviceUrl) throw new Error('VIDEO_ANALYSIS_SERVICE_URL environment variable is required')
     return serviceUrl
   }
 
-  getApiKey() {
+  private getApiKey(): string | null {
     return process.env.VIDEO_ANALYSIS_API_KEY || null
   }
 
-  getTimeoutMs() {
+  private getTimeoutMs(): number {
     const timeoutMs = Number(process.env.VIDEO_ANALYSIS_TIMEOUT_MS || 15 * 60 * 1000)
     return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 15 * 60 * 1000
   }
 
-  buildMultipartBody(videoFile, fileBuffer) {
+  private escapeHeaderValue(value: string): string {
+    return String(value).replace(/["\r\n]/g, '_')
+  }
+
+  private buildMultipartBody(videoFile: VideoFile, fileBuffer: Buffer): { boundary: string; body: Buffer } {
     const boundary = `----gymbro-video-analysis-${randomUUID()}`
-    const chunks = []
+    const chunks: Buffer[] = []
 
     chunks.push(Buffer.from(
       `--${boundary}\r\n` +
@@ -43,18 +52,15 @@ class VideoAnalysisApiAdapter extends IVideoAnalysisService {
     }
 
     chunks.push(Buffer.from(`--${boundary}--\r\n`))
-
-    return {
-      boundary,
-      body: Buffer.concat(chunks)
-    }
+    return { boundary, body: Buffer.concat(chunks) }
   }
 
-  escapeHeaderValue(value) {
-    return String(value).replace(/["\r\n]/g, '_')
-  }
-
-  requestAnalysis(serviceUrl, headers, body, timeoutMs) {
+  private requestAnalysis(
+    serviceUrl: string,
+    headers: Record<string, string | number>,
+    body: Buffer,
+    timeoutMs: number
+  ): Promise<RequestResponse> {
     return new Promise((resolve, reject) => {
       const url = new URL(serviceUrl)
       const client = url.protocol === 'https:' ? https : http
@@ -66,55 +72,50 @@ class VideoAnalysisApiAdapter extends IVideoAnalysisService {
         port: url.port,
         path: `${url.pathname}${url.search}`,
         headers,
-        timeout: timeoutMs
+        timeout: timeoutMs,
       }, (res) => {
-        const chunks = []
-
-        res.on('data', (chunk) => chunks.push(chunk))
+        const chunks: Buffer[] = []
+        res.on('data', (chunk: Buffer) => chunks.push(chunk))
         res.on('end', () => {
           resolve({
-            ok: res.statusCode >= 200 && res.statusCode < 300,
-            status: res.statusCode,
-            text: Buffer.concat(chunks).toString('utf8')
+            ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
+            status: res.statusCode ?? 0,
+            text: Buffer.concat(chunks).toString('utf8'),
           })
         })
       })
 
-      req.on('timeout', () => {
-        req.destroy(new Error(`Video analysis service timed out after ${timeoutMs}ms`))
-      })
+      req.on('timeout', () => req.destroy(new Error(`Video analysis service timed out after ${timeoutMs}ms`)))
       req.on('error', reject)
       req.end(body)
     })
   }
 
-  async analyze(videoFile) {
+  async analyze(videoFile: VideoFile): Promise<unknown> {
     const serviceUrl = this.getServiceUrl()
     const apiKey = this.getApiKey()
     const timeoutMs = this.getTimeoutMs()
     const fileBuffer = await fs.promises.readFile(videoFile.path)
     const { boundary, body } = this.buildMultipartBody(videoFile, fileBuffer)
 
-    const headers = {
+    const headers: Record<string, string | number> = {
       'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      'Content-Length': body.length
+      'Content-Length': body.length,
     }
-    if (apiKey) {
-      headers.Authorization = `Bearer ${apiKey}`
-    }
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
 
     const response = await this.requestAnalysis(serviceUrl, headers, body, timeoutMs)
 
-    const text = response.text
-    let data
+    let data: Record<string, unknown>
     try {
-      data = JSON.parse(text)
-    } catch (parseError) {
-      throw new Error(`Video analysis service returned invalid JSON: ${text}`)
+      data = JSON.parse(response.text)
+    } catch {
+      throw new Error(`Video analysis service returned invalid JSON: ${response.text}`)
     }
 
     if (!response.ok) {
-      const message = data.error?.message || text || `Status ${response.status}`
+      const errData = data.error as Record<string, unknown> | undefined
+      const message = (errData?.message as string) || response.text || `Status ${response.status}`
       throw new Error(`Video analysis service error: ${message}`)
     }
 
@@ -122,4 +123,4 @@ class VideoAnalysisApiAdapter extends IVideoAnalysisService {
   }
 }
 
-module.exports = new VideoAnalysisApiAdapter()
+export default new VideoAnalysisApiAdapter()

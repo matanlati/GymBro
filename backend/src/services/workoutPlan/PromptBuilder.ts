@@ -1,5 +1,7 @@
-class PromptBuilder {
-  static buildPrompt(questionnaireData, retrievedContext) {
+import { QuestionnaireData } from '../../types'
+
+export class PromptBuilder {
+  static buildPrompt(questionnaireData: QuestionnaireData, retrievedContext: string[]): string {
     const contextStr = retrievedContext.join('\n')
 
     return `
@@ -52,5 +54,3 @@ IMPORTANT: Return ONLY the JSON object. Do not wrap it in markdown code blocks, 
 `
   }
 }
-
-module.exports = PromptBuilder
