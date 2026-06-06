@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import ProfilePage from './pages/ProfilePage'
+import Layout from './components/Layout'
 
 export default function App() {
   return (
@@ -17,7 +18,9 @@ export default function App() {
             path="/home"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <Layout>
+                  <DashboardPage />
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -25,7 +28,9 @@ export default function App() {
             path="/profile"
             element={
               <ProtectedRoute>
-                <ProfilePage />
+                <Layout>
+                  <ProfilePage />
+                </Layout>
               </ProtectedRoute>
             }
           />
