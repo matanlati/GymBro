@@ -1,9 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
 import VideoUpload from '../components/VideoUpload'
 import Questionnaire from '../components/Questionnaire'
-import '../App.css'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
@@ -34,14 +31,6 @@ function Icon({ name }: { name: IconName }) {
 }
 
 // ── Data ──────────────────────────────────────────────────────────────────────
-const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'home' as IconName },
-  { id: 'workouts',  label: 'Workouts',  icon: 'dumbbell' as IconName },
-  { id: 'ai',        label: 'AI Coach',  icon: 'spark' as IconName },
-  { id: 'progress',  label: 'Progress',  icon: 'chart' as IconName },
-  { id: 'profile',   label: 'Profile',   icon: 'user' as IconName },
-]
-
 const statCards = [
   { label: 'Workouts This Week', value: '3/5',    icon: 'dumbbell' as IconName, tone: 'orange' },
   { label: 'Current Streak',     value: '12 days', icon: 'trend' as IconName,   tone: 'green' },
@@ -148,24 +137,8 @@ function PlaceholderView({ title, description, onBack }: { title: string; descri
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const { logout } = useAuth()
   const navigate = useNavigate()
   const [view, setView] = useState<View>('dashboard')
-
-  function handleNavClick(id: string) {
-    if (id === 'profile') {
-      navigate('/profile')
-      return
-    }
-    setView(id as View)
-  }
-
-  function handleLogout() {
-    logout()
-    navigate('/login')
-  }
-
-  const activeNav = view === 'questionnaire' ? 'workouts' : view === 'video' ? 'ai' : view
 
   const renderView = () => {
     switch (view) {
@@ -182,34 +155,5 @@ export default function DashboardPage() {
     }
   }
 
-  return (
-    <div className="app-shell">
-      <header className="topbar">
-        <button className="brand" type="button" onClick={() => setView('dashboard')}>
-          <span className="brand-mark"><Icon name="dumbbell" /></span>
-          <span>GymBro</span>
-        </button>
-
-        <nav className="nav-tabs" aria-label="Primary navigation">
-          {navItems.map(item => (
-            <button
-              key={item.id}
-              className={activeNav === item.id ? 'nav-tab active' : 'nav-tab'}
-              type="button"
-              onClick={() => handleNavClick(item.id)}
-            >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <button onClick={handleLogout} style={{ background: 'none', border: 'none', fontSize: 13, color: '#6B7280', cursor: 'pointer' }}>
-          Log out
-        </button>
-      </header>
-
-      {renderView()}
-    </div>
-  )
+  return renderView()
 }
