@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -51,6 +53,20 @@ const progressDays = [
 function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null)
+  const [planLoading, setPlanLoading] = useState(true)
+
+  useEffect(() => {
+    getActivePlan()
+      .then(({ data }) => setActivePlan(data))
+      .catch(() => setActivePlan(null))
+      .finally(() => setPlanLoading(false))
+  }, [])
+
+  const todayDay = activePlan?.weeklyPlan?.[0]
+  const todayTitle = todayDay?.focus ?? activePlan?.title ?? 'Upper Body Strength'
+  const todayExerciseCount = todayDay?.exercises?.length ?? 0
+
   return (
     <main className="dashboard">
       <section className="dashboard-hero">
@@ -79,14 +95,26 @@ function Dashboard() {
             <h2>Today's Workout</h2>
             <Icon name="calendar" />
           </div>
-          <div className="workout-card">
-            <div>
-              <h3>Upper Body Strength</h3>
-              <p>5 exercises</p>
-              <span>45 min</span>
+          {planLoading ? (
+            <div className="workout-card"><div><h3>Loading…</h3></div></div>
+          ) : activePlan ? (
+            <div className="workout-card">
+              <div>
+                <h3>{todayTitle}</h3>
+                <p>{todayExerciseCount} exercises</p>
+                <span>45 min</span>
+              </div>
+              <button type="button" onClick={() => navigate('/workouts')}>Start Workout</button>
             </div>
-            <button type="button" onClick={() => navigate('/workouts')}>Start Workout</button>
-          </div>
+          ) : (
+            <div className="workout-card">
+              <div>
+                <h3>No active plan</h3>
+                <p>Create one from the questionnaire to get started.</p>
+              </div>
+              <button type="button" onClick={() => navigate('/workouts')}>Create Plan</button>
+            </div>
+          )}
           <div className="week-progress">
             <h3>This Week's Progress</h3>
             <div className="bars">
