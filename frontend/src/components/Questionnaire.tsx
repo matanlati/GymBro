@@ -1,4 +1,6 @@
 ﻿import { useState } from 'react'
+import { generatePlan } from '../api/plans.api'
+import { AxiosError } from 'axios'
 
 const levelOptions = [
   { label: 'Beginner', value: 'beginner' },
@@ -47,24 +49,15 @@ const Questionnaire = ({ onBack }: { onBack: () => void }) => {
     setError('')
 
     try {
-      const response = await fetch('/api/workout-plan/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-
-      const text = await response.text()
-      let data
-
-      try {
-        data = JSON.parse(text)
-      } catch {
-        data = { error: text || 'Invalid server response' }
-      }
-
+      const { data } = await generatePlan(formData)
       setResult(data)
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate workout plan')
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string; error?: string }>
+      setError(
+        axiosErr.response?.data?.message ||
+          axiosErr.message ||
+          'Failed to generate workout plan'
+      )
     } finally {
       setLoading(false)
     }
@@ -343,3 +336,5 @@ const s: Record<string, React.CSSProperties> = {
   metricValue: { fontSize: 18, fontWeight: 700 },
   metricLabel: { fontSize: 12, color: '#9CA3AF' },
 }
+
+export default Questionnaire;
