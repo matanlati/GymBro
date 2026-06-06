@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
+import { Video, ClipboardList } from 'lucide-react'
 import VideoUpload from '../components/VideoUpload'
 import Questionnaire from '../components/Questionnaire'
+
 
 type View = 'main' | 'video' | 'questionnaire'
 
@@ -25,6 +27,7 @@ export default function HomePage() {
         <h1 style={styles.title}>GymBro</h1>
         <div style={styles.headerRight}>
           {user && <span style={styles.userName}>Hi, {user.name}</span>}
+          <Link to="/profile" style={styles.profileLink}>Profile</Link>
           <button onClick={handleLogout} style={styles.logoutBtn}>Log out</button>
         </div>
       </div>
@@ -33,12 +36,12 @@ export default function HomePage() {
         <h2 style={styles.heading}>AI Fitness Assistant</h2>
         <div style={styles.cards}>
           <button style={styles.card} onClick={() => setView('video')}>
-            <span style={styles.cardIcon}>🎥</span>
+            <Video size={36} color="#F97316" strokeWidth={1.5} />
             <span style={styles.cardTitle}>Upload Workout Video</span>
             <span style={styles.cardDesc}>Get AI-powered form analysis</span>
           </button>
           <button style={styles.card} onClick={() => setView('questionnaire')}>
-            <span style={styles.cardIcon}>📋</span>
+            <ClipboardList size={36} color="#F97316" strokeWidth={1.5} />
             <span style={styles.cardTitle}>Fitness Questionnaire</span>
             <span style={styles.cardDesc}>Generate a personalized workout plan</span>
           </button>
@@ -78,6 +81,12 @@ const styles: Record<string, React.CSSProperties> = {
   userName: {
     fontSize: 14,
     color: '#374151',
+  },
+  profileLink: {
+    fontSize: 13,
+    color: '#F97316',
+    fontWeight: 600,
+    textDecoration: 'none',
   },
   logoutBtn: {
     fontSize: 13,
