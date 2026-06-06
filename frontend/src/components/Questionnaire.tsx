@@ -1,60 +1,229 @@
-﻿import { useState } from 'react'
-import { generatePlan } from '../api/plans.api'
+import { useState } from 'react'
 import { AxiosError } from 'axios'
+import { generatePlan, type WorkoutPlan } from '../api/plans.api'
 
-const levelOptions = [
-  { label: 'Beginner', value: 'beginner' },
-  { label: 'Intermediate', value: 'intermediate' },
-  { label: 'Advanced', value: 'advanced' },
-]
-
-const workoutTypes = [
-  { label: 'Strength', value: 'strength' },
-  { label: 'Cardio', value: 'cardio' },
-  { label: 'Mixed', value: 'mixed' },
-]
-
-const initialForm = {
-  age: '',
-  gender: '',
-  height: '',
-  weight: '',
-  fitnessGoal: '',
-  trainingLevel: '',
-  trainingDays: '',
-  injuries: '',
-  preferredWorkoutType: '',
-  equipmentAvailable: '',
+type StepInfo = {
+  title: string
+  eyebrow: string
 }
 
-const Questionnaire = ({ onBack }: { onBack: () => void }) => {
-  const [formData, setFormData] = useState(initialForm)
-  const [result, setResult] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+const steps: StepInfo[] = [
+  {
+    title: 'Body Details',
+    eyebrow: 'Help us understand your starting point',
+  },
+  {
+    title: 'Training Preferences',
+    eyebrow: 'Tell us how you want to train',
+  },
+  {
+    title: 'Goals & Availability',
+    eyebrow: 'Build the plan around your routine',
+  },
+]
+
+type Option = { value: string; label: string }
+type GoalOption = Option & { icon: IconName }
+
+const goalOptions: GoalOption[] = [
+  { value: 'weight_loss', label: 'Lose Fat', icon: 'target' },
+  { value: 'muscle_gain', label: 'Build Muscle', icon: 'dumbbell' },
+  { value: 'strength', label: 'Strength', icon: 'bolt' },
+  { value: 'endurance', label: 'Endurance', icon: 'rings' },
+  { value: 'general_fitness', label: 'General Fitness', icon: 'home' },
+]
+
+const levelOptions: Option[] = [
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced', label: 'Advanced' },
+]
+
+const workoutTypes: Option[] = [
+  { value: 'strength', label: 'Strength Training' },
+  { value: 'cardio', label: 'Cardio' },
+  { value: 'mixed', label: 'Mixed Training' },
+]
+
+const equipmentOptions = [
+  'Gym',
+  'Home',
+  'Dumbbells',
+  'Machines',
+  'Bodyweight',
+  'Barbell',
+  'Kettlebells',
+]
+
+type IconName = 'target' | 'dumbbell' | 'bolt' | 'rings' | 'home' | 'brand'
+
+function FormIcon({ name }: { name: IconName }) {
+  const common = {
+    width: '28',
+    height: '28',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  }
+
+  switch (name) {
+    case 'target':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="5" />
+          <circle cx="12" cy="12" r="1" />
+        </svg>
+      )
+    case 'dumbbell':
+      return (
+        <svg {...common}>
+          <path d="m6 6 12 12" />
+          <path d="m4 8 4-4" />
+          <path d="m16 20 4-4" />
+          <path d="m2 10 8-8" />
+          <path d="m14 22 8-8" />
+        </svg>
+      )
+    case 'bolt':
+      return (
+        <svg {...common}>
+          <path d="M13 2 4 14h7l-1 8 9-12h-7Z" />
+        </svg>
+      )
+    case 'rings':
+      return (
+        <svg {...common}>
+          <circle cx="9" cy="12" r="5" />
+          <circle cx="15" cy="12" r="5" />
+        </svg>
+      )
+    case 'home':
+      return (
+        <svg {...common}>
+          <path d="m3 10 9-7 9 7" />
+          <path d="M5 10v10h14V10" />
+          <path d="M10 20v-6h4v6" />
+        </svg>
+      )
+    case 'brand':
+      return (
+        <svg {...common}>
+          <path d="m6 6 12 12" />
+          <path d="m4 8 4-4" />
+          <path d="m16 20 4-4" />
+          <path d="m2 10 8-8" />
+          <path d="m14 22 8-8" />
+        </svg>
+      )
+    default:
+      return null
+  }
+}
+
+type FormData = {
+  age: string
+  gender: string
+  height: string
+  weight: string
+  fitnessGoal: string
+  trainingLevel: string
+  trainingDays: string
+  injuries: string
+  preferredWorkoutType: string
+  equipmentAvailable: string[]
+}
+
+type View = 'form' | 'result'
+
+function Questionnaire({ onBack }: { onBack: () => void }) {
+  const [step, setStep] = useState(0)
+  const [view, setView] = useState<View>('form')
+  const [formData, setFormData] = useState<FormData>({
+    age: '',
+    gender: '',
+    height: '',
+    weight: '',
+    fitnessGoal: '',
+    trainingLevel: '',
+    trainingDays: '',
+    injuries: '',
+    preferredWorkoutType: '',
+    equipmentAvailable: [],
+  })
+  const [submitted, setSubmitted] = useState(false)
+  const [result, setResult] = useState<WorkoutPlan | null>(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    setFormData({ ...formData, [name]: value })
   }
 
-  const selectValue = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }))
+  const selectValue = (name: keyof FormData, value: string) => {
+    setFormData({ ...formData, [name]: value })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  const toggleEquipment = (item: string) => {
+    const selected = formData.equipmentAvailable.includes(item)
+    const equipmentAvailable = selected
+      ? formData.equipmentAvailable.filter((current) => current !== item)
+      : [...formData.equipmentAvailable, item]
+
+    setFormData({ ...formData, equipmentAvailable })
+  }
+
+  const nextStep = () => {
+    setSubmitted(false)
+    setStep((current) => Math.min(current + 1, steps.length - 1))
+  }
+
+  const previousStep = () => {
+    setSubmitted(false)
+    setStep((current) => Math.max(current - 1, 0))
+  }
+
+  const editAnswers = () => {
+    setSubmitted(false)
     setError('')
+    setView('form')
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    generateWorkoutPlan()
+  }
+
+  const buildPayload = () => ({
+    ...formData,
+    equipmentAvailable: formData.equipmentAvailable.length
+      ? formData.equipmentAvailable.join(', ')
+      : '',
+  })
+
+  const generateWorkoutPlan = async () => {
+    setLoading(true)
+    setSubmitted(false)
+    setError('')
+    setResult(null)
 
     try {
-      const { data } = await generatePlan(formData)
+      const { data } = await generatePlan(buildPayload())
       setResult(data)
+      setSubmitted(true)
+      setView('result')
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string; error?: string }>
       setError(
         axiosErr.response?.data?.message ||
+          axiosErr.response?.data?.error ||
           axiosErr.message ||
           'Failed to generate workout plan'
       )
@@ -63,278 +232,378 @@ const Questionnaire = ({ onBack }: { onBack: () => void }) => {
     }
   }
 
-  if (result && !result.error) {
-    const totalExercises =
-      result.weeklyPlan?.reduce(
-        (sum: number, d: any) => sum + (d.exercises?.length ?? 0),
-        0
-      ) ?? 0
+  const renderPlan = () => {
+    if (!result) return null
+
+    const dayCount = Array.isArray(result.weeklyPlan) ? result.weeklyPlan.length : 0
+    const exerciseCount = Array.isArray(result.weeklyPlan)
+      ? result.weeklyPlan.reduce(
+          (total, day) =>
+            total + (Array.isArray(day.exercises) ? day.exercises.length : 0),
+          0
+        )
+      : 0
 
     return (
-      <div style={s.page}>
-        <button style={s.backBtn} onClick={() => setResult(null)}>
-          ← Edit Answers
+      <main className="plan-page">
+        <button className="questionnaire-back" type="button" onClick={onBack}>
+          <span aria-hidden="true">←</span>
+          Dashboard
         </button>
 
-        <div style={s.planHero}>
-          <span style={s.kicker}>Generated Workout Plan</span>
-          <h1 style={s.heroTitle}>
-            Your {formData.trainingDays}-Day Training Plan
-          </h1>
-          {result.summary && <p style={s.heroSub}>{result.summary}</p>}
+        <section className="plan-hero">
+          <div>
+            <span className="plan-kicker">Generated Workout Plan</span>
+            <h1>Your {dayCount || formData.trainingDays || ''}-Day Training Plan</h1>
+            {result.summary && <p>{result.summary}</p>}
+          </div>
+          <button
+            className="secondary-action plan-edit-button"
+            type="button"
+            onClick={editAnswers}
+          >
+            Edit Answers
+          </button>
+        </section>
+
+        <div className="plan-metrics" aria-label="Plan summary">
+          <div>
+            <span>{dayCount || '-'}</span>
+            <p>Training Days</p>
+          </div>
+          <div>
+            <span>{exerciseCount || '-'}</span>
+            <p>Total Exercises</p>
+          </div>
+          <div>
+            <span>{formData.trainingLevel || '-'}</span>
+            <p>Level</p>
+          </div>
+          <div>
+            <span>{formData.equipmentAvailable.length || '-'}</span>
+            <p>Equipment Picks</p>
+          </div>
         </div>
 
-        <div style={s.metrics}>
-          <MetricCard label="Training Days" value={formData.trainingDays || '-'} />
-          <MetricCard label="Total Exercises" value={String(totalExercises)} />
-          <MetricCard label="Level" value={formData.trainingLevel || '-'} />
-          <MetricCard
-            label="Goal"
-            value={(formData.fitnessGoal || '-').replace('_', ' ')}
-          />
-        </div>
+        {Array.isArray(result.weeklyPlan) && result.weeklyPlan.length > 0 && (
+          <section className="generated-days">
+            {result.weeklyPlan.map((day, index) => (
+              <article className="generated-day-card" key={`${day.day}-${index}`}>
+                <div className="generated-day-header">
+                  <div>
+                    <span>{day.day || `Day ${index + 1}`}</span>
+                    <strong>{day.focus}</strong>
+                  </div>
+                  <small>
+                    {Array.isArray(day.exercises) ? day.exercises.length : 0} exercises
+                  </small>
+                </div>
 
-        <button style={s.backBtn} onClick={onBack}>
-          ← Back to Dashboard
-        </button>
-      </div>
+                {Array.isArray(day.exercises) && (
+                  <ul className="generated-exercises">
+                    {day.exercises.map((exercise, exerciseIndex) => (
+                      <li key={`${exercise.name}-${exerciseIndex}`}>
+                        <span className="exercise-number">{exerciseIndex + 1}</span>
+                        <div>
+                          <strong>{exercise.name}</strong>
+                          {exercise.notes && <p>{exercise.notes}</p>}
+                        </div>
+                        <span className="exercise-dose">
+                          {exercise.sets} x {exercise.reps}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            ))}
+          </section>
+        )}
+
+        <section className="plan-guidance-grid">
+          {Array.isArray(result.safetyNotes) && result.safetyNotes.length > 0 && (
+            <div className="generated-notes">
+              <h3>Safety Notes</h3>
+              <ul>
+                {result.safetyNotes.map((note, index) => (
+                  <li key={`${note}-${index}`}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.progressionNotes && (
+            <div className="generated-notes">
+              <h3>Progression</h3>
+              <p>{result.progressionNotes}</p>
+            </div>
+          )}
+        </section>
+      </main>
     )
   }
 
-  return (
-    <div style={s.page}>
-      <button style={s.backBtn} onClick={onBack}>
-        ← Back
-      </button>
+  const renderStep = () => {
+    if (step === 0) {
+      return (
+        <>
+          <div className="form-field">
+            <label htmlFor="age">Age</label>
+            <input
+              id="age"
+              type="number"
+              name="age"
+              placeholder="28"
+              value={formData.age}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-      <div style={s.header}>
-        <h1 style={s.title}>Create Your Workout Plan</h1>
-        <p style={s.subtitle}>Fill in your details and get a personalised plan</p>
-      </div>
+          <div className="form-field">
+            <label htmlFor="gender">Gender</label>
+            <select
+              id="gender"
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Select gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
 
-      <form onSubmit={handleSubmit} style={s.card}>
-        <div style={s.formGrid}>
-          <input
-            style={s.input}
-            type="number"
-            name="age"
-            placeholder="Age"
-            value={formData.age}
-            onChange={handleChange}
-            required
-          />
+          <div className="form-row">
+            <div className="form-field">
+              <label htmlFor="weight">Weight (kg)</label>
+              <input
+                id="weight"
+                type="number"
+                name="weight"
+                placeholder="75"
+                value={formData.weight}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="height">Height (cm)</label>
+              <input
+                id="height"
+                type="number"
+                name="height"
+                placeholder="178"
+                value={formData.height}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
 
+          <div className="info-strip">
+            This information helps us create a more personalized workout plan for you
+          </div>
+        </>
+      )
+    }
+
+    if (step === 1) {
+      return (
+        <>
+          <div className="form-field">
+            <label>Training Level</label>
+            <div className="segmented-options">
+              {levelOptions.map((option) => (
+                <button
+                  className={
+                    formData.trainingLevel === option.value
+                      ? 'segment-option active'
+                      : 'segment-option'
+                  }
+                  key={option.value}
+                  type="button"
+                  onClick={() => selectValue('trainingLevel', option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-field">
+            <label>Preferred Workout Type</label>
+            <div className="segmented-options">
+              {workoutTypes.map((option) => (
+                <button
+                  className={
+                    formData.preferredWorkoutType === option.value
+                      ? 'segment-option active'
+                      : 'segment-option'
+                  }
+                  key={option.value}
+                  type="button"
+                  onClick={() => selectValue('preferredWorkoutType', option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="injuries">Injuries or Limitations</label>
+            <textarea
+              id="injuries"
+              name="injuries"
+              placeholder="Tell us about pain, past injuries, mobility limits, or exercises to avoid"
+              value={formData.injuries}
+              onChange={handleChange}
+            />
+          </div>
+        </>
+      )
+    }
+
+    return (
+      <>
+        <div className="form-field">
+          <label>Primary Goal</label>
+          <div className="goal-grid">
+            {goalOptions.map((option) => (
+              <button
+                className={
+                  formData.fitnessGoal === option.value
+                    ? 'goal-card active'
+                    : 'goal-card'
+                }
+                key={option.value}
+                type="button"
+                onClick={() => selectValue('fitnessGoal', option.value)}
+              >
+                <FormIcon name={option.icon} />
+                <span>{option.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="trainingDays">Workouts per week</label>
           <select
-            style={s.input}
-            name="gender"
-            value={formData.gender}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-
-          <input
-            style={s.input}
-            type="number"
-            name="height"
-            placeholder="Height (cm)"
-            value={formData.height}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            style={s.input}
-            type="number"
-            name="weight"
-            placeholder="Weight (kg)"
-            value={formData.weight}
-            onChange={handleChange}
-            required
-          />
-
-          <select
-            style={s.input}
-            name="fitnessGoal"
-            value={formData.fitnessGoal}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Fitness Goal</option>
-            <option value="weight_loss">Weight Loss</option>
-            <option value="muscle_gain">Muscle Gain</option>
-            <option value="strength">Strength</option>
-            <option value="endurance">Endurance</option>
-          </select>
-
-          <input
-            style={s.input}
-            type="number"
+            id="trainingDays"
             name="trainingDays"
-            min={1}
-            max={7}
-            placeholder="Training days per week"
             value={formData.trainingDays}
             onChange={handleChange}
             required
-          />
-
-          <div style={s.fieldFull}>
-            <label style={s.label}>Training Level</label>
-            <div style={s.segments}>
-              {levelOptions.map(o => (
-                <button
-                  key={o.value}
-                  type="button"
-                  style={{
-                    ...s.segment,
-                    ...(formData.trainingLevel === o.value
-                      ? s.segmentActive
-                      : {}),
-                  }}
-                  onClick={() => selectValue('trainingLevel', o.value)}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={s.fieldFull}>
-            <label style={s.label}>Preferred Workout Type</label>
-            <div style={s.segments}>
-              {workoutTypes.map(o => (
-                <button
-                  key={o.value}
-                  type="button"
-                  style={{
-                    ...s.segment,
-                    ...(formData.preferredWorkoutType === o.value
-                      ? s.segmentActive
-                      : {}),
-                  }}
-                  onClick={() => selectValue('preferredWorkoutType', o.value)}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <textarea
-            style={{ ...s.input, height: 72 }}
-            name="injuries"
-            placeholder="Injuries or limitations"
-            value={formData.injuries}
-            onChange={handleChange}
-          />
-
-          <textarea
-            style={{ ...s.input, height: 72 }}
-            name="equipmentAvailable"
-            placeholder="Equipment available"
-            value={formData.equipmentAvailable}
-            onChange={handleChange}
-          />
+          >
+            <option value="">Select frequency</option>
+            <option value="2">2 days per week</option>
+            <option value="3">3 days per week</option>
+            <option value="4">4 days per week</option>
+            <option value="5">5 days per week</option>
+            <option value="6">6 days per week</option>
+          </select>
         </div>
 
-        {error && <p style={s.error}>{error}</p>}
+        <div className="form-field">
+          <label>Equipment Access</label>
+          <div className="chip-group">
+            {equipmentOptions.map((item) => (
+              <button
+                className={
+                  formData.equipmentAvailable.includes(item)
+                    ? 'equipment-chip active'
+                    : 'equipment-chip'
+                }
+                key={item}
+                type="button"
+                onClick={() => toggleEquipment(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+      </>
+    )
+  }
 
-        <button type="submit" disabled={loading} style={s.submitBtn}>
-          {loading ? 'Generating plan...' : 'Generate My Plan'}
-        </button>
-      </form>
-    </div>
-  )
-}
+  if (view === 'result' && result) {
+    return renderPlan()
+  }
 
-const MetricCard = ({ label, value }: { label: string; value: string }) => {
   return (
-    <div style={s.metricCard}>
-      <span style={s.metricValue}>{value}</span>
-      <span style={s.metricLabel}>{label}</span>
-    </div>
+    <main className="questionnaire-page">
+      <button
+        className="questionnaire-back"
+        type="button"
+        onClick={step === 0 ? onBack : previousStep}
+      >
+        <span aria-hidden="true">←</span>
+        Back
+      </button>
+
+      <div className="questionnaire-brand">
+        <span>
+          <FormIcon name="brand" />
+        </span>
+        <strong>GymBro</strong>
+      </div>
+
+      <div className="questionnaire-header">
+        <h1>Create Your Workout Plan</h1>
+        <p>
+          Step {step + 1} of {steps.length}
+        </p>
+      </div>
+
+      <div
+        className="progress-steps"
+        aria-label={`Step ${step + 1} of ${steps.length}`}
+      >
+        {steps.map((item, index) => (
+          <span className={index <= step ? 'active' : ''} key={item.title} />
+        ))}
+      </div>
+
+      <form className="questionnaire-card" onSubmit={handleSubmit}>
+        <div className="questionnaire-card-header">
+          <h2>{steps[step].title}</h2>
+          <p>{steps[step].eyebrow}</p>
+        </div>
+
+        <div className="questionnaire-fields">{renderStep()}</div>
+
+        <div className="questionnaire-actions">
+          {step > 0 && (
+            <button className="secondary-action" type="button" onClick={previousStep}>
+              Back
+            </button>
+          )}
+          {step < steps.length - 1 ? (
+            <button className="primary-action" type="button" onClick={nextStep}>
+              Continue
+            </button>
+          ) : (
+            <button className="primary-action" type="submit" disabled={loading}>
+              {loading ? 'Creating Plan...' : 'Create My Plan'}
+            </button>
+          )}
+        </div>
+
+        {error && <div className="error-strip">{error}</div>}
+
+        {submitted && (
+          <div className="success-strip">
+            Your workout plan was generated successfully.
+          </div>
+        )}
+      </form>
+    </main>
   )
 }
 
-const s: Record<string, React.CSSProperties> = {
-  page: {
-    maxWidth: 800,
-    margin: '0 auto',
-    padding: '32px 24px 48px',
-    fontFamily: 'system-ui, sans-serif',
-    backgroundColor: '#F5F7FA',
-    minHeight: '100vh',
-  },
-  backBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#6B7280',
-    fontSize: 14,
-    cursor: 'pointer',
-    padding: '0 0 24px',
-  },
-  header: { marginBottom: 24 },
-  title: { fontSize: 26, fontWeight: 700 },
-  subtitle: { fontSize: 14, color: '#6B7280' },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    border: '1px solid #E5E7EB',
-    padding: 24,
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 16,
-  },
-  fieldFull: { gridColumn: '1 / -1' },
-  label: { fontSize: 13, fontWeight: 500, marginBottom: 6 },
-  input: {
-    width: '100%',
-    padding: 10,
-    border: '1px solid #E5E7EB',
-    borderRadius: 8,
-  },
-  segments: { display: 'flex', gap: 8 },
-  segment: {
-    flex: 1,
-    padding: 8,
-    border: '1px solid #E5E7EB',
-    borderRadius: 8,
-    background: '#fff',
-  },
-  segmentActive: {
-    background: '#EF4444',
-    color: '#fff',
-  },
-  error: { color: 'red' },
-  submitBtn: {
-    width: '100%',
-    padding: 12,
-    marginTop: 16,
-    background: '#EF4444',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 8,
-  },
-  planHero: { marginBottom: 24 },
-  kicker: { fontSize: 12, color: '#F97316' },
-  heroTitle: { fontSize: 22, fontWeight: 700 },
-  heroSub: { color: '#6B7280' },
-  metrics: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 },
-  metricCard: {
-    background: '#fff',
-    padding: 12,
-    borderRadius: 10,
-    textAlign: 'center',
-  },
-  metricValue: { fontSize: 18, fontWeight: 700 },
-  metricLabel: { fontSize: 12, color: '#9CA3AF' },
-}
-
-export default Questionnaire;
+export default Questionnaire
