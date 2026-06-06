@@ -3,7 +3,7 @@ import http from 'http'
 import https from 'https'
 import { randomUUID } from 'crypto'
 import { IVideoAnalysisService } from './IVideoAnalysisService'
-import { VideoFile } from '../../types'
+import { VideoFile, VideoAnalysisResult } from '../../types'
 
 interface RequestResponse {
   ok: boolean
@@ -91,7 +91,7 @@ class VideoAnalysisApiAdapter extends IVideoAnalysisService {
     })
   }
 
-  async analyze(videoFile: VideoFile): Promise<unknown> {
+  async analyze(videoFile: VideoFile): Promise<VideoAnalysisResult> {
     const serviceUrl = this.getServiceUrl()
     const apiKey = this.getApiKey()
     const timeoutMs = this.getTimeoutMs()
@@ -119,7 +119,7 @@ class VideoAnalysisApiAdapter extends IVideoAnalysisService {
       throw new Error(`Video analysis service error: ${message}`)
     }
 
-    return data
+    return data as unknown as VideoAnalysisResult
   }
 }
 

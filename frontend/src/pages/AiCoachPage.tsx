@@ -1,7 +1,5 @@
-import { useNavigate } from 'react-router-dom'
-import VideoUpload from '../components/VideoUpload'
+import AiCoach from '../components/AiCoach'
 
-export default function AiCoachPage() {
-  const navigate = useNavigate()
-  return <VideoUpload onBack={() => navigate('/home')} />
-}
+const AiCoachPage = () => <AiCoach />
+
+export default AiCoachPage
