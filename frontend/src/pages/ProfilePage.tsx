@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getMe, updateMe, uploadPhoto, UserProfile, UpdateProfileData } from '../api/users.api'
 import { AxiosError } from 'axios'
+import { Settings, BarChart2, LogOut, Camera } from 'lucide-react'
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 function IconEmail() {
@@ -59,32 +60,6 @@ function IconCalendar() {
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="4" width="18" height="18" rx="2" />
       <path d="M16 2v4M8 2v4M3 10h18" />
-    </svg>
-  )
-}
-function IconSettings() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
-    </svg>
-  )
-}
-function IconChart() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="12" width="4" height="9" />
-      <rect x="10" y="7" width="4" height="14" />
-      <rect x="17" y="3" width="4" height="18" />
-    </svg>
-  )
-}
-function IconLogout() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 17l5-5-5-5" />
-      <path d="M21 12H9" />
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
     </svg>
   )
 }
@@ -189,7 +164,8 @@ export default function ProfilePage() {
             disabled={uploadingPhoto}
             style={styles.changePhotoBtn}
           >
-            {uploadingPhoto ? 'Uploading…' : '📷 Change photo'}
+            <Camera size={13} strokeWidth={1.8} />
+            {uploadingPhoto ? 'Uploading…' : 'Change photo'}
           </button>
           <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
         </div>
@@ -258,7 +234,7 @@ export default function ProfilePage() {
       <div style={styles.bottomRow}>
         <div style={styles.card}>
           <div style={styles.cardHeader}>
-            <IconSettings />
+            <Settings size={16} color="#6B7280" strokeWidth={1.8} />
             <span style={styles.cardTitle}>Settings</span>
           </div>
           <SettingsRow title="Notifications" desc="Manage workout reminders and updates" />
@@ -268,7 +244,7 @@ export default function ProfilePage() {
 
         <div style={styles.card}>
           <div style={styles.cardHeader}>
-            <IconChart />
+            <BarChart2 size={16} color="#6B7280" strokeWidth={1.8} />
             <span style={styles.cardTitle}>Quick Stats</span>
           </div>
           <StatRow label="Total Workouts" value="—" color="#F97316" bg="#FFF7ED" />
@@ -280,7 +256,7 @@ export default function ProfilePage() {
       {/* Log Out */}
       <button onClick={handleLogout} style={styles.logoutRow}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <IconLogout />
+          <LogOut size={16} color="#EF4444" strokeWidth={1.8} />
           Log Out
         </span>
         <span style={styles.logoutArrow}>→</span>
@@ -387,6 +363,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12, fontWeight: 500, color: '#F97316',
     background: 'none', border: '1px solid #F97316',
     borderRadius: 6, padding: '4px 10px', cursor: 'pointer', marginBottom: 4,
+    display: 'flex', alignItems: 'center', gap: 5,
   },
 
   identity: { padding: '0 24px 16px', borderBottom: '1px solid #F3F4F6' },
