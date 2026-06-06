@@ -44,11 +44,12 @@ class GeminiAiService {
     }
 
     const choices = data.choices as Array<Record<string, unknown>> | undefined
+    const message = choices?.[0]?.message as Record<string, unknown> | undefined
     const candidate =
-      (choices?.[0]?.message as Record<string, unknown> | undefined)?.content as string ||
-      (choices?.[0]?.content as string) ||
-      (data.text as string) ||
-      (data.result as string)
+      (message?.content as string | undefined) ||
+      (choices?.[0]?.content as string | undefined) ||
+      (data.text as string | undefined) ||
+      (data.result as string | undefined)
 
     if (!candidate) throw new Error('API returned an unexpected response format')
     return candidate
