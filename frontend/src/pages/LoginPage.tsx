@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { Link, useNavigate, Navigate } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
 import { validateLoginForm } from '../utils/validation'
@@ -99,7 +100,7 @@ export default function LoginPage() {
                 style={styles.eyeBtn}
                 aria-label="Toggle password visibility"
               >
-                {showPassword ? '🙈' : '👁'}
+                {showPassword ? <EyeOff size={16} color="#9CA3AF" /> : <Eye size={16} color="#9CA3AF" />}
               </button>
             </div>
           </div>
