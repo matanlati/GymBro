@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import VideoUpload from '../components/VideoUpload'
 import Questionnaire from '../components/Questionnaire'
 
@@ -138,22 +139,23 @@ function PlaceholderView({ title, description, onBack }: { title: string; descri
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const [view, setView] = useState<View>('dashboard')
+  const [searchParams] = useSearchParams()
+  const view = (searchParams.get('view') ?? 'dashboard') as View
 
-  const renderView = () => {
-    switch (view) {
-      case 'video':
-      case 'ai':
-        return <VideoUpload onBack={() => setView('dashboard')} />
-      case 'questionnaire':
-      case 'workouts':
-        return <Questionnaire onBack={() => setView('dashboard')} />
-      case 'progress':
-        return <PlaceholderView title="Progress" description="Progress tracking coming soon." onBack={() => setView('dashboard')} />
-      default:
-        return <Dashboard setView={setView} />
-    }
+  function setView(v: View) {
+    navigate(v === 'dashboard' ? '/home' : `/home?view=${v}`)
   }
 
-  return renderView()
+  switch (view) {
+    case 'video':
+    case 'ai':
+      return <VideoUpload onBack={() => setView('dashboard')} />
+    case 'questionnaire':
+    case 'workouts':
+      return <Questionnaire onBack={() => setView('dashboard')} />
+    case 'progress':
+      return <PlaceholderView title="Progress" description="Progress tracking coming soon." onBack={() => setView('dashboard')} />
+    default:
+      return <Dashboard setView={setView} />
+  }
 }

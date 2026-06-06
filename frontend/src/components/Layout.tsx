@@ -20,11 +20,11 @@ function Icon({ name }: { name: IconName }) {
   }
 }
 
-const navItems: { id: string; label: string; icon: IconName; path: string }[] = [
+const navItems: { id: string; label: string; icon: IconName; view?: string; path: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'home',     path: '/home' },
-  { id: 'workouts',  label: 'Workouts',  icon: 'dumbbell', path: '/home' },
-  { id: 'ai',        label: 'AI Coach',  icon: 'spark',    path: '/home' },
-  { id: 'progress',  label: 'Progress',  icon: 'chart',    path: '/home' },
+  { id: 'workouts',  label: 'Workouts',  icon: 'dumbbell', path: '/home?view=workouts' },
+  { id: 'ai',        label: 'AI Coach',  icon: 'spark',    path: '/home?view=ai' },
+  { id: 'progress',  label: 'Progress',  icon: 'chart',    path: '/home?view=progress' },
   { id: 'profile',   label: 'Profile',   icon: 'user',     path: '/profile' },
 ]
 
@@ -33,20 +33,24 @@ export default function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
 
+  const currentView = new URLSearchParams(location.search).get('view') ?? 'dashboard'
+  const isProfile = location.pathname === '/profile'
+
+  function activeId() {
+    if (isProfile) return 'profile'
+    return currentView
+  }
+
   function handleLogout() {
     logout()
     navigate('/login')
   }
 
-  const activeId = location.pathname === '/profile' ? 'profile' : 'dashboard'
-
   return (
     <div className="app-shell">
       <header className="topbar">
         <button className="brand" type="button" onClick={() => navigate('/home')}>
-          <span className="brand-mark">
-            <Icon name="dumbbell" />
-          </span>
+          <span className="brand-mark"><Icon name="dumbbell" /></span>
           <span>GymBro</span>
         </button>
 
@@ -54,7 +58,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           {navItems.map(item => (
             <button
               key={item.id}
-              className={activeId === item.id ? 'nav-tab active' : 'nav-tab'}
+              className={activeId() === item.id ? 'nav-tab active' : 'nav-tab'}
               type="button"
               onClick={() => navigate(item.path)}
             >
@@ -64,10 +68,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        <button
-          onClick={handleLogout}
-          style={{ background: 'none', border: 'none', fontSize: 13, color: '#6B7280', cursor: 'pointer' }}
-        >
+        <button onClick={handleLogout} style={{ background: 'none', border: 'none', fontSize: 13, color: '#6B7280', cursor: 'pointer' }}>
           Log out
         </button>
       </header>
