@@ -37,6 +37,7 @@ export const analyzeVideo = async (req: AuthRequest, res: Response): Promise<voi
 
   try {
     videoFile.exerciseType = exerciseType
+    if (req.body?.side) videoFile.side = req.body.side
     const result = await VideoAnalysisService.analyze(videoFile)
     const evaluation = extractEvaluation(result)
     if (!evaluation) {
@@ -50,7 +51,7 @@ export const analyzeVideo = async (req: AuthRequest, res: Response): Promise<voi
       const saved = await PoseAnalysisService.saveAnalysis(
         req.user!.userId,
         exerciseType,
-        videoFile.originalname,
+        evaluation.analized_video_url,
         evaluation
       )
       analysisId = String(saved._id)

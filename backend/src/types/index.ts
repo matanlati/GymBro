@@ -37,7 +37,7 @@ export interface WorkoutPlan {
   progressionNotes: string
 }
 
-export type VideoFile = Express.Multer.File & { exerciseType?: string }
+export type VideoFile = Express.Multer.File & { exerciseType?: string; side?: string }
 
 export type Severity = 'low' | 'medium' | 'high'
 
@@ -60,6 +60,7 @@ export interface Evaluation {
   dataReliabilityNote?: string
   cameraView?: string
   ignoredMetrics?: string[]
+  analized_video_url?: string
 }
 
 // The envelope the evaluator service returns. The evaluation lives under `evaluation`.
