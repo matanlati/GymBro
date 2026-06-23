@@ -1425,6 +1425,20 @@ button {
   margin-bottom: 18px;
 }
 
+.analyzed-video-block h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.analyzed-video {
+  width: 100%;
+  max-height: 480px;
+  border-radius: 10px;
+  background: #000;
+  display: block;
+}
+
 .results-block h3 {
   margin: 0 0 10px;
   color: #111827;
