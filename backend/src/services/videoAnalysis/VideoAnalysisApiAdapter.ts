@@ -35,9 +35,11 @@ class VideoAnalysisApiAdapter extends IVideoAnalysisService {
     const boundary = `----gymbro-video-analysis-${randomUUID()}`
     const chunks: Buffer[] = []
 
+    // Field names must match the FastAPI endpoint signature:
+    //   file: UploadFile, exercise_type: str, side: str
     chunks.push(Buffer.from(
       `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="video"; filename="${this.escapeHeaderValue(videoFile.originalname || 'video')}"\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${this.escapeHeaderValue(videoFile.originalname || 'video')}"\r\n` +
       `Content-Type: ${videoFile.mimetype || 'application/octet-stream'}\r\n\r\n`
     ))
     chunks.push(fileBuffer)
@@ -46,8 +48,16 @@ class VideoAnalysisApiAdapter extends IVideoAnalysisService {
     if (videoFile.exerciseType) {
       chunks.push(Buffer.from(
         `--${boundary}\r\n` +
-        'Content-Disposition: form-data; name="exerciseType"\r\n\r\n' +
+        'Content-Disposition: form-data; name="exercise_type"\r\n\r\n' +
         `${videoFile.exerciseType}\r\n`
+      ))
+    }
+
+    if (videoFile.side) {
+      chunks.push(Buffer.from(
+        `--${boundary}\r\n` +
+        'Content-Disposition: form-data; name="side"\r\n\r\n' +
+        `${videoFile.side}\r\n`
       ))
     }
 
