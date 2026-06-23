@@ -21,6 +21,7 @@ export interface Evaluation {
   dataReliabilityNote?: string
   cameraView?: string
   ignoredMetrics?: string[]
+  analized_video_url?: string
 }
 
 export interface AnalyzeResponse {

@@ -88,6 +88,25 @@ const ResultsPanel = ({ evaluation, onAnalyzeAnother }: { evaluation: Evaluation
       <p className="results-summary">{evaluation.overallSummary}</p>
       <p className="results-explanation">{evaluation.scoreExplanation}</p>
 
+      {evaluation.analized_video_url && (
+        <div className="results-block analyzed-video-block">
+          <h3><Icon name="camera" /> Analyzed video</h3>
+          <video
+            className="analyzed-video"
+            src={evaluation.analized_video_url}
+            controls
+            playsInline
+            preload="metadata"
+          >
+            Your browser does not support embedded video.{' '}
+            <a href={evaluation.analized_video_url} target="_blank" rel="noreferrer">
+              Open the analyzed video
+            </a>
+            .
+          </video>
+        </div>
+      )}
+
       {evaluation.positiveFeedback.length > 0 && (
         <div className="results-block">
           <h3>What went well</h3>
