@@ -1,7 +1,9 @@
 import cv2
 import os
+import subprocess
 import tempfile
 import requests
+import imageio_ffmpeg
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
@@ -45,6 +47,26 @@ def save_upload(data: bytes) -> str:
     return tmp.name
 
 
+def _transcode_to_h264(src: str, dst: str) -> None:
+    """Re-encode a video to browser-playable H.264.
+
+    OpenCV's bundled ffmpeg can only write MPEG-4 Part 2 ("mp4v") here, which
+    HTML5 <video> cannot decode. imageio-ffmpeg ships a static ffmpeg binary
+    (no system install needed) that includes libx264.
+    """
+    ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    cmd = [
+        ffmpeg, "-y", "-loglevel", "error",
+        "-i", src,
+        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart", "-an",
+        dst,
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"H.264 transcode failed: {proc.stderr.strip()}")
+
+
 def _output_path(exercise_type: str, output_filename: Optional[str]) -> str:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     if output_filename:
@@ -66,35 +88,46 @@ def _run_pipeline(
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+    # OpenCV can only write MPEG-4 Part 2 here, which browsers can't play, so
+    # write to a temp file and transcode it to H.264 below.
+    raw = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+    raw.close()
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+    writer = cv2.VideoWriter(raw.name, fourcc, fps, (width, height))
     model_path = pose_detector.ensure_model()
 
     frames_total = 0
     frames_with_pose = 0
-    with pose_detector.create_landmarker(model_path) as landmarker:
-        frame_idx = 0
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+    try:
+        with pose_detector.create_landmarker(model_path) as landmarker:
+            frame_idx = 0
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
-            frames_total += 1
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            timestamp_ms = int((frame_idx / fps) * 1000)
-            landmarks = pose_detector.detect(landmarker, rgb, timestamp_ms)
+                frames_total += 1
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                timestamp_ms = int((frame_idx / fps) * 1000)
+                landmarks = pose_detector.detect(landmarker, rgb, timestamp_ms)
 
-            if landmarks is not None:
-                frames_with_pose += 1
-                frame = overlay_renderer.draw_skeleton(frame, landmarks)
-                result = exercise.analyze_frame(landmarks)
-                frame = overlay_renderer.draw_metrics(frame, result)
+                if landmarks is not None:
+                    frames_with_pose += 1
+                    frame = overlay_renderer.draw_skeleton(frame, landmarks)
+                    result = exercise.analyze_frame(landmarks)
+                    frame = overlay_renderer.draw_metrics(frame, result)
 
-            writer.write(frame)
-            frame_idx += 1
+                writer.write(frame)
+                frame_idx += 1
 
-    cap.release()
-    writer.release()
+        cap.release()
+        writer.release()
+        _transcode_to_h264(raw.name, out_path)
+    finally:
+        try:
+            os.unlink(raw.name)
+        except OSError:
+            pass
     return frames_total, frames_with_pose
 
 
