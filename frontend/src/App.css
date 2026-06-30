@@ -1838,3 +1838,254 @@ button {
     width: 100%;
   }
 }
+
+/* ── Workouts (session list) & Active session ────────────────────────────── */
+.workouts-page,
+.session-page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.workouts-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.workouts-header h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #111827;
+}
+
+.workouts-header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+}
+
+.new-workout-button {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ff7a1a, #ef3442);
+}
+
+.workouts-panel {
+  background: #fff;
+  border: 1px solid #eef0f3;
+  border-radius: 16px;
+  padding: 8px 20px 20px;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+}
+
+.workouts-week {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f1f3f5;
+  color: #6b7280;
+}
+
+.workouts-week strong {
+  color: #ff6b1a;
+  font-weight: 600;
+}
+
+.workouts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.workout-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid #f1f3f5;
+}
+
+.workout-row-main h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 16px;
+  color: #111827;
+}
+
+.workout-row-main p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.workout-row-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.workout-row-action {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: #ff6b1a;
+  font-weight: 600;
+}
+
+.workouts-start-cta {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ff7a1a, #ef3442);
+}
+
+.workouts-start-cta:disabled {
+  opacity: 0.6;
+}
+
+.workouts-empty {
+  padding: 24px 0;
+  color: #6b7280;
+  text-align: center;
+}
+
+.workouts-error,
+.session-error {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.session-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.session-header h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.session-header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+}
+
+.session-badge {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.session-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.session-exercise {
+  background: #fff;
+  border: 1px solid #eef0f3;
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.session-exercise-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.session-exercise-head h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.session-prescribed {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.session-sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.session-set-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #c2410c;
+  background: #fff7ed;
+}
+
+.session-log-form {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.session-log-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.session-log-form button {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+  background: #ff6b1a;
+}
+
+.session-footer {
+  margin-top: 24px;
+}
+
+.session-finish {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  background: linear-gradient(135deg, #ff7a1a, #ef3442);
+}
+
+.session-finish:disabled {
+  opacity: 0.6;
+}
