@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
+import { getOrCreateToday } from '../api/sessions.api'
 
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ function Dashboard() {
   const navigate = useNavigate()
   const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null)
   const [planLoading, setPlanLoading] = useState(true)
+  const [starting, setStarting] = useState(false)
 
   useEffect(() => {
     getActivePlan()
@@ -62,6 +64,16 @@ function Dashboard() {
       .catch(() => setActivePlan(null))
       .finally(() => setPlanLoading(false))
   }, [])
+
+  const startWorkout = async () => {
+    setStarting(true)
+    try {
+      const { data } = await getOrCreateToday()
+      navigate(`/session/${data._id}`)
+    } catch {
+      navigate('/plans/new')
+    }
+  }
 
   const todayDay = activePlan?.weeklyPlan?.[0]
   const todayTitle = todayDay?.focus ?? activePlan?.title ?? 'Upper Body Strength'
@@ -104,7 +116,9 @@ function Dashboard() {
                 <p>{todayExerciseCount} exercises</p>
                 <span>45 min</span>
               </div>
-              <button type="button" onClick={() => navigate('/workouts')}>Start Workout</button>
+              <button type="button" onClick={startWorkout} disabled={starting}>
+                {starting ? 'Starting…' : 'Start Workout'}
+              </button>
             </div>
           ) : (
             <div className="workout-card">
@@ -112,7 +126,7 @@ function Dashboard() {
                 <h3>No active plan</h3>
                 <p>Create one from the questionnaire to get started.</p>
               </div>
-              <button type="button" onClick={() => navigate('/workouts')}>Create Plan</button>
+              <button type="button" onClick={() => navigate('/plans/new')}>Create Plan</button>
             </div>
           )}
           <div className="week-progress">
