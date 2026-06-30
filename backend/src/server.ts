@@ -12,6 +12,7 @@ import usersRouter from './routers/users.router'
 import videoRouter from './routers/video'
 import workoutPlanRouter from './routers/workoutPlan'
 import plansRouter from './routers/plans'
+import sessionsRouter from './routers/sessions'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
@@ -30,6 +31,7 @@ app.use('/uploads', express.static('uploads'))
 app.use('/api/video', upload.single('video'), videoRouter)
 app.use('/api/workout-plan', workoutPlanRouter)
 app.use('/api/plans', plansRouter)
+app.use('/api/sessions', sessionsRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
 
