@@ -1,0 +1,60 @@
+import client from './client'
+
+export interface SetLog {
+  setNumber: number
+  repsCompleted: number
+  weightUsedKg?: number
+  loggedAt: string
+}
+
+export interface ExerciseLog {
+  name: string
+  muscleGroups?: string[]
+  prescribedSets: string
+  prescribedReps: string
+  prescribedWeightKg?: number
+  orderIndex: number
+  sets: SetLog[]
+}
+
+export interface Session {
+  _id: string
+  userId: string
+  planId: string
+  dayIndex: number
+  scheduledDate: string
+  completedAt?: string
+  notes?: string
+  exercises: ExerciseLog[]
+  createdAt: string
+}
+
+export interface SetPayload {
+  repsCompleted: number
+  weightUsedKg?: number
+}
+
+export const listSessions = (date?: string) =>
+  client.get<Session[]>('/sessions', { params: date ? { date } : undefined })
+
+export const getOrCreateToday = (dayIndex?: number) =>
+  client.post<Session>('/sessions/today', dayIndex !== undefined ? { dayIndex } : {})
+
+export const getSession = (id: string) => client.get<Session>(`/sessions/${id}`)
+
+export const completeSession = (id: string) =>
+  client.post<Session>(`/sessions/${id}/complete`)
+
+export const logSet = (sessionId: string, exerciseIndex: number, payload: SetPayload) =>
+  client.post<Session>(`/sessions/${sessionId}/exercises/${exerciseIndex}/sets`, payload)
+
+export const updateSet = (
+  sessionId: string,
+  exerciseIndex: number,
+  setIndex: number,
+  payload: Partial<SetPayload>
+) =>
+  client.put<Session>(`/sessions/${sessionId}/exercises/${exerciseIndex}/sets/${setIndex}`, payload)
+
+export const deleteSet = (sessionId: string, exerciseIndex: number, setIndex: number) =>
+  client.delete<Session>(`/sessions/${sessionId}/exercises/${exerciseIndex}/sets/${setIndex}`)
