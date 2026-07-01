@@ -7,10 +7,12 @@ class ShoulderPress(BaseExercise):
 
     def analyze_frame(self, landmarks) -> FrameResult:
         idxs = self._LEFT if self.side == "left" else self._RIGHT
+        if not self.visible(landmarks, idxs["shoulder"], idxs["elbow"], idxs["wrist"]):
+            return self._neutral_frame()
+
         shoulder = self.lm(landmarks, idxs["shoulder"])
         elbow = self.lm(landmarks, idxs["elbow"])
         wrist = self.lm(landmarks, idxs["wrist"])
-        ear = self.lm(landmarks, idxs["ear"])
 
         elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
         feedback = []
@@ -27,8 +29,10 @@ class ShoulderPress(BaseExercise):
             self._apply_penalty(feedback, 15, "Lock out elbows at top")
 
         # Lumbar arch: head/ear drifts significantly behind shoulder
-        if abs(ear[0] - shoulder[0]) > 0.08:
-            self._apply_penalty(feedback, 20, "Avoid arching lower back")
+        if self.visible(landmarks, idxs["ear"]):
+            ear = self.lm(landmarks, idxs["ear"])
+            if abs(ear[0] - shoulder[0]) > 0.08:
+                self._apply_penalty(feedback, 20, "Avoid arching lower back")
 
         if self.stage == "down" and elbow_angle > 115:
             self._apply_penalty(feedback, 10, "Lower bar to shoulder height")

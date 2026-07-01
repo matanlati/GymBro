@@ -7,6 +7,9 @@ class Pushup(BaseExercise):
 
     def analyze_frame(self, landmarks) -> FrameResult:
         idxs = self._LEFT if self.side == "left" else self._RIGHT
+        if not self.visible(landmarks, idxs["shoulder"], idxs["elbow"], idxs["wrist"]):
+            return self._neutral_frame()
+
         shoulder = self.lm(landmarks, idxs["shoulder"])
         elbow = self.lm(landmarks, idxs["elbow"])
         wrist = self.lm(landmarks, idxs["wrist"])
@@ -26,10 +29,11 @@ class Pushup(BaseExercise):
                 self._apply_penalty(feedback, 15, "Go lower")
 
         # Body alignment: shoulder-hip-knee (left knee used as fixed reference point for torso plane)
-        knee = self.lm(landmarks, 25)
-        body_angle = self.calculate_angle(shoulder, hip, knee)
-        if body_angle < 160:
-            self._apply_penalty(feedback, 15, "Keep body straight")
+        if self.visible(landmarks, idxs["hip"], 25):
+            knee = self.lm(landmarks, 25)
+            body_angle = self.calculate_angle(shoulder, hip, knee)
+            if body_angle < 160:
+                self._apply_penalty(feedback, 15, "Keep body straight")
 
         if feedback:
             self.current_rep_feedback = feedback

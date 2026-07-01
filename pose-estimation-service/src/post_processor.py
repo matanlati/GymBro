@@ -27,6 +27,76 @@ _RELIABILITY_THRESHOLD = 0.8
 # The set of attribute names the model is allowed to return for an issue.
 _ISSUE_FIELDS = {"title", "severity", "description", "affected_reps", "recommendation"}
 
+# Static, curated coaching reference per exercise. This is deliberately a keyed
+# lookup (exercise_type is an explicit, validated enum) rather than a RAG store:
+# the corpus is tiny and fixed, so a dict is deterministic, zero-latency and adds
+# no infra. It gives the LLM expert context to phrase feedback against, while the
+# objective metrics remain the only source of numbers.
+_EXERCISE_REFERENCE = {
+    "squat": {
+        "ideal": "Hips break below the knee crease (knee angle ~90 deg or lower), "
+                 "knees tracking over toes, torso upright with a neutral spine.",
+        "common_faults": ["insufficient depth", "knees caving in or driving too far forward",
+                          "torso pitching forward", "heels lifting"],
+        "tempo": "Controlled ~2s descent, brief pause, driven ascent.",
+    },
+    "push-up": {
+        "ideal": "Chest lowers until elbows reach ~90 deg, body held in a straight "
+                 "line from head to heels, elbows ~45 deg from the torso.",
+        "common_faults": ["hips sagging or piking", "partial depth", "flaring elbows"],
+        "tempo": "~2s down, controlled press up.",
+    },
+    "bicep_curl": {
+        "ideal": "Full flexion at the top and near-full extension at the bottom "
+                 "(~30-160 deg elbow range), upper arm/elbow pinned to the side.",
+        "common_faults": ["elbows drifting forward", "swinging/using momentum",
+                          "partial range of motion"],
+        "tempo": "Controlled lift, slow ~2-3s lowering.",
+    },
+    "deadlift": {
+        "ideal": "Full hip and knee extension at lockout, neutral (flat) spine "
+                 "throughout, bar tracking close to the body.",
+        "common_faults": ["rounding the lower/upper back", "incomplete hip lockout",
+                          "bar drifting away from the shins"],
+        "tempo": "Braced pull, controlled ~2s lowering.",
+    },
+    "shoulder_press": {
+        "ideal": "Press to full elbow lockout overhead, ribs down with no lower-back "
+                 "arch, bar lowered to shoulder height each rep.",
+        "common_faults": ["arching the lower back", "not locking out", "short range at the bottom"],
+        "tempo": "Controlled press and lowering.",
+    },
+    "lunge": {
+        "ideal": "Front knee bends to ~90 deg over the ankle, torso upright, "
+                 "controlled descent and drive back up.",
+        "common_faults": ["shallow depth", "front knee travelling past the toes",
+                          "torso leaning forward"],
+        "tempo": "~2s descent, controlled return.",
+    },
+    "lateral_raise": {
+        "ideal": "Arms raised to about shoulder height (~90 deg abduction) with a "
+                 "soft-but-fixed elbow, no momentum.",
+        "common_faults": ["not raising to shoulder height", "bending the elbows / swinging",
+                          "shrugging the traps"],
+        "tempo": "Controlled raise, slow lowering.",
+    },
+}
+
+
+def _reference_block(exercise_type: str) -> str:
+    """Render the coaching reference for an exercise as prompt context."""
+    ref = _EXERCISE_REFERENCE.get((exercise_type or "").lower())
+    if not ref:
+        return ""
+    faults = "; ".join(ref["common_faults"])
+    return (
+        "\nREFERENCE FORM for this exercise (general coaching context — NOT "
+        "measurements from this video; never cite it as an observed number):\n"
+        f"- Ideal execution: {ref['ideal']}\n"
+        f"- Common faults to watch for: {faults}\n"
+        f"- Typical tempo: {ref['tempo']}\n"
+    )
+
 
 def _build_analysis_payload(
     result: ProcessingResult, video_url: str
@@ -65,6 +135,7 @@ def build_enrichment_prompt(analysis: Dict[str, Any]) -> str:
     fixes the output schema exactly, and gives concrete rules for each field.
     """
     facts = json.dumps(analysis, indent=2)
+    reference = _reference_block(str(analysis.get("exercise_type", "")))
     return f"""You are an expert strength-and-conditioning coach and biomechanics analyst.
 A computer-vision system analyzed a single exercise video and produced the
 objective metrics below. Your job is to turn these raw metrics into clear,
@@ -72,6 +143,7 @@ specific, encouraging coaching feedback.
 
 OBJECTIVE METRICS (the only ground truth you may use):
 {facts}
+{reference}
 
 NOTES ON THE METRICS:
 - "average_quality" and "per_rep_qualities" are 0-100 form scores from the analyzer.
@@ -105,6 +177,8 @@ RESPOND WITH A SINGLE JSON OBJECT AND NOTHING ELSE, matching exactly this shape:
 
 RULES:
 - Ground every statement in the metrics above. Never invent reps, faults, or numbers.
+- Use REFERENCE FORM only to phrase advice and interpret faults in expert terms;
+  never present it as something measured in this specific video.
 - Set "score" close to "average_quality" but you may adjust slightly for the number
   and persistence of detected faults. If "total_reps" is 0, set score to 0.
 - Set "isGoodTechnique" to true only when score >= 75.

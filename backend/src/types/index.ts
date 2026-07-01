@@ -92,3 +92,5 @@ export const ALLOWED_EXERCISE_TYPES = [
   'shoulder press',
   'biceps curl',
 ] as const
+
+export const ALLOWED_SIDES = ['left', 'right'] as const

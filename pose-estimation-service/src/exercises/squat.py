@@ -7,6 +7,10 @@ class Squat(BaseExercise):
 
     def analyze_frame(self, landmarks) -> FrameResult:
         idxs = self._LEFT if self.side == "left" else self._RIGHT
+        # Core joints for the knee angle must be visible or we skip the frame.
+        if not self.visible(landmarks, idxs["hip"], idxs["knee"], idxs["ankle"]):
+            return self._neutral_frame()
+
         hip = self.lm(landmarks, idxs["hip"])
         knee = self.lm(landmarks, idxs["knee"])
         ankle = self.lm(landmarks, idxs["ankle"])
@@ -27,7 +31,7 @@ class Squat(BaseExercise):
             if knee[0] > ankle[0] + 0.05:
                 self._apply_penalty(feedback, 10, "Knees too far forward")
 
-        if abs(shoulder[0] - hip[0]) > 0.1:
+        if self.visible(landmarks, idxs["shoulder"]) and abs(shoulder[0] - hip[0]) > 0.1:
             self._apply_penalty(feedback, 10, "Keep torso upright")
 
         if feedback:

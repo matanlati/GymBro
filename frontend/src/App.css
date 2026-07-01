@@ -1187,6 +1187,41 @@ button {
   background: #fff;
 }
 
+.side-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.side-option {
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.side-option:hover {
+  border-color: #f97316;
+}
+
+.side-option.active {
+  border-color: #f97316;
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.upload-card .field-hint {
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 400;
+}
+
 .dropzone {
   display: grid;
   justify-items: center;

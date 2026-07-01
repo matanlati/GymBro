@@ -112,9 +112,14 @@ def _run_pipeline(
                 landmarks = pose_detector.detect(landmarker, rgb, timestamp_ms)
 
                 if landmarks is not None:
-                    frames_with_pose += 1
                     frame = overlay_renderer.draw_skeleton(frame, landmarks)
                     result = exercise.analyze_frame(landmarks)
+                    # Count only frames the exercise could actually measure
+                    # (required joints visible => a primary angle was produced),
+                    # so coverage reflects measurable movement, not just a
+                    # detected silhouette.
+                    if result.primary_angle is not None:
+                        frames_with_pose += 1
                     frame = overlay_renderer.draw_metrics(frame, result)
 
                 writer.write(frame)

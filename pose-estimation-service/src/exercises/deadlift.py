@@ -7,6 +7,9 @@ class Deadlift(BaseExercise):
 
     def analyze_frame(self, landmarks) -> FrameResult:
         idxs = self._LEFT if self.side == "left" else self._RIGHT
+        if not self.visible(landmarks, idxs["shoulder"], idxs["hip"], idxs["knee"]):
+            return self._neutral_frame()
+
         shoulder = self.lm(landmarks, idxs["shoulder"])
         hip = self.lm(landmarks, idxs["hip"])
         knee = self.lm(landmarks, idxs["knee"])
@@ -32,7 +35,8 @@ class Deadlift(BaseExercise):
             self._apply_penalty(feedback, 20, "Keep chest up, avoid rounding")
 
         # Bar drift: knees shooting forward during descent
-        if self.stage == "down" and knee[0] > ankle[0] + 0.08:
+        if (self.stage == "down" and self.visible(landmarks, idxs["ankle"])
+                and knee[0] > ankle[0] + 0.08):
             self._apply_penalty(feedback, 10, "Keep bar close to body")
 
         if feedback:

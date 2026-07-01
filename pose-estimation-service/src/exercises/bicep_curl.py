@@ -7,6 +7,9 @@ class BicepCurl(BaseExercise):
 
     def analyze_frame(self, landmarks) -> FrameResult:
         idxs = self._LEFT if self.side == "left" else self._RIGHT
+        if not self.visible(landmarks, idxs["shoulder"], idxs["elbow"], idxs["wrist"]):
+            return self._neutral_frame()
+
         shoulder = self.lm(landmarks, idxs["shoulder"])
         elbow = self.lm(landmarks, idxs["elbow"])
         wrist = self.lm(landmarks, idxs["wrist"])

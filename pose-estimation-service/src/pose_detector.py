@@ -6,10 +6,15 @@ from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 
 _ROOT = pathlib.Path(__file__).parent.parent
-MODEL_PATH = str(_ROOT / "pose_landmarker_lite.task")
+
+# Model variant. "full" is far more accurate than "lite" for the same landmark
+# schema; override with POSE_MODEL_VARIANT ("lite" | "full" | "heavy") if needed.
+_MODEL_VARIANT = os.getenv("POSE_MODEL_VARIANT", "full").lower()
+_MODEL_FILE = f"pose_landmarker_{_MODEL_VARIANT}.task"
+MODEL_PATH = str(_ROOT / _MODEL_FILE)
 MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
-    "pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+    f"pose_landmarker_{_MODEL_VARIANT}/float16/latest/{_MODEL_FILE}"
 )
 
 POSE_CONNECTIONS = [
@@ -28,8 +33,23 @@ def ensure_model() -> str:
     return MODEL_PATH
 
 
+def _resolve_delegate() -> "mp_python.BaseOptions.Delegate":
+    """Pick the inference delegate from POSE_DELEGATE ("cpu" | "gpu").
+
+    Dev machines run on CPU; the production GPU server sets POSE_DELEGATE=gpu.
+    Falls back to CPU on any unrecognized value.
+    """
+    delegate = os.getenv("POSE_DELEGATE", "cpu").lower()
+    if delegate == "gpu":
+        return mp_python.BaseOptions.Delegate.GPU
+    return mp_python.BaseOptions.Delegate.CPU
+
+
 def create_landmarker(model_path: str) -> vision.PoseLandmarker:
-    base_options = mp_python.BaseOptions(model_asset_path=model_path)
+    base_options = mp_python.BaseOptions(
+        model_asset_path=model_path,
+        delegate=_resolve_delegate(),
+    )
     options = vision.PoseLandmarkerOptions(
         base_options=base_options,
         running_mode=vision.RunningMode.VIDEO,

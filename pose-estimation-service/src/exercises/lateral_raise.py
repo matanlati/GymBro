@@ -7,15 +7,15 @@ class LateralRaise(BaseExercise):
 
     def analyze_frame(self, landmarks) -> FrameResult:
         idxs = self._LEFT if self.side == "left" else self._RIGHT
+        if not self.visible(landmarks, idxs["hip"], idxs["shoulder"], idxs["elbow"]):
+            return self._neutral_frame()
+
         hip = self.lm(landmarks, idxs["hip"])
         shoulder = self.lm(landmarks, idxs["shoulder"])
         elbow = self.lm(landmarks, idxs["elbow"])
-        wrist = self.lm(landmarks, idxs["wrist"])
 
         # Abduction angle: hip-shoulder-elbow
         raise_angle = self.calculate_angle(hip, shoulder, elbow)
-        # Elbow bend check: shoulder-elbow-wrist
-        elbow_bend = self.calculate_angle(shoulder, elbow, wrist)
         feedback = []
 
         if raise_angle > 80:
@@ -30,8 +30,12 @@ class LateralRaise(BaseExercise):
             self._apply_penalty(feedback, 15, "Raise to shoulder height")
 
         # Bent elbow during raise = using momentum
-        if raise_angle > 50 and elbow_bend < 140:
-            self._apply_penalty(feedback, 15, "Keep arms straight")
+        if raise_angle > 50 and self.visible(landmarks, idxs["wrist"]):
+            wrist = self.lm(landmarks, idxs["wrist"])
+            # Elbow bend check: shoulder-elbow-wrist
+            elbow_bend = self.calculate_angle(shoulder, elbow, wrist)
+            if elbow_bend < 140:
+                self._apply_penalty(feedback, 15, "Keep arms straight")
 
         if feedback:
             self.current_rep_feedback = feedback
