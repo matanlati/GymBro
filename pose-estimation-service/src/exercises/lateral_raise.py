@@ -2,8 +2,33 @@ from .base import BaseExercise, FrameResult
 
 
 class LateralRaise(BaseExercise):
+    """Dumbbell lateral raise, analyzed from a front/side view.
+
+    GOOD FORM
+      - Raise the arms to about shoulder height (~90 deg of abduction) and no
+        higher; going well above shoulder height hands the work to the traps.
+      - Keep a soft but fixed elbow; the arm should not collapse into a bent
+        "curl" to sling the weight up.
+      - Lead with control, no swinging or heaving with the torso.
+      - Slow, controlled lowering.
+
+    COMMON FAULTS (what we score)
+      - Raising too high / shrugging above shoulder height.
+      - Bending the elbows to cheat the weight up.
+      - Swinging: whipping the weight up too fast (very short rep duration).
+
+    Note: a rep only counts once the arm passes shoulder height (~80 deg), so raises
+    that fall short simply do not register as reps.
+    """
+
     _LEFT = dict(hip=23, shoulder=11, elbow=13, wrist=15)
     _RIGHT = dict(hip=24, shoulder=12, elbow=14, wrist=16)
+
+    # Abduction gates for rep detection (unchanged from the original logic):
+    # "up" once the arm passes 80 deg, "down" back under 30 deg.
+    _UP_GATE = 80.0
+    _DOWN_GATE = 30.0
+    _HEIGHT_HIGH = 110.0   # above this = raising too high / shrugging
 
     def analyze_frame(self, landmarks) -> FrameResult:
         idxs = self._LEFT if self.side == "left" else self._RIGHT
@@ -14,39 +39,36 @@ class LateralRaise(BaseExercise):
         shoulder = self.lm(landmarks, idxs["shoulder"])
         elbow = self.lm(landmarks, idxs["elbow"])
 
-        # Abduction angle: hip-shoulder-elbow
+        # Abduction angle: hip-shoulder-elbow.
         raise_angle = self.calculate_angle(hip, shoulder, elbow)
+        self._track(raise_angle)
         feedback = []
 
-        if raise_angle > 80:
+        if raise_angle > self._UP_GATE:
             if self.stage == "down":
-                self._finish_rep()
+                self._finish_rep(feedback)
             self.stage = "up"
-
-        if raise_angle < 30:
+        elif raise_angle < self._DOWN_GATE:
             self.stage = "down"
 
-        if self.stage == "up" and raise_angle < 75:
-            self._apply_penalty(feedback, 15, "Raise to shoulder height")
-
-        # Bent elbow during raise = using momentum
+        # Bent elbow during the raise = using momentum / turning it into a curl.
         if raise_angle > 50 and self.visible(landmarks, idxs["wrist"]):
             wrist = self.lm(landmarks, idxs["wrist"])
-            # Elbow bend check: shoulder-elbow-wrist
             elbow_bend = self.calculate_angle(shoulder, elbow, wrist)
             if elbow_bend < 140:
-                self._apply_penalty(feedback, 15, "Keep arms straight")
+                self._apply_penalty(feedback, 15, "Keep your arms straight")
 
-        if feedback:
-            self.current_rep_feedback = feedback
+        return self._frame(raise_angle, feedback)
 
-        return FrameResult(
-            primary_angle=raise_angle,
-            feedback=feedback,
-            stage=self.stage or "start",
-            rep_count=self.rep_count,
-            current_quality=self.current_quality,
-        )
+    def _evaluate_rep(self, feedback: list) -> None:
+        # A counted rep already passed shoulder height (80 deg gate); here we only
+        # catch over-raising (traps taking over) and whipping the weight up.
+        peak = self.rep_max_angle
+        if peak is not None and peak > self._HEIGHT_HIGH:
+            self._apply_penalty(feedback, 10, "Don't raise above shoulder height")
+
+        if self.rep_frames and self.fps and self.rep_frames / self.fps < 0.4:
+            self._apply_penalty(feedback, 10, "Control the raise, don't swing")
 
     def reset(self):
         self._reset_base()

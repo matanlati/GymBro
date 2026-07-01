@@ -120,6 +120,7 @@ def _build_analysis_payload(
         "average_quality": result.average_quality,  # 0-100, deterministic baseline
         "per_rep_qualities": result.per_rep_qualities,
         "detected_faults": detected_faults,
+        "per_rep_details": result.rep_details,
         "pose_detection_coverage": round(coverage, 3),
         "frames_total": result.frames_total,
         "frames_with_pose": result.frames_with_pose,
@@ -149,6 +150,11 @@ NOTES ON THE METRICS:
 - "average_quality" and "per_rep_qualities" are 0-100 form scores from the analyzer.
 - "detected_faults" lists faults the analyzer flagged and how many video frames
   each fault appeared in (higher frame_occurrences = a more persistent problem).
+- "per_rep_details" gives, for each rep, its form "quality" (0-100), the range of
+  motion actually reached ("min_angle"/"max_angle"/"rom", in degrees at the joint
+  the analyzer measures for this exercise), the rep "duration_s" (very short =
+  rushed/bounced, very long = grinding), and the "faults" that fired on that rep.
+  Use it to call out specific reps (e.g. "rep 3 was shallow and rushed").
 - "pose_detection_coverage" is the fraction of frames where the body was tracked;
   low coverage means some of the movement could not be measured reliably.
 - "camera_side" is the body side the analyzer measured ("left" or "right").
