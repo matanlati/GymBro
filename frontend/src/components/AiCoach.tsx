@@ -2,12 +2,17 @@ import { useState, useEffect, useRef, DragEvent, ChangeEvent, FormEvent } from '
 import {
   analyzeVideo,
   listAnalyses,
+  BodySide,
   Evaluation,
   EvaluationIssue,
   RecentAnalysis,
 } from '../api/video.api'
 
 const EXERCISE_TYPES = ['squat', 'deadlift', 'push-up', 'lunge', 'shoulder press', 'biceps curl']
+const SIDES: { value: BodySide; label: string }[] = [
+  { value: 'left', label: 'Left side' },
+  { value: 'right', label: 'Right side' },
+]
 const MAX_SIZE = 100 * 1024 * 1024
 const ACCEPTED = ['video/mp4', 'video/quicktime', 'video/webm']
 
@@ -149,6 +154,7 @@ const ResultsPanel = ({ evaluation, onAnalyzeAnother }: { evaluation: Evaluation
 const AiCoach = () => {
   const [file, setFile] = useState<File | null>(null)
   const [exerciseType, setExerciseType] = useState(EXERCISE_TYPES[0])
+  const [side, setSide] = useState<BodySide>('left')
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -192,7 +198,7 @@ const AiCoach = () => {
     setError(null)
     setEvaluation(null)
     try {
-      const { data } = await analyzeVideo(file, exerciseType)
+      const { data } = await analyzeVideo(file, exerciseType, side)
       setEvaluation(data.evaluation)
       const { data: list } = await listAnalyses()
       setRecent(list)
@@ -234,6 +240,24 @@ const AiCoach = () => {
                 ))}
               </select>
             </label>
+
+            <div className="field">
+              <span>Side facing the camera</span>
+              <div className="side-toggle" role="group" aria-label="Side facing the camera">
+                {SIDES.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={side === value ? 'side-option active' : 'side-option'}
+                    aria-pressed={side === value}
+                    onClick={() => setSide(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <small className="field-hint">Pick the side of your body facing the camera for a more accurate analysis.</small>
+            </div>
 
             <div
               className={dragActive ? 'dropzone active' : 'dropzone'}

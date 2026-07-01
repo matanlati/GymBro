@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { Response } from 'express'
-import { AuthRequest, VideoFile, Evaluation, ALLOWED_EXERCISE_TYPES } from '../types'
+import { AuthRequest, VideoFile, Evaluation, ALLOWED_EXERCISE_TYPES, ALLOWED_SIDES } from '../types'
 import PoseAnalysisService from '../services/videoAnalysis/PoseAnalysisService'
 
 const VideoAnalysisService = process.env.VIDEO_ANALYSIS_SERVICE_URL
@@ -35,9 +35,19 @@ export const analyzeVideo = async (req: AuthRequest, res: Response): Promise<voi
     return
   }
 
+  const side = req.body?.side
+  if (side !== undefined && !ALLOWED_SIDES.includes(side)) {
+    fs.unlink(videoFile.path, () => {})
+    res.status(400).json({
+      error: 'VALIDATION_ERROR',
+      message: `side must be one of: ${ALLOWED_SIDES.join(', ')}`,
+    })
+    return
+  }
+
   try {
     videoFile.exerciseType = exerciseType
-    if (req.body?.side) videoFile.side = req.body.side
+    if (side) videoFile.side = side
     const result = await VideoAnalysisService.analyze(videoFile)
     const evaluation = extractEvaluation(result)
     if (!evaluation) {
