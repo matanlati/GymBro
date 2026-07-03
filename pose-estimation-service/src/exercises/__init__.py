@@ -6,6 +6,9 @@ from .deadlift import Deadlift
 from .shoulder_press import ShoulderPress
 from .lunge import Lunge
 from .lateral_raise import LateralRaise
+from .bench_press import BenchPress
+from .lat_pulldown import LatPulldown
+from .triceps_extension import TricepsExtension
 
 _REGISTRY: dict = {
     "squat": Squat,
@@ -15,6 +18,9 @@ _REGISTRY: dict = {
     "shoulder_press": ShoulderPress,
     "lunge": Lunge,
     "lateral_raise": LateralRaise,
+    "bench_press": BenchPress,
+    "lat_pulldown": LatPulldown,
+    "triceps_extension": TricepsExtension,
 }
 
 SUPPORTED_EXERCISES = list(_REGISTRY.keys())

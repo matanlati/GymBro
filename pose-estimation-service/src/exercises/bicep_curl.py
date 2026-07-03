@@ -50,6 +50,7 @@ class BicepCurl(BaseExercise):
         elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
         self._track(elbow_angle)
         feedback = []
+        positives = []
 
         # Accumulate how far the elbow sits in front of / behind the shoulder so
         # we can judge swing over the whole rep in _evaluate_rep.
@@ -59,22 +60,30 @@ class BicepCurl(BaseExercise):
 
         if elbow_angle > self._BOTTOM_GATE:
             if self.stage == "up":
-                self._finish_rep(feedback)
+                self._finish_rep(feedback, positives)
             self.stage = "down"
         elif elbow_angle < self._TOP_GATE:
             self.stage = "up"
 
         if abs(offset) > 0.15:
-            self._apply_penalty(feedback, 10, "Keep elbows pinned to your sides")
+            self._apply_penalty(feedback, 10, "Elbow drifting forward - pin it to your side")
 
-        return self._frame(elbow_angle, feedback)
+        return self._frame(elbow_angle, feedback, positives)
 
-    def _evaluate_rep(self, feedback: list) -> None:
+    def _evaluate_rep(self, feedback: list, positives: list) -> None:
+        clean_form = not self._rep_faults  # no elbow-drift fault during the rep
         # Swing / momentum: the elbow sweeping horizontally across the rep means
         # the body heaved the weight up rather than the biceps curling it.
-        if (self._elbow_off_min is not None and self._elbow_off_max is not None
-                and self._elbow_off_max - self._elbow_off_min > self._SWING_RANGE):
-            self._apply_penalty(feedback, 15, "Stop swinging, control the weight")
+        swing = (self._elbow_off_min is not None and self._elbow_off_max is not None
+                 and self._elbow_off_max - self._elbow_off_min > self._SWING_RANGE)
+        if swing:
+            self._apply_penalty(feedback, 15, "Swinging - kill the momentum, control the weight")
+
+        # Full squeeze at the top: a counted rep already passed _TOP_GATE (40 deg).
+        if self.rep_min_angle is not None and self.rep_min_angle <= self._TOP_GATE:
+            self._praise(positives, "Full squeeze at the top")
+        if clean_form and not swing:
+            self._praise(positives, "Elbows pinned, clean strict curl")
         self._reset_swing()
 
     def reset(self):

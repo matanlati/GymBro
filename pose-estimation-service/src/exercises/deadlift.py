@@ -17,6 +17,10 @@ class Deadlift(BaseExercise):
       - Hips shooting up early: the knees straighten while the torso is still
         folded over, dumping the load onto the lower back.
       - Bar/knees drifting forward away from the body.
+
+    Note: rep counting is unchanged -- a rep is counted once the hip bends past
+    90 deg at the bottom and re-extends past 160 deg at the top, so a partial pull
+    that never breaks 90 deg simply does not register as a rep.
     """
 
     _LEFT = dict(shoulder=11, hip=23, knee=25, ankle=27)
@@ -43,10 +47,11 @@ class Deadlift(BaseExercise):
         self._track(hip_angle)
         sign = self._facing_sign(landmarks)
         feedback = []
+        positives = []
 
         if hip_angle > self._UP_GATE:
             if self.stage == "down":
-                self._finish_rep(feedback)
+                self._finish_rep(feedback, positives)
             self.stage = "up"
         elif hip_angle < self._DOWN_GATE:
             self.stage = "down"
@@ -57,16 +62,23 @@ class Deadlift(BaseExercise):
         if self.stage == "down" and self.visible(landmarks, idxs["ankle"]):
             knee_angle = self.calculate_angle(hip, knee, ankle)
             if knee_angle > 160 and hip_angle < 130:
-                self._apply_penalty(feedback, 15, "Hips rising too fast, drive with your legs")
+                self._apply_penalty(feedback, 15, "Hips shooting up - drive the floor with your legs")
             # Bar path: knees/bar drifting forward, away from the body.
             if sign * (knee[0] - ankle[0]) > 0.08:
-                self._apply_penalty(feedback, 10, "Keep the bar close to your body")
+                self._apply_penalty(feedback, 10, "Bar drifting out - keep it close to your body")
 
-        return self._frame(hip_angle, feedback)
+        return self._frame(hip_angle, feedback, positives)
 
-    def _evaluate_rep(self, feedback: list) -> None:
+    def _evaluate_rep(self, feedback: list, positives: list) -> None:
+        # No "hips shooting up" / "bar drifting" faults fired during the pull.
+        clean_pull = not self._rep_faults
         if self.rep_max_angle is not None and self.rep_max_angle < self._LOCKOUT_GOOD:
-            self._apply_penalty(feedback, 15, "Fully extend your hips at lock-out")
+            self._apply_penalty(feedback, 15, "Short lockout - fully extend your hips at the top")
+        elif self.rep_max_angle is not None:
+            self._praise(positives, "Strong lockout, hips fully extended")
+
+        if clean_pull:
+            self._praise(positives, "Hips and shoulders rose together, bar close")
 
     def reset(self):
         self._reset_base()

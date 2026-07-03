@@ -43,10 +43,11 @@ class LateralRaise(BaseExercise):
         raise_angle = self.calculate_angle(hip, shoulder, elbow)
         self._track(raise_angle)
         feedback = []
+        positives = []
 
         if raise_angle > self._UP_GATE:
             if self.stage == "down":
-                self._finish_rep(feedback)
+                self._finish_rep(feedback, positives)
             self.stage = "up"
         elif raise_angle < self._DOWN_GATE:
             self.stage = "down"
@@ -56,19 +57,30 @@ class LateralRaise(BaseExercise):
             wrist = self.lm(landmarks, idxs["wrist"])
             elbow_bend = self.calculate_angle(shoulder, elbow, wrist)
             if elbow_bend < 140:
-                self._apply_penalty(feedback, 15, "Keep your arms straight")
+                self._apply_penalty(feedback, 15, "Elbows bending - keep arms long, soft elbow")
 
-        return self._frame(raise_angle, feedback)
+        return self._frame(raise_angle, feedback, positives)
 
-    def _evaluate_rep(self, feedback: list) -> None:
+    def _evaluate_rep(self, feedback: list, positives: list) -> None:
+        # No "elbows bending" fault fired during the raise.
+        strict_arm = not self._rep_faults
         # A counted rep already passed shoulder height (80 deg gate); here we only
         # catch over-raising (traps taking over) and whipping the weight up.
         peak = self.rep_max_angle
-        if peak is not None and peak > self._HEIGHT_HIGH:
-            self._apply_penalty(feedback, 10, "Don't raise above shoulder height")
+        too_high = peak is not None and peak > self._HEIGHT_HIGH
+        if too_high:
+            self._apply_penalty(feedback, 10, "Too high - stop at shoulder height, not above")
+        elif peak is not None:
+            self._praise(positives, "Perfect height, right at the shoulder")
 
-        if self.rep_frames and self.fps and self.rep_frames / self.fps < 0.4:
-            self._apply_penalty(feedback, 10, "Control the raise, don't swing")
+        rep_s = self.rep_frames / self.fps if (self.rep_frames and self.fps) else None
+        if rep_s is not None and rep_s < 0.4:
+            self._apply_penalty(feedback, 10, "Swinging up - control the raise, no momentum")
+        elif rep_s is not None and rep_s >= 0.8:
+            self._praise(positives, "Controlled raise, no momentum")
+
+        if strict_arm and not too_high:
+            self._praise(positives, "Arms long, strict side-delt form")
 
     def reset(self):
         self._reset_base()

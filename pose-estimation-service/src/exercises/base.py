@@ -15,6 +15,11 @@ class FrameResult:
     # overlay show live tempo so lifters can see whether they are grinding or
     # bouncing through the movement.
     tempo_s: Optional[float] = None
+    # Positive coaching cues ("Great depth!", "Strong lockout") for things the
+    # lifter did *well* this frame/rep. Kept separate from ``feedback`` (which is
+    # faults) so the overlay can render praise in green and the LLM can ground its
+    # positive feedback. Purely informational: praise never changes the score.
+    positives: list = field(default_factory=list)
 
 
 @dataclass
@@ -35,6 +40,9 @@ class RepDetail:
     rom: Optional[float] = None
     duration_s: Optional[float] = None
     faults: list = field(default_factory=list)
+    # Positive cues that fired on this rep (the praise twin of ``faults``), so the
+    # LLM can call out specific reps done well ("rep 2 hit full depth and locked out").
+    praises: list = field(default_factory=list)
 
 
 class BaseExercise(ABC):
@@ -58,6 +66,9 @@ class BaseExercise(ABC):
         self.current_rep_feedback: list = []
         self.all_qualities: list = []
         self.issue_counts: dict = {}
+        # Tally of positive cues across the whole set (the praise twin of
+        # ``issue_counts``); surfaced to the LLM as "detected_strengths".
+        self.praise_counts: dict = {}
         self.rep_details: list = []
         self._ema: dict = {}
         # Extrema and frame tally accumulated across the rep in progress. Depth,
@@ -68,6 +79,7 @@ class BaseExercise(ABC):
         self.rep_max_angle: Optional[float] = None
         self.rep_frames: int = 0
         self._rep_faults: list = []
+        self._rep_praises: list = []
 
     @staticmethod
     def calculate_angle(a, b, c) -> float:
@@ -158,10 +170,20 @@ class BaseExercise(ABC):
             rep_count=self.rep_count,
             current_quality=self.current_quality,
             tempo_s=self._tempo_s(),
+            positives=[],
         )
 
-    def _frame(self, primary_angle: Optional[float], feedback: list) -> "FrameResult":
-        """Build the per-frame result, stamping live stage/quality/tempo."""
+    def _frame(
+        self,
+        primary_angle: Optional[float],
+        feedback: list,
+        positives: Optional[list] = None,
+    ) -> "FrameResult":
+        """Build the per-frame result, stamping live stage/quality/tempo.
+
+        ``positives`` are praise cues for what went right this frame; they are
+        optional so exercises that only track faults need not pass them.
+        """
         if feedback:
             self.current_rep_feedback = feedback
         return FrameResult(
@@ -171,28 +193,36 @@ class BaseExercise(ABC):
             rep_count=self.rep_count,
             current_quality=self.current_quality,
             tempo_s=self._tempo_s(),
+            positives=positives or [],
         )
 
-    def _evaluate_rep(self, feedback: list) -> None:
+    def _evaluate_rep(self, feedback: list, positives: list) -> None:
         """Hook: grade range-of-motion / tempo for the rep that just closed.
 
         Subclasses inspect ``rep_min_angle`` / ``rep_max_angle`` / ``rep_frames``
         and call ``_apply_penalty`` for anything the per-frame checks cannot see
-        (e.g. a squat that never reached depth). Messages appended to ``feedback``
-        surface on the closing frame's overlay. Default: no end-of-rep grading.
+        (e.g. a squat that never reached depth), or ``_praise`` for a whole-rep
+        success (full depth, clean lockout, controlled tempo). Messages appended
+        to ``feedback`` / ``positives`` surface on the closing frame's overlay.
+        Default: no end-of-rep grading.
         """
         return None
 
-    def _finish_rep(self, feedback: Optional[list] = None):
+    def _finish_rep(self, feedback: Optional[list] = None,
+                    positives: Optional[list] = None):
         """Close the current rep: grade its ROM/tempo, record it, then reset.
 
-        ``feedback`` is the closing frame's feedback list; end-of-rep cues are
-        appended to it so they render on the video at the moment the rep ends.
+        ``feedback`` / ``positives`` are the closing frame's fault and praise
+        lists; end-of-rep cues are appended to them so they render on the video at
+        the moment the rep ends.
         """
         end_feedback: list = []
-        self._evaluate_rep(end_feedback)
+        end_positives: list = []
+        self._evaluate_rep(end_feedback, end_positives)
         if feedback is not None:
             feedback.extend(end_feedback)
+        if positives is not None:
+            positives.extend(end_positives)
         if end_feedback:
             self.current_rep_feedback = end_feedback
 
@@ -209,6 +239,7 @@ class BaseExercise(ABC):
                 else None,
                 duration_s=self._tempo_s(),
                 faults=list(dict.fromkeys(self._rep_faults)),
+                praises=list(dict.fromkeys(self._rep_praises)),
             )
         )
 
@@ -216,6 +247,7 @@ class BaseExercise(ABC):
         self.current_quality = 100.0
         self.current_rep_feedback = []
         self._rep_faults = []
+        self._rep_praises = []
         self.rep_min_angle = None
         self.rep_max_angle = None
         self.rep_frames = 0
@@ -226,6 +258,17 @@ class BaseExercise(ABC):
         self.issue_counts[message] = self.issue_counts.get(message, 0) + 1
         self._rep_faults.append(message)
 
+    def _praise(self, positives: list, message: str):
+        """Record a positive cue: the praise twin of ``_apply_penalty``.
+
+        Surfaces the cue on the overlay and tallies it for the LLM, but never
+        touches ``current_quality`` - praise recognises good work, it does not
+        inflate the score.
+        """
+        positives.append(message)
+        self.praise_counts[message] = self.praise_counts.get(message, 0) + 1
+        self._rep_praises.append(message)
+
     def _reset_base(self):
         self.rep_count = 0
         self.stage = None
@@ -233,12 +276,14 @@ class BaseExercise(ABC):
         self.current_rep_feedback = []
         self.all_qualities = []
         self.issue_counts = {}
+        self.praise_counts = {}
         self.rep_details = []
         self._ema = {}
         self.rep_min_angle = None
         self.rep_max_angle = None
         self.rep_frames = 0
         self._rep_faults = []
+        self._rep_praises = []
 
     @abstractmethod
     def analyze_frame(self, landmarks) -> FrameResult:

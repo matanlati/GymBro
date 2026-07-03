@@ -44,10 +44,11 @@ class Pushup(BaseExercise):
         elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
         self._track(elbow_angle)
         feedback = []
+        positives = []
 
         if elbow_angle > self._UP_GATE:
             if self.stage == "down":
-                self._finish_rep(feedback)
+                self._finish_rep(feedback, positives)
             self.stage = "up"
         elif elbow_angle < self._DOWN_GATE:
             self.stage = "down"
@@ -64,20 +65,27 @@ class Pushup(BaseExercise):
             if body_angle < 160:
                 mid_y = (shoulder[1] + knee[1]) / 2
                 if hip[1] > mid_y + 0.03:
-                    self._apply_penalty(feedback, 15, "Hips sagging, brace your core")
+                    self._apply_penalty(feedback, 15, "Hips sagging - brace your core, ribs down")
                 elif hip[1] < mid_y - 0.03:
-                    self._apply_penalty(feedback, 15, "Hips piking, keep body in a straight line")
+                    self._apply_penalty(feedback, 15, "Hips piking up - drop them into a straight line")
                 else:
-                    self._apply_penalty(feedback, 15, "Keep body in a straight line")
+                    self._apply_penalty(feedback, 15, "Body bending - hold one line, head to heels")
 
-        return self._frame(elbow_angle, feedback)
+        return self._frame(elbow_angle, feedback, positives)
 
-    def _evaluate_rep(self, feedback: list) -> None:
+    def _evaluate_rep(self, feedback: list, positives: list) -> None:
+        # Whether the plank held (no sag/pike faults fired during the descent).
+        solid_plank = not self._rep_faults
         depth = self.rep_min_angle
         if depth is None:
             return
         if depth > self._DEPTH_GOOD:
-            self._apply_penalty(feedback, 15, "Go lower, chest toward the floor")
+            self._apply_penalty(feedback, 15, "Too shallow - lower your chest toward the floor")
+        else:
+            self._praise(positives, "Full depth - chest to the floor")
+
+        if solid_plank:
+            self._praise(positives, "Rock-solid plank, straight line held")
 
     def reset(self):
         self._reset_base()
