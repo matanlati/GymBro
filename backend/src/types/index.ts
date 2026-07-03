@@ -84,13 +84,21 @@ export interface RecentAnalysis {
   createdAt: string
 }
 
+// These values are forwarded verbatim to the pose-estimation service as
+// `exercise_type`, so they must match its registry keys exactly (see
+// pose-estimation-service/src/exercises/__init__.py). The frontend dropdown maps
+// each key to a human label.
 export const ALLOWED_EXERCISE_TYPES = [
   'squat',
   'deadlift',
   'push-up',
   'lunge',
-  'shoulder press',
-  'biceps curl',
+  'shoulder_press',
+  'bicep_curl',
+  'lateral_raise',
+  'bench_press',
+  'lat_pulldown',
+  'triceps_extension',
 ] as const
 
 export const ALLOWED_SIDES = ['left', 'right'] as const

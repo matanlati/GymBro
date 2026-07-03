@@ -26,9 +26,12 @@ class ProcessingResult:
     side: str = "left"
     per_rep_qualities: list = field(default_factory=list)
     issue_counts: dict = field(default_factory=dict)
+    # Tally of positive cues across the set (the praise twin of issue_counts),
+    # surfaced to the LLM as "detected_strengths".
+    praise_counts: dict = field(default_factory=dict)
     frames_total: int = 0
     frames_with_pose: int = 0
-    # Per-rep summaries (depth, ROM, tempo, faults) as plain dicts for the LLM.
+    # Per-rep summaries (depth, ROM, tempo, faults, praises) as plain dicts for the LLM.
     rep_details: list = field(default_factory=list)
 
 
@@ -177,6 +180,7 @@ def _build_result(
             "rom": _num(rd.rom),
             "duration_s": _num(rd.duration_s),
             "faults": rd.faults,
+            "praises": rd.praises,
         }
         for rd in exercise.rep_details
     ]
@@ -190,6 +194,7 @@ def _build_result(
         side=side,
         per_rep_qualities=[round(q, 2) for q in exercise.all_qualities],
         issue_counts=dict(exercise.issue_counts),
+        praise_counts=dict(exercise.praise_counts),
         frames_total=frames_total,
         frames_with_pose=frames_with_pose,
         rep_details=rep_details,

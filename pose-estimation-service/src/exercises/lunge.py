@@ -44,28 +44,36 @@ class Lunge(BaseExercise):
         self._track(knee_angle)
         sign = self._facing_sign(landmarks)
         feedback = []
+        positives = []
 
         if knee_angle > self._UP_GATE:
             if self.stage == "down":
-                self._finish_rep(feedback)
+                self._finish_rep(feedback, positives)
             self.stage = "up"
         elif knee_angle < self._DOWN_GATE:
             self.stage = "down"
 
         if self.stage == "down":
             if sign * (knee[0] - ankle[0]) > 0.06:
-                self._apply_penalty(feedback, 15, "Front knee past toes")
+                self._apply_penalty(feedback, 15, "Front knee past toes - track it over your ankle")
             if self.visible(landmarks, idxs["shoulder"]) and sign * (shoulder[0] - hip[0]) > 0.1:
-                self._apply_penalty(feedback, 10, "Keep torso upright")
+                self._apply_penalty(feedback, 10, "Torso leaning - stay tall over your hips")
 
-        return self._frame(knee_angle, feedback)
+        return self._frame(knee_angle, feedback, positives)
 
-    def _evaluate_rep(self, feedback: list) -> None:
+    def _evaluate_rep(self, feedback: list, positives: list) -> None:
+        # No "front knee past toes" / "torso leaning" faults during the descent.
+        clean_form = not self._rep_faults
         depth = self.rep_min_angle
         if depth is None:
             return
         if depth > self._DEPTH_GOOD:
-            self._apply_penalty(feedback, 15, "Lunge deeper, front thigh to parallel")
+            self._apply_penalty(feedback, 15, "Too shallow - drop until front thigh is parallel")
+        else:
+            self._praise(positives, "Great depth - front thigh to parallel")
+
+        if clean_form:
+            self._praise(positives, "Tall torso, knee tracking over the ankle")
 
     def reset(self):
         self._reset_base()

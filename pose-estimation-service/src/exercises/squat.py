@@ -53,10 +53,11 @@ class Squat(BaseExercise):
         self._track(knee_angle)
         sign = self._facing_sign(landmarks)
         feedback = []
+        positives = []
 
         if knee_angle > self._UP_GATE:
             if self.stage == "down":
-                self._finish_rep(feedback)
+                self._finish_rep(feedback, positives)
             self.stage = "up"
         elif knee_angle < self._DOWN_GATE:
             self.stage = "down"
@@ -66,21 +67,33 @@ class Squat(BaseExercise):
         # standing lockout.
         if self.stage == "down":
             if sign * (knee[0] - ankle[0]) > 0.08:
-                self._apply_penalty(feedback, 10, "Knees drifting past toes")
+                self._apply_penalty(feedback, 10, "Knees past toes - sit back into your heels")
             if self.visible(landmarks, idxs["shoulder"]) and sign * (shoulder[0] - hip[0]) > 0.12:
-                self._apply_penalty(feedback, 10, "Chest up, torso pitching forward")
+                self._apply_penalty(feedback, 10, "Chest up - stop the torso pitching forward")
 
-        return self._frame(knee_angle, feedback)
+        return self._frame(knee_angle, feedback, positives)
 
-    def _evaluate_rep(self, feedback: list) -> None:
+    def _evaluate_rep(self, feedback: list, positives: list) -> None:
+        # Captured before this method adds any end-of-rep faults, so it reflects
+        # only the per-frame knee/torso cues from the descent.
+        clean_descent = not self._rep_faults
         depth = self.rep_min_angle
         if depth is None:
             return
-        if depth > self._DEPTH_GOOD:
-            self._apply_penalty(feedback, 15, "Go deeper, aim for thighs at least parallel")
 
-        if self.rep_frames and self.fps and self.rep_frames / self.fps < 0.4:
-            self._apply_penalty(feedback, 5, "Control the descent, avoid bouncing")
+        rep_s = self.rep_frames / self.fps if (self.rep_frames and self.fps) else None
+        if depth > self._DEPTH_GOOD:
+            self._apply_penalty(feedback, 15, "Too shallow - break parallel, drive the hips down")
+        else:
+            self._praise(positives, "Great depth - at or below parallel")
+
+        if rep_s is not None and rep_s < 0.4:
+            self._apply_penalty(feedback, 5, "Descent too fast - control it, don't bounce")
+        elif rep_s is not None and rep_s >= 0.8:
+            self._praise(positives, "Controlled tempo, no bouncing")
+
+        if clean_descent:
+            self._praise(positives, "Knees tracking well, chest tall")
 
     def reset(self):
         self._reset_base()
