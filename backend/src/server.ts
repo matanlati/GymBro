@@ -39,10 +39,13 @@ app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
 
 // ── Serve the built frontend (production) ────────────────────────────────────
-// The build script copies frontend/dist into backend/dist/public. When that
-// folder exists, serve it and fall back to index.html for client-side routes.
-// The /api guard keeps unknown API paths returning JSON 404s, not index.html.
-const clientDir = path.join(__dirname, 'public')
+// The frontend build lives in backend/src/public. Resolve it relative to the
+// source dir so it works whether run via ts-node (__dirname = src) or compiled
+// (__dirname = dist). When present, serve it and fall back to index.html for
+// client-side routes. The /api guard keeps unknown API paths returning JSON.
+const clientDir = fs.existsSync(path.join(__dirname, 'public'))
+  ? path.join(__dirname, 'public')            // ts-node: src/public
+  : path.join(__dirname, '..', 'src', 'public') // compiled: dist -> ../src/public
 if (fs.existsSync(clientDir)) {
   app.use(express.static(clientDir))
   app.get(/^(?!\/api\/).*/, (_req, res) => {

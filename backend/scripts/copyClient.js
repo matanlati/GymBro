@@ -1,10 +1,10 @@
-// Copy the built frontend (frontend/dist) into backend/dist/public so the
+// Copy the built frontend (frontend/dist) into backend/src/public so the
 // Express server can serve it in production. Cross-platform (no shell cp).
 const fs = require('fs')
 const path = require('path')
 
 const src = path.resolve(__dirname, '..', '..', 'frontend', 'dist')
-const dest = path.resolve(__dirname, '..', 'dist', 'public')
+const dest = path.resolve(__dirname, '..', 'src', 'public')
 
 if (!fs.existsSync(src)) {
   console.error(`[copyClient] frontend build not found at ${src}. Run the frontend build first.`)
