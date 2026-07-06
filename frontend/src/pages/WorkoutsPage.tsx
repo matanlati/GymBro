@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Alert, Badge, Button, Card, EmptyState, LoadingState, PageHeader } from '@gymbro/ui-kit'
 import { listSessions, getOrCreateToday, Session } from '../api/sessions.api'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 
@@ -53,19 +54,21 @@ const WorkoutsPage = () => {
 
   return (
     <main className="workouts-page">
-      <header className="workouts-header">
-        <div>
-          <h1>My Workouts</h1>
-          <p>Track and manage your training sessions</p>
-        </div>
-        <button type="button" className="new-workout-button" onClick={() => navigate('/plans/new')}>
-          + New Workout
-        </button>
-      </header>
+      <PageHeader
+        title="My Workouts"
+        subtitle="Track and manage your training sessions"
+        actions={
+          <Button onClick={() => navigate('/plans/new')}>+ New Workout</Button>
+        }
+      />
 
-      {error && <p className="workouts-error">{error}</p>}
+      {error && (
+        <Alert variant="error" style={{ marginBottom: 16 }}>
+          {error}
+        </Alert>
+      )}
 
-      <section className="workouts-panel">
+      <Card as="section">
         <div className="workouts-week">
           <span>This Week</span>
           <strong>
@@ -74,9 +77,9 @@ const WorkoutsPage = () => {
         </div>
 
         {loading ? (
-          <p className="workouts-empty">Loading sessions…</p>
+          <LoadingState label="Loading sessions…" />
         ) : sessions.length === 0 ? (
-          <p className="workouts-empty">No sessions yet. Start your first workout below.</p>
+          <EmptyState>No sessions yet. Start your first workout below.</EmptyState>
         ) : (
           <ul className="workouts-list">
             {sessions.map(session => {
@@ -86,29 +89,35 @@ const WorkoutsPage = () => {
                   <div className="workout-row-main">
                     <h3>
                       {titleFor(session)}
-                      {done && <span className="workout-row-badge">Completed</span>}
+                      {done && <Badge tone="success">Completed</Badge>}
                     </h3>
                     <p>
                       {formatDate(session.scheduledDate)} · {session.exercises.length} exercises
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="workout-row-action"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => navigate(`/session/${session._id}`)}
                   >
                     {done ? 'View →' : 'Start →'}
-                  </button>
+                  </Button>
                 </li>
               )
             })}
           </ul>
         )}
 
-        <button type="button" className="workouts-start-cta" onClick={startNext} disabled={starting}>
-          {starting ? 'Starting…' : 'Start Next Workout'}
-        </button>
-      </section>
+        <Button
+          fullWidth
+          loading={starting}
+          loadingLabel="Starting…"
+          onClick={startNext}
+          style={{ marginTop: 20 }}
+        >
+          Start Next Workout
+        </Button>
+      </Card>
     </main>
   )
 }

@@ -1882,43 +1882,6 @@ button {
   padding: 24px;
 }
 
-.workouts-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.workouts-header h1 {
-  margin: 0;
-  font-size: 28px;
-  color: #111827;
-}
-
-.workouts-header p {
-  margin: 4px 0 0;
-  color: #6b7280;
-}
-
-.new-workout-button {
-  flex-shrink: 0;
-  padding: 10px 18px;
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  font-weight: 600;
-  background: linear-gradient(135deg, #ff7a1a, #ef3442);
-}
-
-.workouts-panel {
-  background: #fff;
-  border: 1px solid #eef0f3;
-  border-radius: 16px;
-  padding: 8px 20px 20px;
-  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
-}
-
 .workouts-week {
   display: flex;
   align-items: center;
@@ -1963,91 +1926,10 @@ button {
   font-size: 14px;
 }
 
-.workout-row-badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #15803d;
-  background: #dcfce7;
-}
-
-.workout-row-action {
-  flex-shrink: 0;
-  border: none;
-  background: none;
-  color: #ff6b1a;
-  font-weight: 600;
-}
-
-.workouts-start-cta {
-  width: 100%;
-  margin-top: 20px;
-  padding: 12px;
-  border: none;
-  border-radius: 12px;
-  color: #fff;
-  font-weight: 600;
-  background: linear-gradient(135deg, #ff7a1a, #ef3442);
-}
-
-.workouts-start-cta:disabled {
-  opacity: 0.6;
-}
-
-.workouts-empty {
-  padding: 24px 0;
-  color: #6b7280;
-  text-align: center;
-}
-
-.workouts-error,
-.session-error {
-  margin: 0 0 16px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  color: #b91c1c;
-  background: #fee2e2;
-}
-
-.session-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.session-header h1 {
-  margin: 0;
-  font-size: 26px;
-}
-
-.session-header p {
-  margin: 4px 0 0;
-  color: #6b7280;
-}
-
-.session-badge {
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #15803d;
-  background: #dcfce7;
-}
-
 .session-exercises {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.session-exercise {
-  background: #fff;
-  border: 1px solid #eef0f3;
-  border-radius: 14px;
-  padding: 18px;
 }
 
 .session-exercise-head {
@@ -2074,14 +1956,6 @@ button {
   margin: 14px 0 0;
 }
 
-.session-set-chip {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 13px;
-  color: #c2410c;
-  background: #fff7ed;
-}
-
 .session-log-form {
   display: flex;
   gap: 10px;
@@ -2091,38 +1965,14 @@ button {
 .session-log-form input {
   flex: 1;
   min-width: 0;
-  padding: 9px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
 }
 
 .session-log-form button {
   flex-shrink: 0;
-  padding: 9px 16px;
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  font-weight: 600;
-  background: #ff6b1a;
 }
 
 .session-footer {
   margin-top: 24px;
-}
-
-.session-finish {
-  width: 100%;
-  padding: 14px;
-  border: none;
-  border-radius: 12px;
-  color: #fff;
-  font-weight: 600;
-  font-size: 16px;
-  background: linear-gradient(135deg, #ff7a1a, #ef3442);
-}
-
-.session-finish:disabled {
-  opacity: 0.6;
 }
 
 /* ── Progress page ───────────────────────────────────────────────────────── */
@@ -2132,26 +1982,12 @@ button {
   padding: 24px;
 }
 
-.progress-header h1 {
-  margin: 0;
-  font-size: 28px;
-  color: #111827;
-}
-
-.progress-header p {
-  margin: 4px 0 20px;
-  color: #6b7280;
-}
-
+/* .progress-empty is still referenced inside BarChart/LineChart — remove once
+   those move to the ui-kit and use EmptyState. */
 .progress-empty {
   color: #6b7280;
   padding: 24px 0;
   text-align: center;
-}
-
-.progress-error {
-  color: #ef4444;
-  padding: 24px 0;
 }
 
 .progress-stats {
@@ -2196,36 +2032,15 @@ button {
 }
 
 .progress-card {
-  background: #fff;
-  border: 1px solid #eef0f3;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
   margin-bottom: 20px;
 }
 
-.progress-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.progress-card-head h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: #111827;
-}
-
+/* Compact sizing for the kit Select when it sits inside a card header. */
 .progress-select {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 6px 10px;
-  color: #374151;
-  background: #fff;
+  width: auto;
   max-width: 200px;
+  min-height: 34px;
+  padding: 6px 10px;
 }
 
 /* Bar chart */
