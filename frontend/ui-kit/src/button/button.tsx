@@ -3,12 +3,14 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 import { cx } from '../utils/cx'
 import './button.less'
 
-export type ButtonVariant = 'primary' | 'solid' | 'secondary' | 'ghost' | 'outline'
+export type ButtonVariant = 'primary' | 'solid' | 'secondary' | 'ghost' | 'outline' | 'inverse'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
 export type ButtonProps = {
   /** primary = brand gradient CTA, solid = flat accent, secondary = gray,
-   *  ghost = borderless text, outline = white with accent border. */
+   *  ghost = borderless text, outline = white with accent border,
+   *  inverse = white surface for use on gradient cards (accent text by default —
+   *  override `color` via style/className when the surface calls for another hue). */
   variant?: ButtonVariant
   size?: ButtonSize
   fullWidth?: boolean

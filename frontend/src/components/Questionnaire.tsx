@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AxiosError } from 'axios'
+import { Alert, Button, Card, FormField, FormRow, Input, Select, Textarea } from '@gymbro/ui-kit'
 import { generatePlan, type WorkoutPlan } from '../api/plans.api'
 
 type StepInfo = {
@@ -257,13 +258,9 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
             <h1>Your {dayCount || formData.trainingDays || ''}-Day Training Plan</h1>
             {result.summary && <p>{result.summary}</p>}
           </div>
-          <button
-            className="secondary-action plan-edit-button"
-            type="button"
-            onClick={editAnswers}
-          >
+          <Button variant="inverse" size="lg" className="plan-edit-button" onClick={editAnswers}>
             Edit Answers
-          </button>
+          </Button>
         </section>
 
         <div className="plan-metrics" aria-label="Plan summary">
@@ -347,10 +344,8 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
     if (step === 0) {
       return (
         <>
-          <div className="form-field">
-            <label htmlFor="age">Age</label>
-            <input
-              id="age"
+          <FormField label="Age">
+            <Input
               type="number"
               name="age"
               placeholder="28"
@@ -358,29 +353,26 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
               onChange={handleChange}
               required
             />
-          </div>
+          </FormField>
 
-          <div className="form-field">
-            <label htmlFor="gender">Gender</label>
-            <select
-              id="gender"
+          <FormField label="Gender">
+            <Select
               name="gender"
+              placeholder="Select gender"
+              options={[
+                { value: 'male', label: 'Male' },
+                { value: 'female', label: 'Female' },
+                { value: 'other', label: 'Other' },
+              ]}
               value={formData.gender}
-              onChange={handleChange}
+              onValueChange={(value) => selectValue('gender', value)}
               required
-            >
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
+            />
+          </FormField>
 
-          <div className="form-row">
-            <div className="form-field">
-              <label htmlFor="weight">Weight (kg)</label>
-              <input
-                id="weight"
+          <FormRow>
+            <FormField label="Weight (kg)">
+              <Input
                 type="number"
                 name="weight"
                 placeholder="75"
@@ -388,11 +380,9 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
                 onChange={handleChange}
                 required
               />
-            </div>
-            <div className="form-field">
-              <label htmlFor="height">Height (cm)</label>
-              <input
-                id="height"
+            </FormField>
+            <FormField label="Height (cm)">
+              <Input
                 type="number"
                 name="height"
                 placeholder="178"
@@ -400,12 +390,12 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
                 onChange={handleChange}
                 required
               />
-            </div>
-          </div>
+            </FormField>
+          </FormRow>
 
-          <div className="info-strip">
+          <Alert variant="info">
             This information helps us create a more personalized workout plan for you
-          </div>
+          </Alert>
         </>
       )
     }
@@ -413,8 +403,7 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
     if (step === 1) {
       return (
         <>
-          <div className="form-field">
-            <label>Training Level</label>
+          <FormField label="Training Level">
             <div className="segmented-options">
               {levelOptions.map((option) => (
                 <button
@@ -431,10 +420,9 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
                 </button>
               ))}
             </div>
-          </div>
+          </FormField>
 
-          <div className="form-field">
-            <label>Preferred Workout Type</label>
+          <FormField label="Preferred Workout Type">
             <div className="segmented-options">
               {workoutTypes.map((option) => (
                 <button
@@ -451,26 +439,23 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
                 </button>
               ))}
             </div>
-          </div>
+          </FormField>
 
-          <div className="form-field">
-            <label htmlFor="injuries">Injuries or Limitations</label>
-            <textarea
-              id="injuries"
+          <FormField label="Injuries or Limitations">
+            <Textarea
               name="injuries"
               placeholder="Tell us about pain, past injuries, mobility limits, or exercises to avoid"
               value={formData.injuries}
               onChange={handleChange}
             />
-          </div>
+          </FormField>
         </>
       )
     }
 
     return (
       <>
-        <div className="form-field">
-          <label>Primary Goal</label>
+        <FormField label="Primary Goal">
           <div className="goal-grid">
             {goalOptions.map((option) => (
               <button
@@ -488,28 +473,26 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
               </button>
             ))}
           </div>
-        </div>
+        </FormField>
 
-        <div className="form-field">
-          <label htmlFor="trainingDays">Workouts per week</label>
-          <select
-            id="trainingDays"
+        <FormField label="Workouts per week">
+          <Select
             name="trainingDays"
+            placeholder="Select frequency"
+            options={[
+              { value: '2', label: '2 days per week' },
+              { value: '3', label: '3 days per week' },
+              { value: '4', label: '4 days per week' },
+              { value: '5', label: '5 days per week' },
+              { value: '6', label: '6 days per week' },
+            ]}
             value={formData.trainingDays}
-            onChange={handleChange}
+            onValueChange={(value) => selectValue('trainingDays', value)}
             required
-          >
-            <option value="">Select frequency</option>
-            <option value="2">2 days per week</option>
-            <option value="3">3 days per week</option>
-            <option value="4">4 days per week</option>
-            <option value="5">5 days per week</option>
-            <option value="6">6 days per week</option>
-          </select>
-        </div>
+          />
+        </FormField>
 
-        <div className="form-field">
-          <label>Equipment Access</label>
+        <FormField label="Equipment Access">
           <div className="chip-group">
             {equipmentOptions.map((item) => (
               <button
@@ -526,7 +509,7 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
               </button>
             ))}
           </div>
-        </div>
+        </FormField>
       </>
     )
   }
@@ -569,7 +552,7 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
         ))}
       </div>
 
-      <form className="questionnaire-card" onSubmit={handleSubmit}>
+      <Card as="form" padding="none" className="questionnaire-card" onSubmit={handleSubmit}>
         <div className="questionnaire-card-header">
           <h2>{steps[step].title}</h2>
           <p>{steps[step].eyebrow}</p>
@@ -579,29 +562,39 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
 
         <div className="questionnaire-actions">
           {step > 0 && (
-            <button className="secondary-action" type="button" onClick={previousStep}>
+            <Button size="lg" variant="secondary" className="secondary-action" onClick={previousStep}>
               Back
-            </button>
+            </Button>
           )}
           {step < steps.length - 1 ? (
-            <button className="primary-action" type="button" onClick={nextStep}>
+            <Button size="lg" className="primary-action" onClick={nextStep}>
               Continue
-            </button>
+            </Button>
           ) : (
-            <button className="primary-action" type="submit" disabled={loading}>
-              {loading ? 'Creating Plan...' : 'Create My Plan'}
-            </button>
+            <Button
+              size="lg"
+              type="submit"
+              className="primary-action"
+              loading={loading}
+              loadingLabel="Creating Plan..."
+            >
+              Create My Plan
+            </Button>
           )}
         </div>
 
-        {error && <div className="error-strip">{error}</div>}
+        {error && (
+          <Alert variant="error" style={{ marginTop: 22 }}>
+            {error}
+          </Alert>
+        )}
 
         {submitted && (
-          <div className="success-strip">
+          <Alert variant="success" style={{ marginTop: 22 }}>
             Your workout plan was generated successfully.
-          </div>
+          </Alert>
         )}
-      </form>
+      </Card>
     </main>
   )
 }

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, DragEvent, ChangeEvent, FormEvent } from 'react'
+import { Alert, Badge, Button, Card, CardHeader, EmptyState, FormField, IconTile, PageHeader, Select, scoreTone } from '@gymbro/ui-kit'
+import type { BadgeTone, SelectOption } from '@gymbro/ui-kit'
 import {
   analyzeVideo,
   listAnalyses,
@@ -10,7 +12,7 @@ import {
 
 // `value` is the pose-service registry key (sent to the API); `label` is the
 // human-facing name shown in the dropdown.
-const EXERCISE_TYPES: { value: string; label: string }[] = [
+const EXERCISE_TYPES: SelectOption[] = [
   { value: 'squat', label: 'Squat' },
   { value: 'deadlift', label: 'Deadlift' },
   { value: 'push-up', label: 'Push-up' },
@@ -62,11 +64,8 @@ const Icon = ({ name }: { name: IconName }) => {
   }
 }
 
-const scoreTone = (score: number): 'green' | 'amber' | 'red' => {
-  if (score >= 80) return 'green'
-  if (score >= 60) return 'amber'
-  return 'red'
-}
+const severityTone = (severity: string): BadgeTone =>
+  severity === 'high' ? 'danger' : severity === 'medium' ? 'warning' : 'neutral'
 
 const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
@@ -85,7 +84,7 @@ const IssueRow = ({ issue }: { issue: EvaluationIssue }) => {
     <div className={`issue-row ${severity}`}>
       <div className="issue-head">
         <span className="issue-title"><Icon name="alert" /> {issue.title}</span>
-        <span className={`severity-pill ${severity}`}>{severity}</span>
+        <Badge tone={severityTone(severity)}>{severity}</Badge>
       </div>
       <p className="issue-explanation">{issue.explanation}</p>
       <p className="issue-suggestion"><strong>Fix:</strong> {issue.suggestion}</p>
@@ -94,17 +93,16 @@ const IssueRow = ({ issue }: { issue: EvaluationIssue }) => {
 }
 
 const ResultsPanel = ({ evaluation, onAnalyzeAnother }: { evaluation: Evaluation; onAnalyzeAnother: () => void }) => {
-  const tone = scoreTone(evaluation.score)
   return (
-    <section className="panel results-panel">
+    <Card as="section" className="results-panel">
       <div className="results-header">
         <div>
           <h2>{prettifyExercise(evaluation.exerciseType)} — Analysis</h2>
-          <span className={`technique-label ${evaluation.isGoodTechnique ? 'good' : 'bad'}`}>
+          <Badge tone={evaluation.isGoodTechnique ? 'success' : 'warning'}>
             {evaluation.isGoodTechnique ? 'Good technique' : 'Needs work'}
-          </span>
+          </Badge>
         </div>
-        <span className={`score-badge large ${tone}`}>{evaluation.score}%</span>
+        <Badge size="lg" tone={scoreTone(evaluation.score)}>{evaluation.score}%</Badge>
       </div>
 
       <p className="results-summary">{evaluation.overallSummary}</p>
@@ -163,8 +161,8 @@ const ResultsPanel = ({ evaluation, onAnalyzeAnother }: { evaluation: Evaluation
         </p>
       )}
 
-      <button type="button" className="back-button" onClick={onAnalyzeAnother}>Analyze another</button>
-    </section>
+      <Button variant="secondary" onClick={onAnalyzeAnother}>Analyze another</Button>
+    </Card>
   )
 }
 
@@ -234,32 +232,30 @@ const AiCoach = () => {
 
   return (
     <main className="aicoach">
-      <header className="aicoach-header">
-        <h1>AI Form Analysis</h1>
-        <p>Upload your exercise videos for real-time pose estimation and technique feedback</p>
-      </header>
+      <PageHeader
+        title="AI Form Analysis"
+        subtitle="Upload your exercise videos for real-time pose estimation and technique feedback"
+      />
 
       <div className="aicoach-grid">
-        <section className="panel upload-card">
-          <span className="icon-tile blue upload-icon"><Icon name="camera" /></span>
+        <Card as="section" className="upload-card">
+          <IconTile tone="blue" className="upload-icon"><Icon name="camera" /></IconTile>
           <h2>Upload Exercise Video</h2>
           <p className="upload-sub">Record or upload a video of your exercise for AI-powered analysis</p>
 
           <form onSubmit={handleSubmit}>
-            <label className="field">
-              <span>Exercise type</span>
-              <select
+            <FormField label="Exercise type">
+              <Select
+                options={EXERCISE_TYPES}
                 value={exerciseType}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setExerciseType(e.target.value)}
-              >
-                {EXERCISE_TYPES.map(({ value, label }) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </label>
+                onValueChange={setExerciseType}
+              />
+            </FormField>
 
-            <div className="field">
-              <span>Side facing the camera</span>
+            <FormField
+              label="Side facing the camera"
+              hint="Pick the side of your body facing the camera for a more accurate analysis."
+            >
               <div className="side-toggle" role="group" aria-label="Side facing the camera">
                 {SIDES.map(({ value, label }) => (
                   <button
@@ -273,8 +269,7 @@ const AiCoach = () => {
                   </button>
                 ))}
               </div>
-              <small className="field-hint">Pick the side of your body facing the camera for a more accurate analysis.</small>
-            </div>
+            </FormField>
 
             <div
               className={dragActive ? 'dropzone active' : 'dropzone'}
@@ -306,16 +301,16 @@ const AiCoach = () => {
               />
             </div>
 
-            {error && <p className="aicoach-error">{error}</p>}
+            {error && <Alert variant="error">{error}</Alert>}
 
-            <button type="submit" className="primary-button" disabled={loading || !file}>
-              {loading ? 'Analyzing…' : 'Analyze Video'}
-            </button>
+            <Button type="submit" fullWidth loading={loading} loadingLabel="Analyzing…" disabled={!file}>
+              Analyze Video
+            </Button>
           </form>
-        </section>
+        </Card>
 
         <aside className="aicoach-side">
-          <section className="how-card">
+          <Card as="section" variant="info" className="how-card">
             <span className="how-icon"><Icon name="activity" /></span>
             <h2>How It Works</h2>
             <ol>
@@ -323,32 +318,32 @@ const AiCoach = () => {
                 <li key={step}><span>{i + 1}.</span> {step}</li>
               ))}
             </ol>
-          </section>
+          </Card>
 
-          <section className="panel tips-card">
-            <h2>Tips for Best Results</h2>
+          <Card as="section" className="tips-card">
+            <CardHeader title="Tips for Best Results" />
             <ul>
               {TIPS.map(tip => (
                 <li key={tip}><span className="tip-check"><Icon name="check" /></span>{tip}</li>
               ))}
             </ul>
-          </section>
+          </Card>
         </aside>
       </div>
 
       {evaluation && <ResultsPanel evaluation={evaluation} onAnalyzeAnother={analyzeAnother} />}
 
-      <section className="panel recent-analyses">
-        <h2>Recent Analyses</h2>
+      <Card as="section" className="recent-analyses">
+        <CardHeader title="Recent Analyses" />
         {recent.length === 0 ? (
-          <p className="recent-empty">No analyses yet — upload a video to get started.</p>
+          <EmptyState>No analyses yet — upload a video to get started.</EmptyState>
         ) : (
           recent.map(item => (
             <article className="recent-row" key={item.id}>
               <div className="recent-main">
                 <div className="recent-title">
                   <strong>{prettifyExercise(item.exerciseName)}</strong>
-                  <span className={`score-badge ${scoreTone(item.score)}`}>{item.score}%</span>
+                  <Badge tone={scoreTone(item.score)}>{item.score}%</Badge>
                 </div>
                 <p className="recent-date">{formatDate(item.createdAt)}</p>
                 <p className="recent-summary">{item.summary}</p>
@@ -362,7 +357,7 @@ const AiCoach = () => {
             </article>
           ))
         )}
-      </section>
+      </Card>
     </main>
   )
 }

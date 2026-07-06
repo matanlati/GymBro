@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Alert, Button, Card, FormField, Input, LoadingState, PageHeader, Select, Textarea } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { getMe, updateMe, uploadPhoto, UserProfile, UpdateProfileData } from '../api/users.api'
 import { AxiosError } from 'axios'
@@ -137,18 +138,19 @@ export default function ProfilePage() {
   }
 
   if (!profile) {
-    return <div style={styles.loading}>{error || 'Loading...'}</div>
+    return (
+      <div style={styles.page}>
+        {error ? <Alert variant="error">{error}</Alert> : <LoadingState />}
+      </div>
+    )
   }
 
   return (
     <div style={styles.page}>
-      <div style={styles.pageHeader}>
-        <h1 style={styles.pageTitle}>Profile</h1>
-        <p style={styles.pageSubtitle}>Manage your account and preferences</p>
-      </div>
+      <PageHeader title="Profile" subtitle="Manage your account and preferences" />
 
       {/* Main profile card */}
-      <div style={styles.card}>
+      <Card padding="none" style={styles.card}>
         <div style={styles.banner} />
 
         <div style={styles.avatarWrapper}>
@@ -158,15 +160,17 @@ export default function ProfilePage() {
               : <div style={styles.avatar}>{getInitials(profile.name)}</div>
             }
           </div>
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
+            leadingIcon={<Camera size={13} strokeWidth={1.8} />}
+            loading={uploadingPhoto}
+            loadingLabel="Uploading…"
             onClick={() => photoInputRef.current?.click()}
-            disabled={uploadingPhoto}
-            style={styles.changePhotoBtn}
+            style={{ minHeight: 28, padding: '4px 10px', fontSize: 12, marginBottom: 4 }}
           >
-            <Camera size={13} strokeWidth={1.8} />
-            {uploadingPhoto ? 'Uploading…' : 'Change photo'}
-          </button>
+            Change photo
+          </Button>
           <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
         </div>
 
@@ -193,46 +197,60 @@ export default function ProfilePage() {
               </div>
             </div>
             <div style={styles.cardFooter}>
-              <button onClick={() => setEditing(true)} style={styles.editBtn}>Edit Profile</button>
+              <Button size="sm" onClick={() => setEditing(true)}>Edit Profile</Button>
             </div>
           </>
         ) : (
           <form onSubmit={handleSave} style={styles.form}>
             <div style={styles.formGrid}>
-              <Field label="Full name" name="name" type="text" value={form.name || ''} onChange={handleChange} />
-              <Field label="Age" name="age" type="number" value={form.age ?? ''} onChange={handleChange} />
-              <Field label="Weight (kg)" name="weightKg" type="number" value={form.weightKg ?? ''} onChange={handleChange} />
-              <Field label="Height (cm)" name="heightCm" type="number" value={form.heightCm ?? ''} onChange={handleChange} />
-              <div style={styles.fieldFull}>
-                <label style={styles.label}>Fitness Level</label>
-                <select name="fitnessLevel" value={form.fitnessLevel || ''} onChange={handleChange} style={styles.input}>
-                  <option value="">Select</option>
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                </select>
-              </div>
-              <div style={styles.fieldFull}>
-                <label style={styles.label}>Goals</label>
-                <textarea name="goals" value={form.goals || ''} onChange={handleChange} style={{ ...styles.input, height: 72 }} />
-              </div>
-              <div style={styles.fieldFull}>
-                <label style={styles.label}>Injuries / Limitations</label>
-                <textarea name="limitations" value={form.limitations || ''} onChange={handleChange} style={{ ...styles.input, height: 72 }} />
-              </div>
+              <FormField label="Full name">
+                <Input name="name" type="text" value={form.name || ''} onChange={handleChange} />
+              </FormField>
+              <FormField label="Age">
+                <Input name="age" type="number" value={form.age ?? ''} onChange={handleChange} />
+              </FormField>
+              <FormField label="Weight (kg)">
+                <Input name="weightKg" type="number" value={form.weightKg ?? ''} onChange={handleChange} />
+              </FormField>
+              <FormField label="Height (cm)">
+                <Input name="heightCm" type="number" value={form.heightCm ?? ''} onChange={handleChange} />
+              </FormField>
+              <FormField label="Fitness Level" style={styles.fieldFull}>
+                <Select
+                  name="fitnessLevel"
+                  placeholder="Select"
+                  options={[
+                    { value: 'beginner', label: 'Beginner' },
+                    { value: 'intermediate', label: 'Intermediate' },
+                    { value: 'advanced', label: 'Advanced' },
+                  ]}
+                  value={form.fitnessLevel || ''}
+                  onValueChange={(value) => setForm(prev => ({ ...prev, fitnessLevel: value }))}
+                />
+              </FormField>
+              <FormField label="Goals" style={styles.fieldFull}>
+                <Textarea name="goals" value={form.goals || ''} onChange={handleChange} style={{ minHeight: 72 }} />
+              </FormField>
+              <FormField label="Injuries / Limitations" style={styles.fieldFull}>
+                <Textarea name="limitations" value={form.limitations || ''} onChange={handleChange} style={{ minHeight: 72 }} />
+              </FormField>
             </div>
-            {error && <p style={styles.error}>{error}</p>}
+            {error && (
+              <Alert variant="error" style={{ marginTop: 12 }}>
+                {error}
+              </Alert>
+            )}
             <div style={styles.formActions}>
-              <button type="button" onClick={() => setEditing(false)} style={styles.cancelBtn}>Cancel</button>
-              <button type="submit" disabled={saving} style={styles.saveBtn}>{saving ? 'Saving…' : 'Save Changes'}</button>
+              <Button variant="secondary" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+              <Button type="submit" size="sm" loading={saving} loadingLabel="Saving…">Save Changes</Button>
             </div>
           </form>
         )}
-      </div>
+      </Card>
 
       {/* Bottom row: Settings + Quick Stats */}
       <div style={styles.bottomRow}>
-        <div style={styles.card}>
+        <Card padding="none" style={styles.card}>
           <div style={styles.cardHeader}>
             <Settings size={16} color="#6B7280" strokeWidth={1.8} />
             <span style={styles.cardTitle}>Settings</span>
@@ -240,9 +258,9 @@ export default function ProfilePage() {
           <SettingsRow title="Notifications" desc="Manage workout reminders and updates" />
           <SettingsRow title="Privacy" desc="Control your data and visibility" />
           <SettingsRow title="Workout Preferences" desc="Customize your training plan" />
-        </div>
+        </Card>
 
-        <div style={styles.card}>
+        <Card padding="none" style={styles.card}>
           <div style={styles.cardHeader}>
             <BarChart2 size={16} color="#6B7280" strokeWidth={1.8} />
             <span style={styles.cardTitle}>Quick Stats</span>
@@ -250,7 +268,7 @@ export default function ProfilePage() {
           <StatRow label="Total Workouts" value="—" color="#F97316" bg="#FFF7ED" />
           <StatRow label="Current Streak" value="—" color="#22C55E" bg="#F0FDF4" />
           <StatRow label="Personal Records" value="—" color="#3B82F6" bg="#EFF6FF" />
-        </div>
+        </Card>
       </div>
 
       {/* Log Out */}
@@ -295,18 +313,6 @@ function StatRow({ label, value, color, bg }: { label: string; value: string; co
   )
 }
 
-function Field({ label, name, type, value, onChange }: {
-  label: string; name: string; type: string
-  value: string | number; onChange: (e: ChangeEvent<HTMLInputElement>) => void
-}) {
-  return (
-    <div>
-      <label style={styles.label}>{label}</label>
-      <input type={type} name={name} value={value} onChange={onChange} style={styles.input} />
-    </div>
-  )
-}
-
 const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
@@ -316,15 +322,8 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 800,
     margin: '0 auto',
   },
-  loading: { padding: 48, textAlign: 'center', color: '#6B7280', fontFamily: 'system-ui' },
-  pageHeader: { marginBottom: 24 },
-  pageTitle: { fontSize: 26, fontWeight: 700, color: '#111827', margin: '0 0 4px' },
-  pageSubtitle: { fontSize: 14, color: '#6B7280', margin: 0 },
 
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    border: '1px solid #E5E7EB',
     overflow: 'hidden',
     marginBottom: 16,
   },
@@ -359,12 +358,6 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
   },
   avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
-  changePhotoBtn: {
-    fontSize: 12, fontWeight: 500, color: '#F97316',
-    background: 'none', border: '1px solid #F97316',
-    borderRadius: 6, padding: '4px 10px', cursor: 'pointer', marginBottom: 4,
-    display: 'flex', alignItems: 'center', gap: 5,
-  },
 
   identity: { padding: '0 24px 16px', borderBottom: '1px solid #F3F4F6' },
   profileName: { fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 2px' },
@@ -384,32 +377,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   cardFooter: { padding: '16px 24px', borderTop: '1px solid #F3F4F6' },
-  editBtn: {
-    padding: '8px 20px', fontSize: 14, fontWeight: 600,
-    background: 'linear-gradient(to right, #F97316, #EF4444)',
-    color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer',
-  },
 
   form: { padding: '20px 24px' },
   formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' },
   fieldFull: { gridColumn: '1 / -1' },
-  label: { display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4 },
-  input: {
-    width: '100%', padding: '8px 10px', fontSize: 14,
-    border: '1px solid #E5E7EB', borderRadius: 7, color: '#111827',
-    boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical' as const,
-  },
-  error: { fontSize: 13, color: '#EF4444', backgroundColor: '#FEF2F2', padding: '8px 12px', borderRadius: 6, margin: '12px 0 0' },
   formActions: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 },
-  cancelBtn: {
-    padding: '8px 18px', fontSize: 14, background: 'none',
-    border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer', color: '#374151',
-  },
-  saveBtn: {
-    padding: '8px 20px', fontSize: 14, fontWeight: 600,
-    background: 'linear-gradient(to right, #F97316, #EF4444)',
-    color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer',
-  },
 
   bottomRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 8, padding: '16px 20px', borderBottom: '1px solid #F3F4F6' },
