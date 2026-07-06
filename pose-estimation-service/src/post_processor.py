@@ -12,6 +12,7 @@ the metrics, so the API never fails because of the LLM.
 
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from .llm_client import LLMClient
@@ -20,12 +21,127 @@ from .video_processor import ProcessingResult
 
 logger = logging.getLogger(__name__)
 
+# Educational "skill" doc injected into the enrichment prompt as coaching context
+# (see coaching_skill.md). Like the reference block it is *never* a source of
+# measured numbers - it only teaches the model how to phrase richer feedback.
+_COACHING_SKILL_PATH = os.path.join(os.path.dirname(__file__), "coaching_skill.md")
+_coaching_skill_cache: Optional[str] = None
+
+
+def _load_coaching_skill() -> str:
+    """Load the coaching skill doc once, caching the result.
+
+    Returns an empty string if the file is missing or unreadable, so a lost or
+    renamed doc degrades to the previous (skill-free) prompt instead of breaking
+    enrichment - consistent with the "LLM is strictly optional" design.
+    """
+    global _coaching_skill_cache
+    if _coaching_skill_cache is None:
+        try:
+            with open(_COACHING_SKILL_PATH, "r", encoding="utf-8") as fh:
+                _coaching_skill_cache = fh.read().strip()
+        except OSError as error:
+            logger.warning("Could not load coaching skill doc: %s", error)
+            _coaching_skill_cache = ""
+    return _coaching_skill_cache
+
 # Below this fraction of frames with a detected pose we warn the consumer that
 # the analysis may be less reliable.
 _RELIABILITY_THRESHOLD = 0.8
 
 # The set of attribute names the model is allowed to return for an issue.
 _ISSUE_FIELDS = {"title", "severity", "description", "affected_reps", "recommendation"}
+
+# Static, curated coaching reference per exercise. This is deliberately a keyed
+# lookup (exercise_type is an explicit, validated enum) rather than a RAG store:
+# the corpus is tiny and fixed, so a dict is deterministic, zero-latency and adds
+# no infra. It gives the LLM expert context to phrase feedback against, while the
+# objective metrics remain the only source of numbers.
+_EXERCISE_REFERENCE = {
+    "squat": {
+        "ideal": "Hips break below the knee crease (knee angle ~90 deg or lower), "
+                 "knees tracking over toes, torso upright with a neutral spine.",
+        "common_faults": ["insufficient depth", "knees caving in or driving too far forward",
+                          "torso pitching forward", "heels lifting"],
+        "tempo": "Controlled ~2s descent, brief pause, driven ascent.",
+    },
+    "push-up": {
+        "ideal": "Chest lowers until elbows reach ~90 deg, body held in a straight "
+                 "line from head to heels, elbows ~45 deg from the torso.",
+        "common_faults": ["hips sagging or piking", "partial depth", "flaring elbows"],
+        "tempo": "~2s down, controlled press up.",
+    },
+    "bicep_curl": {
+        "ideal": "Full flexion at the top and near-full extension at the bottom "
+                 "(~30-160 deg elbow range), upper arm/elbow pinned to the side.",
+        "common_faults": ["elbows drifting forward", "swinging/using momentum",
+                          "partial range of motion"],
+        "tempo": "Controlled lift, slow ~2-3s lowering.",
+    },
+    "deadlift": {
+        "ideal": "Full hip and knee extension at lockout, neutral (flat) spine "
+                 "throughout, bar tracking close to the body.",
+        "common_faults": ["rounding the lower/upper back", "incomplete hip lockout",
+                          "bar drifting away from the shins"],
+        "tempo": "Braced pull, controlled ~2s lowering.",
+    },
+    "shoulder_press": {
+        "ideal": "Press to full elbow lockout overhead, ribs down with no lower-back "
+                 "arch, bar lowered to shoulder height each rep.",
+        "common_faults": ["arching the lower back", "not locking out", "short range at the bottom"],
+        "tempo": "Controlled press and lowering.",
+    },
+    "lunge": {
+        "ideal": "Front knee bends to ~90 deg over the ankle, torso upright, "
+                 "controlled descent and drive back up.",
+        "common_faults": ["shallow depth", "front knee travelling past the toes",
+                          "torso leaning forward"],
+        "tempo": "~2s descent, controlled return.",
+    },
+    "lateral_raise": {
+        "ideal": "Arms raised to about shoulder height (~90 deg abduction) with a "
+                 "soft-but-fixed elbow, no momentum.",
+        "common_faults": ["not raising to shoulder height", "bending the elbows / swinging",
+                          "shrugging the traps"],
+        "tempo": "Controlled raise, slow lowering.",
+    },
+    "bench_press": {
+        "ideal": "Bar lowered under control to touch the chest (elbow ~90 deg) and "
+                 "pressed to a full lock-out, travelling straight over the elbows.",
+        "common_faults": ["not touching the chest / partial press", "not locking out",
+                          "bouncing the bar off the chest", "bar drifting off vertical"],
+        "tempo": "Controlled ~2s descent, no bounce, driven press.",
+    },
+    "lat_pulldown": {
+        "ideal": "Bar pulled from a full overhead stretch down to the upper chest, "
+                 "driving the elbows down and back, torso tall and stable.",
+        "common_faults": ["short pull, not reaching the chest", "no full stretch at the top",
+                          "leaning back / swinging with momentum"],
+        "tempo": "Controlled pull, controlled release to the stretch.",
+    },
+    "triceps_extension": {
+        "ideal": "Upper arm fixed and vertical by the ears; forearm lowered into a "
+                 "deep stretch behind the head and extended to a full overhead lock-out.",
+        "common_faults": ["incomplete lock-out", "short stretch behind the head",
+                          "elbows flaring / upper arm swinging"],
+        "tempo": "Controlled lowering, squeezed lock-out.",
+    },
+}
+
+
+def _reference_block(exercise_type: str) -> str:
+    """Render the coaching reference for an exercise as prompt context."""
+    ref = _EXERCISE_REFERENCE.get((exercise_type or "").lower())
+    if not ref:
+        return ""
+    faults = "; ".join(ref["common_faults"])
+    return (
+        "\nREFERENCE FORM for this exercise (general coaching context — NOT "
+        "measurements from this video; never cite it as an observed number):\n"
+        f"- Ideal execution: {ref['ideal']}\n"
+        f"- Common faults to watch for: {faults}\n"
+        f"- Typical tempo: {ref['tempo']}\n"
+    )
 
 
 def _build_analysis_payload(
@@ -43,6 +159,12 @@ def _build_analysis_payload(
             result.issue_counts.items(), key=lambda kv: kv[1], reverse=True
         )
     ]
+    detected_strengths = [
+        {"strength": message, "occurrences": count}
+        for message, count in sorted(
+            result.praise_counts.items(), key=lambda kv: kv[1], reverse=True
+        )
+    ]
     return {
         "exercise_type": result.exercise_type,
         "camera_side": result.side,
@@ -50,6 +172,8 @@ def _build_analysis_payload(
         "average_quality": result.average_quality,  # 0-100, deterministic baseline
         "per_rep_qualities": result.per_rep_qualities,
         "detected_faults": detected_faults,
+        "detected_strengths": detected_strengths,
+        "per_rep_details": result.rep_details,
         "pose_detection_coverage": round(coverage, 3),
         "frames_total": result.frames_total,
         "frames_with_pose": result.frames_with_pose,
@@ -65,18 +189,37 @@ def build_enrichment_prompt(analysis: Dict[str, Any]) -> str:
     fixes the output schema exactly, and gives concrete rules for each field.
     """
     facts = json.dumps(analysis, indent=2)
+    reference = _reference_block(str(analysis.get("exercise_type", "")))
+    skill = _load_coaching_skill()
+    skill_block = (
+        f"\nCOACHING SKILL (how to coach — general context, NOT measurements "
+        f"from this video):\n{skill}\n"
+        if skill
+        else ""
+    )
     return f"""You are an expert strength-and-conditioning coach and biomechanics analyst.
 A computer-vision system analyzed a single exercise video and produced the
 objective metrics below. Your job is to turn these raw metrics into clear,
-specific, encouraging coaching feedback.
-
+specific, encouraging, and educational coaching feedback.
+{skill_block}
 OBJECTIVE METRICS (the only ground truth you may use):
 {facts}
+{reference}
 
 NOTES ON THE METRICS:
 - "average_quality" and "per_rep_qualities" are 0-100 form scores from the analyzer.
 - "detected_faults" lists faults the analyzer flagged and how many video frames
   each fault appeared in (higher frame_occurrences = a more persistent problem).
+- "detected_strengths" lists things the analyzer confirmed the lifter did WELL
+  (full depth, clean lockout, controlled tempo, strict form) and how many reps
+  each occurred on. These are objective positives - build "positiveFeedback" from
+  them, not from guesses.
+- "per_rep_details" gives, for each rep, its form "quality" (0-100), the range of
+  motion actually reached ("min_angle"/"max_angle"/"rom", in degrees at the joint
+  the analyzer measures for this exercise), the rep "duration_s" (very short =
+  rushed/bounced, very long = grinding), the "faults" that fired on that rep, and
+  the "praises" it earned. Use it to call out specific reps (e.g. "rep 3 was
+  shallow and rushed, but rep 4 hit full depth").
 - "pose_detection_coverage" is the fraction of frames where the body was tracked;
   low coverage means some of the movement could not be measured reliably.
 - "camera_side" is the body side the analyzer measured ("left" or "right").
@@ -105,13 +248,24 @@ RESPOND WITH A SINGLE JSON OBJECT AND NOTHING ELSE, matching exactly this shape:
 
 RULES:
 - Ground every statement in the metrics above. Never invent reps, faults, or numbers.
+- Use REFERENCE FORM and COACHING SKILL only to phrase advice, teach the exercise,
+  and interpret faults in expert terms; never present them as something measured
+  in this specific video.
+- Follow the COACHING SKILL's three-step arc: briefly explain what the exercise
+  trains, interpret how THIS lifter executed it from the metrics, then teach and
+  prescribe. Weave this into the fields below (do not add new fields).
+- Make "overallSummary" educational: open with what the movement trains, then a
+  plain-language read of how the set went.
+- In "positiveFeedback", "issues" and "recommendations", include the "why" behind
+  each cue, not just the instruction, so the lifter can self-correct.
 - Set "score" close to "average_quality" but you may adjust slightly for the number
   and persistence of detected faults. If "total_reps" is 0, set score to 0.
 - Set "isGoodTechnique" to true only when score >= 75.
 - Build one entry in "issues" per item in "detected_faults" (most frequent first),
   mapping frame_occurrences to severity (more occurrences -> higher severity).
-- "positiveFeedback" must never be empty; if reps were detected, acknowledge effort
-  or any well-executed aspect.
+- "positiveFeedback" must never be empty. Ground it in "detected_strengths" when
+  present (most frequent first); if there are none but reps were detected, still
+  acknowledge effort or a well-executed aspect. Explain WHY each strength matters.
 - Set "dataReliabilityNote" when pose_detection_coverage < {_RELIABILITY_THRESHOLD}
   or when total_reps is 0; otherwise use null.
 - Set "cameraView" to the "camera_side" value.
@@ -227,7 +381,13 @@ def _default_positive(result: ProcessingResult) -> List[str]:
     if result.total_reps == 0:
         return ["You attempted the exercise - let's get a clearer rep next time."]
     positives = [f"Completed {result.total_reps} rep(s)."]
-    if result.average_quality >= 80:
+    # Surface the objective strengths the analyzer detected (most frequent first)
+    # so the LLM-free path still gives real, specific praise.
+    for message, _count in sorted(
+        result.praise_counts.items(), key=lambda kv: kv[1], reverse=True
+    ):
+        positives.append(message)
+    if result.average_quality >= 80 and not result.praise_counts:
         positives.append("Maintained strong overall form.")
     return positives
 
@@ -298,7 +458,9 @@ def enrich_analysis(
     try:
         client = client or LLMClient()
         response = client.generate_response(
-            prompt, {"format": "json", "temperature": 0.3, "num_predict": 1200}
+            # Higher num_predict than the metric-only prompt: the skill doc asks
+            # for richer, educational fields, so leave headroom before truncation.
+            prompt, {"format": "json", "temperature": 0.3, "num_predict": 1800}
         )
         raw_text = response.get("response") if isinstance(response, dict) else None
         if not raw_text:

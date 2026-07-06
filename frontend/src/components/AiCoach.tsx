@@ -2,12 +2,30 @@ import { useState, useEffect, useRef, DragEvent, ChangeEvent, FormEvent } from '
 import {
   analyzeVideo,
   listAnalyses,
+  BodySide,
   Evaluation,
   EvaluationIssue,
   RecentAnalysis,
 } from '../api/video.api'
 
-const EXERCISE_TYPES = ['squat', 'deadlift', 'push-up', 'lunge', 'shoulder press', 'biceps curl']
+// `value` is the pose-service registry key (sent to the API); `label` is the
+// human-facing name shown in the dropdown.
+const EXERCISE_TYPES: { value: string; label: string }[] = [
+  { value: 'squat', label: 'Squat' },
+  { value: 'deadlift', label: 'Deadlift' },
+  { value: 'push-up', label: 'Push-up' },
+  { value: 'lunge', label: 'Lunge' },
+  { value: 'shoulder_press', label: 'Shoulder press' },
+  { value: 'bicep_curl', label: 'Biceps curl' },
+  { value: 'lateral_raise', label: 'Lateral raise' },
+  { value: 'bench_press', label: 'Bench press' },
+  { value: 'lat_pulldown', label: 'Lat pulldown' },
+  { value: 'triceps_extension', label: 'Triceps extension' },
+]
+const SIDES: { value: BodySide; label: string }[] = [
+  { value: 'left', label: 'Left side' },
+  { value: 'right', label: 'Right side' },
+]
 const MAX_SIZE = 100 * 1024 * 1024
 const ACCEPTED = ['video/mp4', 'video/quicktime', 'video/webm']
 
@@ -57,6 +75,10 @@ const formatSize = (bytes: number): string => `${(bytes / (1024 * 1024)).toFixed
 
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
+// Turn a registry key like "bench_press" or "push-up" into a readable label.
+const prettifyExercise = (s: string): string =>
+  capitalize(s.replace(/[_-]+/g, ' '))
+
 const IssueRow = ({ issue }: { issue: EvaluationIssue }) => {
   const severity = ['low', 'medium', 'high'].includes(issue.severity) ? issue.severity : 'medium'
   return (
@@ -77,7 +99,7 @@ const ResultsPanel = ({ evaluation, onAnalyzeAnother }: { evaluation: Evaluation
     <section className="panel results-panel">
       <div className="results-header">
         <div>
-          <h2>{capitalize(evaluation.exerciseType)} — Analysis</h2>
+          <h2>{prettifyExercise(evaluation.exerciseType)} — Analysis</h2>
           <span className={`technique-label ${evaluation.isGoodTechnique ? 'good' : 'bad'}`}>
             {evaluation.isGoodTechnique ? 'Good technique' : 'Needs work'}
           </span>
@@ -148,7 +170,8 @@ const ResultsPanel = ({ evaluation, onAnalyzeAnother }: { evaluation: Evaluation
 
 const AiCoach = () => {
   const [file, setFile] = useState<File | null>(null)
-  const [exerciseType, setExerciseType] = useState(EXERCISE_TYPES[0])
+  const [exerciseType, setExerciseType] = useState(EXERCISE_TYPES[0].value)
+  const [side, setSide] = useState<BodySide>('left')
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -192,7 +215,7 @@ const AiCoach = () => {
     setError(null)
     setEvaluation(null)
     try {
-      const { data } = await analyzeVideo(file, exerciseType)
+      const { data } = await analyzeVideo(file, exerciseType, side)
       setEvaluation(data.evaluation)
       const { data: list } = await listAnalyses()
       setRecent(list)
@@ -229,11 +252,29 @@ const AiCoach = () => {
                 value={exerciseType}
                 onChange={(e: ChangeEvent<HTMLSelectElement>) => setExerciseType(e.target.value)}
               >
-                {EXERCISE_TYPES.map(type => (
-                  <option key={type} value={type}>{capitalize(type)}</option>
+                {EXERCISE_TYPES.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
                 ))}
               </select>
             </label>
+
+            <div className="field">
+              <span>Side facing the camera</span>
+              <div className="side-toggle" role="group" aria-label="Side facing the camera">
+                {SIDES.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={side === value ? 'side-option active' : 'side-option'}
+                    aria-pressed={side === value}
+                    onClick={() => setSide(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <small className="field-hint">Pick the side of your body facing the camera for a more accurate analysis.</small>
+            </div>
 
             <div
               className={dragActive ? 'dropzone active' : 'dropzone'}
@@ -306,7 +347,7 @@ const AiCoach = () => {
             <article className="recent-row" key={item.id}>
               <div className="recent-main">
                 <div className="recent-title">
-                  <strong>{capitalize(item.exerciseName)}</strong>
+                  <strong>{prettifyExercise(item.exerciseName)}</strong>
                   <span className={`score-badge ${scoreTone(item.score)}`}>{item.score}%</span>
                 </div>
                 <p className="recent-date">{formatDate(item.createdAt)}</p>

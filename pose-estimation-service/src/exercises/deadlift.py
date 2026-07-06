@@ -2,49 +2,83 @@ from .base import BaseExercise, FrameResult
 
 
 class Deadlift(BaseExercise):
+    """Conventional deadlift, analyzed from a side view.
+
+    GOOD FORM
+      - Finish with hips and knees fully extended at a tall lock-out.
+      - Hips and shoulders rise together; the legs drive the floor away while the
+        torso angle holds, rather than the hips shooting up first.
+      - Bar tracks close to the body over the mid-foot.
+      - Braced, neutral spine throughout (a spine-curvature cue that a 2D side
+        view cannot measure reliably, so it lives in the coaching text).
+
+    COMMON FAULTS (what we score)
+      - Not locking the hips out at the top (graded from the rep's max hip angle).
+      - Hips shooting up early: the knees straighten while the torso is still
+        folded over, dumping the load onto the lower back.
+      - Bar/knees drifting forward away from the body.
+
+    Note: rep counting is unchanged -- a rep is counted once the hip bends past
+    90 deg at the bottom and re-extends past 160 deg at the top, so a partial pull
+    that never breaks 90 deg simply does not register as a rep.
+    """
+
     _LEFT = dict(shoulder=11, hip=23, knee=25, ankle=27)
     _RIGHT = dict(shoulder=12, hip=24, knee=26, ankle=28)
 
+    # Hip-angle gates for rep detection (unchanged from the original logic):
+    # "down" at the bottom under 90 deg, rep closes at the top past 160 deg.
+    _UP_GATE = 160.0
+    _DOWN_GATE = 90.0
+    _LOCKOUT_GOOD = 165.0
+
     def analyze_frame(self, landmarks) -> FrameResult:
         idxs = self._LEFT if self.side == "left" else self._RIGHT
+        if not self.visible(landmarks, idxs["shoulder"], idxs["hip"], idxs["knee"]):
+            return self._neutral_frame()
+
         shoulder = self.lm(landmarks, idxs["shoulder"])
         hip = self.lm(landmarks, idxs["hip"])
         knee = self.lm(landmarks, idxs["knee"])
         ankle = self.lm(landmarks, idxs["ankle"])
 
-        # Primary angle: hip extension (shoulder-hip-knee)
+        # Primary angle: hip extension (shoulder-hip-knee).
         hip_angle = self.calculate_angle(shoulder, hip, knee)
+        self._track(hip_angle)
+        sign = self._facing_sign(landmarks)
         feedback = []
+        positives = []
 
-        if hip_angle > 160:
+        if hip_angle > self._UP_GATE:
             if self.stage == "down":
-                self._finish_rep()
+                self._finish_rep(feedback, positives)
             self.stage = "up"
-
-        if hip_angle < 90:
+        elif hip_angle < self._DOWN_GATE:
             self.stage = "down"
 
-        if self.stage == "up" and hip_angle < 155:
-            self._apply_penalty(feedback, 15, "Fully extend hips at top")
+        # Hips shooting up early: knees already locked while the torso is still
+        # folded over. Needs the knee angle too, so we compute it when the ankle
+        # is visible.
+        if self.stage == "down" and self.visible(landmarks, idxs["ankle"]):
+            knee_angle = self.calculate_angle(hip, knee, ankle)
+            if knee_angle > 160 and hip_angle < 130:
+                self._apply_penalty(feedback, 15, "Hips shooting up - drive the floor with your legs")
+            # Bar path: knees/bar drifting forward, away from the body.
+            if sign * (knee[0] - ankle[0]) > 0.08:
+                self._apply_penalty(feedback, 10, "Bar drifting out - keep it close to your body")
 
-        # Back rounding: shoulder y significantly below hip y (y increases downward in image coords)
-        if shoulder[1] > hip[1] + 0.15:
-            self._apply_penalty(feedback, 20, "Keep chest up, avoid rounding")
+        return self._frame(hip_angle, feedback, positives)
 
-        # Bar drift: knees shooting forward during descent
-        if self.stage == "down" and knee[0] > ankle[0] + 0.08:
-            self._apply_penalty(feedback, 10, "Keep bar close to body")
+    def _evaluate_rep(self, feedback: list, positives: list) -> None:
+        # No "hips shooting up" / "bar drifting" faults fired during the pull.
+        clean_pull = not self._rep_faults
+        if self.rep_max_angle is not None and self.rep_max_angle < self._LOCKOUT_GOOD:
+            self._apply_penalty(feedback, 15, "Short lockout - fully extend your hips at the top")
+        elif self.rep_max_angle is not None:
+            self._praise(positives, "Strong lockout, hips fully extended")
 
-        if feedback:
-            self.current_rep_feedback = feedback
-
-        return FrameResult(
-            primary_angle=hip_angle,
-            feedback=feedback,
-            stage=self.stage or "start",
-            rep_count=self.rep_count,
-            current_quality=self.current_quality,
-        )
+        if clean_pull:
+            self._praise(positives, "Hips and shoulders rose together, bar close")
 
     def reset(self):
         self._reset_base()

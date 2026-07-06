@@ -26,8 +26,13 @@ class ProcessingResult:
     side: str = "left"
     per_rep_qualities: list = field(default_factory=list)
     issue_counts: dict = field(default_factory=dict)
+    # Tally of positive cues across the set (the praise twin of issue_counts),
+    # surfaced to the LLM as "detected_strengths".
+    praise_counts: dict = field(default_factory=dict)
     frames_total: int = 0
     frames_with_pose: int = 0
+    # Per-rep summaries (depth, ROM, tempo, faults, praises) as plain dicts for the LLM.
+    rep_details: list = field(default_factory=list)
 
 
 def download_video(url: str) -> str:
@@ -88,6 +93,9 @@ def _run_pipeline(
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+    # Let the analyzer report per-rep durations in real seconds, not frames.
+    exercise.fps = float(fps)
+
     # OpenCV can only write MPEG-4 Part 2 here, which browsers can't play, so
     # write to a temp file and transcode it to H.264 below.
     raw = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
@@ -112,9 +120,14 @@ def _run_pipeline(
                 landmarks = pose_detector.detect(landmarker, rgb, timestamp_ms)
 
                 if landmarks is not None:
-                    frames_with_pose += 1
                     frame = overlay_renderer.draw_skeleton(frame, landmarks)
                     result = exercise.analyze_frame(landmarks)
+                    # Count only frames the exercise could actually measure
+                    # (required joints visible => a primary angle was produced),
+                    # so coverage reflects measurable movement, not just a
+                    # detected silhouette.
+                    if result.primary_angle is not None:
+                        frames_with_pose += 1
                     frame = overlay_renderer.draw_metrics(frame, result)
 
                 writer.write(frame)
@@ -153,6 +166,25 @@ def _build_result(
     else:
         overall_feedback.append("Good form overall with room for improvement.")
 
+    def _num(v):
+        # Angles come from NumPy math (np.float64), which json.dumps can't
+        # serialize; coerce to native floats so the LLM payload stays valid.
+        return float(v) if v is not None else None
+
+    rep_details = [
+        {
+            "rep": rd.index,
+            "quality": _num(rd.quality),
+            "min_angle": _num(rd.min_angle),
+            "max_angle": _num(rd.max_angle),
+            "rom": _num(rd.rom),
+            "duration_s": _num(rd.duration_s),
+            "faults": rd.faults,
+            "praises": rd.praises,
+        }
+        for rd in exercise.rep_details
+    ]
+
     return ProcessingResult(
         output_path=out_path,
         total_reps=exercise.rep_count,
@@ -162,8 +194,10 @@ def _build_result(
         side=side,
         per_rep_qualities=[round(q, 2) for q in exercise.all_qualities],
         issue_counts=dict(exercise.issue_counts),
+        praise_counts=dict(exercise.praise_counts),
         frames_total=frames_total,
         frames_with_pose=frames_with_pose,
+        rep_details=rep_details,
     )
 
 

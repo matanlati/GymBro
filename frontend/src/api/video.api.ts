@@ -38,10 +38,13 @@ export interface RecentAnalysis {
   createdAt: string
 }
 
-export const analyzeVideo = (file: File, exerciseType: string) => {
+export type BodySide = 'left' | 'right'
+
+export const analyzeVideo = (file: File, exerciseType: string, side: BodySide) => {
   const form = new FormData()
   form.append('video', file)
   form.append('exerciseType', exerciseType)
+  form.append('side', side)
   return client.post<AnalyzeResponse>('/video/analyze', form)
 }
 
