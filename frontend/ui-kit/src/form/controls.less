@@ -1,0 +1,31 @@
+.gb-control {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid var(--gb-border-input);
+  border-radius: var(--gb-radius-md);
+  color: var(--gb-text);
+  background: var(--gb-surface);
+  font: inherit;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+
+  &::placeholder {
+    color: #94a3b8;
+  }
+
+  &:focus {
+    border-color: var(--gb-accent);
+    box-shadow: var(--gb-focus-ring);
+  }
+
+  &[aria-invalid='true'] {
+    border-color: #ef4444;
+  }
+}
+
+.gb-textarea {
+  min-height: 86px;
+  resize: vertical;
+  line-height: 1.45;
+}

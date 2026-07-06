@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react'
 import { Link, useNavigate, Navigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google'
+import { Alert, Button, FormField, Input } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { validateRegisterForm } from '../utils/validation'
 import { AxiosError } from 'axios'
@@ -72,41 +73,36 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.field}>
-            <label style={styles.label}>Full name</label>
-            <input
+          <FormField label="Full name">
+            <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
               required
-              style={styles.input}
             />
-          </div>
+          </FormField>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Email address</label>
-            <input
+          <FormField label="Email address">
+            <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              style={styles.input}
             />
-          </div>
+          </FormField>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Password</label>
+          <FormField label="Password" hint="Minimum 6 characters">
             <div style={styles.passwordWrapper}>
-              <input
+              <Input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
                 minLength={6}
-                style={{ ...styles.input, paddingRight: 44 }}
+                style={{ paddingRight: 44 }}
               />
               <button
                 type="button"
@@ -117,14 +113,13 @@ export default function RegisterPage() {
                 {showPassword ? <EyeOff size={16} color="#9CA3AF" /> : <Eye size={16} color="#9CA3AF" />}
               </button>
             </div>
-            <span style={styles.hint}>Minimum 6 characters</span>
-          </div>
+          </FormField>
 
-          {error && <p style={styles.error}>{error}</p>}
+          {error && <Alert variant="error">{error}</Alert>}
 
-          <button type="submit" disabled={loading} style={styles.submitBtn}>
-            {loading ? 'Creating account…' : 'Continue →'}
-          </button>
+          <Button type="submit" fullWidth loading={loading} loadingLabel="Creating account…">
+            Continue →
+          </Button>
         </form>
 
         <div style={styles.footer}>
@@ -191,26 +186,6 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 16,
   },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: '#374151',
-  },
-  input: {
-    width: '100%',
-    padding: '10px 12px',
-    fontSize: 14,
-    border: '1px solid #E5E7EB',
-    borderRadius: 8,
-    outline: 'none',
-    color: '#111827',
-    boxSizing: 'border-box',
-  },
   passwordWrapper: {
     position: 'relative',
   },
@@ -224,30 +199,6 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontSize: 16,
     padding: 4,
-  },
-  hint: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  error: {
-    fontSize: 13,
-    color: '#EF4444',
-    margin: 0,
-    padding: '8px 12px',
-    backgroundColor: '#FEF2F2',
-    borderRadius: 6,
-  },
-  submitBtn: {
-    width: '100%',
-    padding: '12px',
-    fontSize: 15,
-    fontWeight: 600,
-    color: '#FFFFFF',
-    background: 'linear-gradient(to right, #F97316, #EF4444)',
-    border: 'none',
-    borderRadius: 8,
-    cursor: 'pointer',
-    marginTop: 4,
   },
   footer: {
     backgroundColor: '#F9FAFB',

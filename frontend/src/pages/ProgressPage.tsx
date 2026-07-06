@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Alert, Card, CardHeader, EmptyState, LoadingState, PageHeader, Select } from '@gymbro/ui-kit'
+import type { SelectOption } from '@gymbro/ui-kit'
 import {
   getSummary,
   getExerciseSeries,
@@ -72,26 +74,28 @@ export default function ProgressPage() {
   )
 
   if (loading) {
-    return <main className="progress-page"><p className="progress-empty">Loading your progress…</p></main>
+    return <main className="progress-page"><LoadingState label="Loading your progress…" /></main>
   }
 
   if (error) {
-    return <main className="progress-page"><p className="progress-error">{error}</p></main>
+    return <main className="progress-page"><Alert variant="error">{error}</Alert></main>
   }
 
   const hasData = (summary?.totalSessions ?? 0) > 0
+  const exerciseOptions: SelectOption[] = (summary?.personalRecords ?? []).map(pr => ({
+    value: pr.exerciseName,
+    label: pr.exerciseName,
+  }))
 
   return (
     <main className="progress-page">
-      <header className="progress-header">
-        <h1>Your Progress</h1>
-        <p>Track your fitness journey and celebrate achievements</p>
-      </header>
+      <PageHeader
+        title="Your Progress"
+        subtitle="Track your fitness journey and celebrate achievements"
+      />
 
       {!hasData && (
-        <p className="progress-empty">
-          Complete a workout to start seeing your progress here.
-        </p>
+        <EmptyState>Complete a workout to start seeing your progress here.</EmptyState>
       )}
 
       {hasData && summary && (
@@ -104,45 +108,38 @@ export default function ProgressPage() {
           </section>
 
           <div className="progress-grid">
-            <section className="progress-card">
-              <div className="progress-card-head">
-                <h2>Strength Progress</h2>
-                {summary.personalRecords.length > 0 && (
-                  <select
-                    className="progress-select"
-                    value={selectedExercise}
-                    onChange={e => setSelectedExercise(e.target.value)}
-                    aria-label="Select exercise"
-                  >
-                    {summary.personalRecords.map(pr => (
-                      <option key={pr.exerciseName} value={pr.exerciseName}>
-                        {pr.exerciseName}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+            <Card as="section" className="progress-card">
+              <CardHeader
+                title="Strength Progress"
+                trailing={
+                  exerciseOptions.length > 0 ? (
+                    <Select
+                      className="progress-select"
+                      options={exerciseOptions}
+                      value={selectedExercise}
+                      onValueChange={setSelectedExercise}
+                      aria-label="Select exercise"
+                    />
+                  ) : undefined
+                }
+              />
               {seriesLoading ? (
-                <p className="progress-empty">Loading…</p>
+                <LoadingState />
               ) : (
                 <LineChart data={linePoints} unit="kg" />
               )}
-            </section>
+            </Card>
 
-            <section className="progress-card">
-              <div className="progress-card-head">
-                <h2>Personal Records</h2>
-              </div>
+            <Card as="section" className="progress-card">
+              <CardHeader title="Personal Records" />
               <BarChart data={prBars} emptyText="Log some sets with weight to set records." />
-            </section>
+            </Card>
           </div>
 
-          <section className="progress-card">
-            <div className="progress-card-head">
-              <h2>Records by Exercise</h2>
-            </div>
+          <Card as="section" className="progress-card">
+            <CardHeader title="Records by Exercise" />
             {summary.personalRecords.length === 0 ? (
-              <p className="progress-empty">No personal records yet.</p>
+              <EmptyState>No personal records yet.</EmptyState>
             ) : (
               <ul className="progress-pr-list">
                 {summary.personalRecords.map(pr => (
@@ -154,7 +151,7 @@ export default function ProgressPage() {
                 ))}
               </ul>
             )}
-          </section>
+          </Card>
         </>
       )}
     </main>

@@ -1,0 +1,38 @@
+/* GymBro design tokens — single source for the values scattered across App.css
+   and docs/design.md. Kept as CSS custom properties (runtime, theme-able);
+   Less is used for nesting/structure, not for token storage. */
+:root {
+  /* Brand */
+  --gb-accent: #ff6b1a;
+  --gb-accent-strong: #ea580c;
+  --gb-accent-deep: #c2410c;
+  --gb-gradient-brand: linear-gradient(135deg, #ff7a1a, #ef3442);
+  --gb-gradient-info: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+
+  /* Text */
+  --gb-text: #0f172a;
+  --gb-text-heading: #111827;
+  --gb-text-body: #374151;
+  --gb-text-muted: #64748b;
+  --gb-text-faint: #9ca3af;
+
+  /* Surfaces */
+  --gb-surface: #ffffff;
+  --gb-surface-page: #f6f7f9;
+  --gb-border: #e7eaf0;
+  --gb-border-input: #cbd5e1;
+
+  /* Radii */
+  --gb-radius-sm: 6px;
+  --gb-radius-md: 8px;
+  --gb-radius-lg: 12px;
+  --gb-radius-card: 14px;
+  --gb-radius-pill: 999px;
+
+  /* Shadows */
+  --gb-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --gb-shadow-cta: 0 8px 18px rgba(239, 68, 68, 0.2);
+
+  /* Focus ring */
+  --gb-focus-ring: 0 0 0 3px rgba(255, 107, 26, 0.16);
+}

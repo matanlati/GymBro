@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Alert, Badge, Button, Card, Input, LoadingState, PageHeader } from '@gymbro/ui-kit'
 import {
   getSession,
   logSet,
@@ -41,7 +42,7 @@ const ExerciseRow = ({
   }
 
   return (
-    <article className="session-exercise">
+    <Card as="article">
       <div className="session-exercise-head">
         <h3>{exercise.name}</h3>
         <span className="session-prescribed">
@@ -53,38 +54,40 @@ const ExerciseRow = ({
       {exercise.sets.length > 0 && (
         <div className="session-sets">
           {exercise.sets.map(set => (
-            <span className="session-set-chip" key={set.setNumber}>
+            <Badge tone="accent" key={set.setNumber}>
               Set {set.setNumber}: {set.repsCompleted} reps
               {set.weightUsedKg !== undefined ? ` · ${set.weightUsedKg}kg` : ''}
-            </span>
+            </Badge>
           ))}
         </div>
       )}
 
       {!disabled && (
         <form className="session-log-form" onSubmit={submit}>
-          <input
+          <Input
             type="number"
             min="0"
             placeholder="Reps"
+            aria-label="Reps completed"
             value={reps}
             onChange={e => setReps(e.target.value)}
             required
           />
-          <input
+          <Input
             type="number"
             min="0"
             step="0.5"
             placeholder="Weight (kg)"
+            aria-label="Weight used in kg"
             value={weight}
             onChange={e => setWeight(e.target.value)}
           />
-          <button type="submit" disabled={submitting}>
-            {submitting ? 'Logging…' : 'Log Set'}
-          </button>
+          <Button type="submit" variant="solid" loading={submitting} loadingLabel="Logging…">
+            Log Set
+          </Button>
         </form>
       )}
-    </article>
+    </Card>
   )
 }
 
@@ -124,23 +127,23 @@ const ActiveSessionPage = () => {
     }
   }
 
-  if (loading) return <main className="session-page"><p>Loading workout…</p></main>
-  if (error && !session) return <main className="session-page"><p className="session-error">{error}</p></main>
+  if (loading) return <main className="session-page"><LoadingState label="Loading workout…" /></main>
+  if (error && !session) return <main className="session-page"><Alert variant="error">{error}</Alert></main>
   if (!session) return null
 
   return (
     <main className="session-page">
-      <header className="session-header">
-        <div>
-          <h1>Workout Session</h1>
-          <p>
-            {formatDate(session.scheduledDate)} · {session.exercises.length} exercises
-          </p>
-        </div>
-        {isComplete && <span className="session-badge">Completed</span>}
-      </header>
+      <PageHeader
+        title="Workout Session"
+        subtitle={`${formatDate(session.scheduledDate)} · ${session.exercises.length} exercises`}
+        actions={isComplete ? <Badge tone="success">Completed</Badge> : undefined}
+      />
 
-      {error && <p className="session-error">{error}</p>}
+      {error && (
+        <Alert variant="error" style={{ marginBottom: 16 }}>
+          {error}
+        </Alert>
+      )}
 
       <div className="session-exercises">
         {session.exercises.map((exercise, index) => (
@@ -156,9 +159,15 @@ const ActiveSessionPage = () => {
 
       {!isComplete && (
         <footer className="session-footer">
-          <button type="button" className="session-finish" onClick={handleFinish} disabled={finishing}>
-            {finishing ? 'Finishing…' : 'Finish Workout'}
-          </button>
+          <Button
+            size="lg"
+            fullWidth
+            loading={finishing}
+            loadingLabel="Finishing…"
+            onClick={handleFinish}
+          >
+            Finish Workout
+          </Button>
         </footer>
       )}
     </main>

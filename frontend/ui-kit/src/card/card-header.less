@@ -1,0 +1,44 @@
+.gb-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  &__titles {
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--gb-accent-strong);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--gb-text-heading);
+    font-size: 17px;
+    line-height: 1.2;
+  }
+
+  h3&__title {
+    font-size: 15px;
+  }
+
+  &__trailing {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    color: #94a3b8;
+
+    svg {
+      width: 17px;
+      height: 17px;
+    }
+  }
+}

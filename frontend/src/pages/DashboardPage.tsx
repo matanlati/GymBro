@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Button, Card, CardHeader, IconTile } from '@gymbro/ui-kit'
+import type { IconTileTone } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { getOrCreateToday } from '../api/sessions.api'
@@ -34,11 +36,11 @@ function Icon({ name }: { name: IconName }) {
 }
 
 // ── Data ──────────────────────────────────────────────────────────────────────
-const statCards = [
-  { label: 'Workouts This Week', value: '3/5',    icon: 'dumbbell' as IconName, tone: 'orange' },
-  { label: 'Current Streak',     value: '12 days', icon: 'trend' as IconName,   tone: 'green' },
-  { label: 'Total Workouts',     value: '48',      icon: 'target' as IconName,  tone: 'blue' },
-  { label: 'Weight Progress',    value: '+5 kg',   icon: 'weight' as IconName,  tone: 'red' },
+const statCards: { label: string; value: string; icon: IconName; tone: IconTileTone }[] = [
+  { label: 'Workouts This Week', value: '3/5',     icon: 'dumbbell', tone: 'orange' },
+  { label: 'Current Streak',     value: '12 days', icon: 'trend',    tone: 'green' },
+  { label: 'Total Workouts',     value: '48',      icon: 'target',   tone: 'blue' },
+  { label: 'Weight Progress',    value: '+5 kg',   icon: 'weight',   tone: 'red' },
 ]
 
 const progressDays = [
@@ -86,27 +88,22 @@ function Dashboard() {
           <h1>Welcome Back, {user?.name ?? 'there'}!</h1>
           <p>Let's crush your fitness goals today</p>
         </div>
-        <button className="share-button" type="button">
-          <Icon name="share" /> Share Workout
-        </button>
+        <Button leadingIcon={<Icon name="share" />}>Share Workout</Button>
       </section>
 
       <section className="stats-grid" aria-label="Workout stats">
         {statCards.map(card => (
-          <article className="stat-card" key={card.label}>
-            <span className={`icon-tile ${card.tone}`}><Icon name={card.icon} /></span>
+          <Card as="article" padding="none" className="stat-card" key={card.label}>
+            <IconTile tone={card.tone}><Icon name={card.icon} /></IconTile>
             <p>{card.label}</p>
             <strong>{card.value}</strong>
-          </article>
+          </Card>
         ))}
       </section>
 
       <section className="dashboard-grid">
-        <article className="panel workout-panel">
-          <div className="panel-header">
-            <h2>Today's Workout</h2>
-            <Icon name="calendar" />
-          </div>
+        <Card as="article" className="workout-panel">
+          <CardHeader title="Today's Workout" trailing={<Icon name="calendar" />} />
           {planLoading ? (
             <div className="workout-card"><div><h3>Loading…</h3></div></div>
           ) : activePlan ? (
@@ -116,9 +113,9 @@ function Dashboard() {
                 <p>{todayExerciseCount} exercises</p>
                 <span>45 min</span>
               </div>
-              <button type="button" onClick={startWorkout} disabled={starting}>
-                {starting ? 'Starting…' : 'Start Workout'}
-              </button>
+              <Button variant="inverse" loading={starting} loadingLabel="Starting…" onClick={startWorkout}>
+                Start Workout
+              </Button>
             </div>
           ) : (
             <div className="workout-card">
@@ -126,7 +123,7 @@ function Dashboard() {
                 <h3>No active plan</h3>
                 <p>Create one from the questionnaire to get started.</p>
               </div>
-              <button type="button" onClick={() => navigate('/plans/new')}>Create Plan</button>
+              <Button variant="inverse" onClick={() => navigate('/plans/new')}>Create Plan</Button>
             </div>
           )}
           <div className="week-progress">
@@ -140,25 +137,27 @@ function Dashboard() {
               ))}
             </div>
           </div>
-        </article>
+        </Card>
 
         <aside className="side-column">
-          <section className="panel achievements-panel">
-            <h2>Recent Achievements</h2>
+          <Card as="section" className="achievements-panel">
+            <CardHeader title="Recent Achievements" />
             <div className="achievement-row">
-              <span className="icon-tile yellow"><Icon name="trophy" /></span>
+              <IconTile tone="yellow" size="sm"><Icon name="trophy" /></IconTile>
               <div><strong>New Personal Record</strong><p>Bench Press: 80kg</p></div>
             </div>
             <div className="achievement-row">
-              <span className="icon-tile green"><Icon name="check" /></span>
+              <IconTile tone="green" size="sm"><Icon name="check" /></IconTile>
               <div><strong>Weekly Goal Achieved</strong><p>Completed 5 workouts</p></div>
             </div>
-          </section>
-          <section className="coach-panel">
+          </Card>
+          <Card as="section" variant="info" className="coach-panel">
             <h2>AI Coach Available</h2>
             <p>Upload your workout video for real-time form analysis and feedback</p>
-            <button type="button" onClick={() => navigate('/ai-coach')}>Try AI Coach</button>
-          </section>
+            <Button variant="inverse" size="sm" style={{ color: '#2563eb' }} onClick={() => navigate('/ai-coach')}>
+              Try AI Coach
+            </Button>
+          </Card>
         </aside>
       </section>
     </main>

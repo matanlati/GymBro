@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { Button } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import '../App.css'
 
@@ -60,9 +61,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        <button onClick={handleLogout} style={{ background: 'none', border: 'none', fontSize: 13, color: '#6B7280', cursor: 'pointer' }}>
+        <Button variant="ghost" size="sm" style={{ color: 'var(--gb-text-muted)', fontSize: 13 }} onClick={handleLogout}>
           Log out
-        </button>
+        </Button>
       </header>
 
       {children}
