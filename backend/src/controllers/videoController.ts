@@ -2,6 +2,7 @@ import fs from 'fs'
 import { Response } from 'express'
 import { AuthRequest, VideoFile, Evaluation, ALLOWED_EXERCISE_TYPES } from '../types'
 import PoseAnalysisService from '../services/videoAnalysis/PoseAnalysisService'
+import { streamVideoFromService, toBackendVideoUrl, isSafeFilename } from '../services/videoAnalysis/videoProxy'
 
 const VideoAnalysisService = process.env.VIDEO_ANALYSIS_SERVICE_URL
   ? require('../services/videoAnalysis/VideoAnalysisApiAdapter').default
@@ -45,6 +46,10 @@ export const analyzeVideo = async (req: AuthRequest, res: Response): Promise<voi
       return
     }
 
+    // The microservice returns an internal URL (e.g. http://localhost:8000/videos/x.mp4)
+    // the browser can't reach. Rewrite it to a backend stream endpoint that proxies it.
+    evaluation.analized_video_url = toBackendVideoUrl(evaluation.analized_video_url)
+
     // Persistence failure must not lose the result the user is waiting on.
     let analysisId: string | undefined
     try {
@@ -69,6 +74,25 @@ export const analyzeVideo = async (req: AuthRequest, res: Response): Promise<voi
   } finally {
     fs.unlink(videoFile.path, (unlinkError) => {
       if (unlinkError) console.error('Failed to remove temp uploaded file:', unlinkError)
+    })
+  }
+}
+
+// Proxy an annotated video from the pose-estimation microservice so the
+// browser never talks to the internal service directly.
+export const streamVideo = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { filename } = req.params
+  if (!filename || !isSafeFilename(filename)) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid video filename' })
+    return
+  }
+  try {
+    streamVideoFromService(filename, req, res)
+  } catch (error) {
+    console.error('Failed to stream analyzed video:', error)
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: error instanceof Error ? error.message : 'Failed to stream video',
     })
   }
 }
