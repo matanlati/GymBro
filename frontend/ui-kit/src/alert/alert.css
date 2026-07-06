@@ -1,0 +1,26 @@
+.gb-alert {
+  padding: 14px 16px;
+  border: 1px solid;
+  border-radius: var(--gb-radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.gb-alert--info {
+  color: #9a3412;
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.gb-alert--success {
+  color: #166534;
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.gb-alert--error {
+  color: #991b1b;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
