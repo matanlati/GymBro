@@ -1,0 +1,32 @@
+.gb-card {
+  border: 1px solid var(--gb-border);
+  border-radius: var(--gb-radius-card);
+  background: var(--gb-surface);
+  box-shadow: var(--gb-shadow-card);
+}
+
+.gb-card--pad-sm {
+  padding: 14px;
+}
+
+.gb-card--pad-md {
+  padding: 20px;
+}
+
+.gb-card--pad-lg {
+  padding: 26px;
+}
+
+.gb-card--brand,
+.gb-card--info {
+  border: 0;
+  color: #fff;
+}
+
+.gb-card--brand {
+  background: var(--gb-gradient-brand);
+}
+
+.gb-card--info {
+  background: var(--gb-gradient-info);
+}
