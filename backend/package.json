@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node src/server.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
+    "build:client": "npm --prefix ../frontend install && npm --prefix ../frontend run build && node scripts/copyClient.js",
+    "build:full": "npm run build && npm run build:client",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },

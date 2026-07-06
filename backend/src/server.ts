@@ -1,4 +1,5 @@
 import path from 'path'
+import fs from 'fs'
 import dotenv from 'dotenv'
 dotenv.config({ path: path.resolve(process.cwd(), '.env') })
 
@@ -36,6 +37,20 @@ app.use('/api/sessions', sessionsRouter)
 app.use('/api/progress', progressRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
+
+// ── Serve the built frontend (production) ────────────────────────────────────
+// The build script copies frontend/dist into backend/dist/public. When that
+// folder exists, serve it and fall back to index.html for client-side routes.
+// The /api guard keeps unknown API paths returning JSON 404s, not index.html.
+const clientDir = path.join(__dirname, 'public')
+if (fs.existsSync(clientDir)) {
+  app.use(express.static(clientDir))
+  app.get(/^(?!\/api\/).*/, (_req, res) => {
+    res.sendFile(path.join(clientDir, 'index.html'))
+  })
+} else {
+  console.log('[static] no frontend build found at', clientDir, '(API-only mode)')
+}
 
 app.use(errorHandler)
 
