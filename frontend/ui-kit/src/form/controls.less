@@ -9,19 +9,19 @@
   font: inherit;
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease;
-}
 
-.gb-control::placeholder {
-  color: #94a3b8;
-}
+  &::placeholder {
+    color: #94a3b8;
+  }
 
-.gb-control:focus {
-  border-color: var(--gb-accent);
-  box-shadow: var(--gb-focus-ring);
-}
+  &:focus {
+    border-color: var(--gb-accent);
+    box-shadow: var(--gb-focus-ring);
+  }
 
-.gb-control[aria-invalid='true'] {
-  border-color: #ef4444;
+  &[aria-invalid='true'] {
+    border-color: #ef4444;
+  }
 }
 
 .gb-textarea {

@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react'
 import { cx } from '../utils/cx'
-import './alert.css'
+import './alert.less'
 
 export type AlertVariant = 'info' | 'success' | 'error'
 

@@ -1,4 +1,4 @@
-import './tokens.css'
+import './tokens.less'
 
 export * from './alert'
 export * from './badge'

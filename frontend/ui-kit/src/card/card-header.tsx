@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 import { cx } from '../utils/cx'
-import './card-header.css'
+import './card-header.less'
 
 export type CardHeaderProps = {
   title: ReactNode

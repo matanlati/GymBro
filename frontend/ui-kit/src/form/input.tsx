@@ -2,7 +2,7 @@ import { forwardRef } from 'react'
 import type { ComponentPropsWithoutRef } from 'react'
 import { useFormField } from './form-field-context'
 import { cx } from '../utils/cx'
-import './controls.css'
+import './controls.less'
 
 export type InputProps = ComponentPropsWithoutRef<'input'>
 

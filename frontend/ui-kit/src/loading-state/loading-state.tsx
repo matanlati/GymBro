@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react'
 import { cx } from '../utils/cx'
-import './loading-state.css'
+import './loading-state.less'
 
 export type LoadingStateProps = {
   label?: string

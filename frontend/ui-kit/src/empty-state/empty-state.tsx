@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 import { cx } from '../utils/cx'
-import './empty-state.css'
+import './empty-state.less'
 
 export type EmptyStateProps = {
   icon?: ReactNode

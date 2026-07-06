@@ -1,7 +1,7 @@
 import type { ChangeEvent, ComponentPropsWithoutRef } from 'react'
 import { useFormField } from './form-field-context'
 import { cx } from '../utils/cx'
-import './controls.css'
+import './controls.less'
 
 export type SelectOption<V extends string = string> = {
   value: V

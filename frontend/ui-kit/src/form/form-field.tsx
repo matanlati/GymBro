@@ -3,7 +3,7 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 import { FormFieldContext } from './form-field-context'
 import type { FormFieldContextValue } from './form-field-context'
 import { cx } from '../utils/cx'
-import './form-field.css'
+import './form-field.less'
 
 export type FormFieldProps = {
   label: ReactNode

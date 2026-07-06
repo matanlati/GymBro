@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react'
 import { cx } from '../utils/cx'
-import './form-row.css'
+import './form-row.less'
 
 export type FormRowProps = ComponentPropsWithoutRef<'div'>
 

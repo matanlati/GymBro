@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef, ElementType } from 'react'
 import { cx } from '../utils/cx'
-import './card.css'
+import './card.less'
 
 /** Elements a Card may render as. Bounded so the extra props stay fully typed —
  *  e.g. `onSubmit` is only accepted together with `as="form"`. */

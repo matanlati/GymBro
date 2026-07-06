@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 import { cx } from '../utils/cx'
-import './page-header.css'
+import './page-header.less'
 
 export type PageHeaderProps = {
   title: ReactNode

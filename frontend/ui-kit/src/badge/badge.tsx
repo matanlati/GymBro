@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react'
 import { cx } from '../utils/cx'
-import './badge.css'
+import './badge.less'
 
 export type BadgeTone = 'success' | 'warning' | 'danger' | 'accent' | 'neutral' | 'info'
 export type BadgeSize = 'md' | 'lg'

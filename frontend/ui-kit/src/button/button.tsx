@@ -1,7 +1,7 @@
 import { forwardRef } from 'react'
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 import { cx } from '../utils/cx'
-import './button.css'
+import './button.less'
 
 export type ButtonVariant = 'primary' | 'solid' | 'secondary' | 'ghost' | 'outline'
 export type ButtonSize = 'sm' | 'md' | 'lg'

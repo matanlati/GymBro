@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react'
 import { cx } from '../utils/cx'
-import './icon-tile.css'
+import './icon-tile.less'
 
 export type IconTileTone = 'orange' | 'green' | 'blue' | 'red' | 'yellow'
 export type IconTileSize = 'sm' | 'md'
