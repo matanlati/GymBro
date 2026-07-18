@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Card, CardHeader, EmptyState, LoadingState, PageHeader, Select } from '@gymbro/ui-kit'
 import type { SelectOption } from '@gymbro/ui-kit'
-import { CalendarDays, Dumbbell, Flame, Timer, Trophy } from 'lucide-react'
+import { CalendarDays, Dumbbell, Flame, Timer, TrendingDown, TrendingUp, Trophy } from 'lucide-react'
 import {
   getSummary,
   getExerciseSeries,
@@ -29,8 +29,8 @@ export default function ProgressPage() {
     getSummary()
       .then(({ data }) => {
         setSummary(data)
-        if (data.personalRecords.length > 0) {
-          setSelectedExercise(data.personalRecords[0].exerciseName)
+        if (data.strengthProgress.length > 0) {
+          setSelectedExercise(data.strengthProgress[0].exerciseName)
         }
       })
       .catch(() => setError('Could not load your progress. Please try again.'))
@@ -48,16 +48,11 @@ export default function ProgressPage() {
   }, [selectedExercise])
 
   const linePoints = useMemo(
-    () => series.map(p => ({ label: formatDate(p.date), value: p.maxWeightKg })),
+    () => series.map(p => ({
+      label: formatDate(p.date),
+      value: Math.round(p.estimatedOneRepMaxKg * 10) / 10,
+    })),
     [series]
-  )
-
-  const prBars = useMemo(
-    () =>
-      (summary?.personalRecords ?? [])
-        .slice(0, 6)
-        .map(pr => ({ label: pr.exerciseName, value: pr.maxWeightKg })),
-    [summary]
   )
 
   const weeklyBars = useMemo(
@@ -81,10 +76,13 @@ export default function ProgressPage() {
   }
 
   const hasData = (summary?.totalSessions ?? 0) > 0
-  const exerciseOptions: SelectOption[] = (summary?.personalRecords ?? []).map(pr => ({
-    value: pr.exerciseName,
-    label: pr.exerciseName,
+  const exerciseOptions: SelectOption[] = (summary?.strengthProgress ?? []).map(item => ({
+    value: item.exerciseName,
+    label: item.exerciseName,
   }))
+  const selectedStrength = summary?.strengthProgress.find(
+    item => item.exerciseName === selectedExercise
+  )
 
   return (
     <main className="progress-page">
@@ -155,16 +153,52 @@ export default function ProgressPage() {
                   ) : undefined
                 }
               />
+              {selectedStrength && (
+                <div className="strength-summary" aria-label={`${selectedExercise} strength summary`}>
+                  <div>
+                    <span className="strength-summary-label">Estimated 1RM</span>
+                    <strong>{selectedStrength.currentEstimatedOneRepMaxKg} kg</strong>
+                  </div>
+                  <div className={`strength-summary-change${selectedStrength.improvementPercent < 0 ? ' is-negative' : ''}`}>
+                    {selectedStrength.improvementPercent < 0
+                      ? <TrendingDown size={16} aria-hidden="true" />
+                      : <TrendingUp size={16} aria-hidden="true" />}
+                    <span>
+                      {selectedStrength.improvementPercent >= 0 ? '+' : ''}
+                      {selectedStrength.improvementPercent}%
+                    </span>
+                  </div>
+                </div>
+              )}
               {seriesLoading ? (
                 <LoadingState />
               ) : (
-                <LineChart data={linePoints} unit="kg" />
+                <LineChart
+                  data={linePoints}
+                  unit="kg estimated 1RM"
+                  emptyText="Complete this exercise in two workouts to see its strength trend."
+                />
               )}
             </Card>
 
             <Card as="section" className="progress-card">
-              <CardHeader title="Personal Records" />
-              <BarChart data={prBars} emptyText="Log some sets with weight to set records." />
+              <CardHeader title="Bodyweight Records" />
+              {summary.bodyweightRecords.length === 0 ? (
+                <EmptyState>No bodyweight records yet.</EmptyState>
+              ) : (
+                <ul className="bodyweight-record-list">
+                  {summary.bodyweightRecords.map(record => (
+                    <li key={record.exerciseKey} className="bodyweight-record-row">
+                      <span className="bodyweight-record-icon">
+                        <Dumbbell size={17} aria-hidden="true" />
+                      </span>
+                      <span className="bodyweight-record-name">{record.exerciseName}</span>
+                      <strong>{record.maxReps} reps</strong>
+                      <span className="bodyweight-record-date">{formatDate(record.achievedAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Card>
           </div>
 

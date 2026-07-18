@@ -1985,6 +1985,98 @@ button {
   padding: 6px 10px;
 }
 
+.strength-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.strength-summary > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.strength-summary-label {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.strength-summary strong {
+  color: #111827;
+  font-size: 20px;
+}
+
+.strength-summary-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.strength-summary-change.is-negative {
+  color: #dc2626;
+}
+
+.bodyweight-record-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bodyweight-record-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f3f5;
+}
+
+.bodyweight-record-row:last-child {
+  border-bottom: 0;
+}
+
+.bodyweight-record-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: #ea580c;
+  background: #fff7ed;
+}
+
+.bodyweight-record-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bodyweight-record-row strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.bodyweight-record-date {
+  grid-column: 2 / -1;
+  color: #6b7280;
+  font-size: 11px;
+}
+
 /* Bar chart */
 .bar-chart {
   display: flex;
@@ -2549,5 +2641,11 @@ button {
   }
   .progress-grid {
     grid-template-columns: 1fr;
+  }
+
+  .strength-summary > div:first-child {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
   }
 }
