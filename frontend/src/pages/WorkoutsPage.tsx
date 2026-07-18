@@ -12,7 +12,7 @@ const startOfWeek = (d: Date): Date => {
 }
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
 const WorkoutsPage = () => {
   const navigate = useNavigate()

@@ -10,10 +10,10 @@ const dateInputValue = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
 const formatPostDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
 const formatSessionDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
 const initials = (name: string) =>
   name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join('') || 'G'
@@ -44,7 +44,6 @@ const SocialFeedPage = () => {
   const [workoutName, setWorkoutName] = useState('')
   const [postTitle, setPostTitle] = useState('')
   const [caption, setCaption] = useState(state?.caption ?? '')
-  const [postDate, setPostDate] = useState(dateInputValue())
   const [photo, setPhoto] = useState<File | undefined>()
   const [error, setError] = useState('')
   const [posting, setPosting] = useState(false)
@@ -98,7 +97,7 @@ const SocialFeedPage = () => {
         workoutName,
         title: postTitle,
         caption,
-        postDate,
+        postDate: dateInputValue(),
         photo,
       })
       setPosts(current => [data, ...current].sort((a, b) => +new Date(b.postDate) - +new Date(a.postDate)))
@@ -107,7 +106,6 @@ const SocialFeedPage = () => {
       setPostTitle('')
       setWorkoutName('')
       setSessionId('')
-      setPostDate(dateInputValue())
       setPhoto(undefined)
     } catch {
       setError('Could not publish this post. Check the fields and try again.')
@@ -263,10 +261,6 @@ const SocialFeedPage = () => {
                     accept="image/*"
                     onChange={event => setPhoto(event.target.files?.[0])}
                   />
-                </label>
-                <label>
-                  Post date
-                  <input type="date" value={postDate} onChange={event => setPostDate(event.target.value)} required />
                 </label>
                 <div className="feed-composer-actions">
                   <Button variant="secondary" onClick={closeComposer}>Cancel</Button>

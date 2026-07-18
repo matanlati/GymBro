@@ -11,7 +11,7 @@ import {
 } from '../api/sessions.api'
 
 const formatDate = (iso?: string) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''
+  iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
 
 const ExerciseRow = ({
   exercise,

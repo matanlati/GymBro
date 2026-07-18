@@ -431,7 +431,7 @@ function Dashboard() {
             {planningDate ? (
               <div className="schedule-workout-modal" role="dialog" aria-modal="true" aria-label="Plan future workout">
                 <h3>Plan Workout</h3>
-                <p>{planningDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                <p>{planningDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                 <label>
                   Workout type
                   <select value={selectedWorkout} onChange={event => setSelectedWorkout(event.target.value)}>
