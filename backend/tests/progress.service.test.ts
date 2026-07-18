@@ -24,6 +24,7 @@ describe('progress.service.getSummary', () => {
         averageDurationMinutes: 46.6,
       }])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
 
     const summary = await getSummary(USER_ID)
 
@@ -38,9 +39,29 @@ describe('progress.service.getSummary', () => {
         averageDurationMinutes: null,
       }])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
 
     const summary = await getSummary(USER_ID)
 
     expect(summary.averageDurationMinutes).toBe(0)
+  })
+
+  it('returns estimated strength progress from the aggregation', async () => {
+    const strengthProgress = [{
+      exerciseKey: 'bench_press',
+      exerciseName: 'Bench Press',
+      currentEstimatedOneRepMaxKg: 96.4,
+      improvementPercent: 8.4,
+      latestWorkoutAt: '2026-07-18T10:00:00.000Z',
+      daysTracked: 6,
+    }]
+    ;(MockSession.aggregate as jest.Mock) = jest.fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(strengthProgress)
+
+    const summary = await getSummary(USER_ID)
+
+    expect(summary.strengthProgress).toEqual(strengthProgress)
   })
 })

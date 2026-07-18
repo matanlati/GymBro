@@ -1,13 +1,24 @@
 import { Types } from 'mongoose'
 import { WorkoutSession } from '../models/WorkoutSession.model'
+import { toExerciseKey } from '../utils/exerciseKey'
 
 // ── Public response shapes ──────────────────────────────────────────────────
 
 export interface PersonalRecord {
+  exerciseKey: string
   exerciseName: string
   maxWeightKg: number
   achievedAt: string
   daysTracked: number // distinct days this exercise was logged with weight
+}
+
+export interface StrengthProgress {
+  exerciseKey: string
+  exerciseName: string
+  currentEstimatedOneRepMaxKg: number
+  improvementPercent: number
+  latestWorkoutAt: string
+  daysTracked: number
 }
 
 export interface ProgressSummary {
@@ -16,11 +27,13 @@ export interface ProgressSummary {
   averageDurationMinutes: number
   currentStreakDays: number
   personalRecords: PersonalRecord[]
+  strengthProgress: StrengthProgress[]
 }
 
 export interface ExercisePoint {
   date: string // YYYY-MM-DD
   maxWeightKg: number
+  estimatedOneRepMaxKg: number
   totalVolumeKg: number
 }
 
@@ -142,7 +155,8 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
     { $match: { 'exercises.sets.weightUsedKg': { $gt: 0 } } },
     {
       $group: {
-        _id: '$exercises.name',
+        _id: { $ifNull: ['$exercises.exerciseKey', '$exercises.name'] },
+        exerciseName: { $last: '$exercises.name' },
         maxWeightKg: { $max: '$exercises.sets.weightUsedKg' },
         achievedAt: { $max: '$completedAt' },
         // Distinct calendar days this exercise was actually trained with weight.
@@ -159,12 +173,87 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
     {
       $project: {
         _id: 0,
-        exerciseName: '$_id',
+        exerciseKey: '$_id',
+        exerciseName: 1,
         maxWeightKg: 1,
         achievedAt: 1,
         daysTracked: { $size: '$days' },
       },
     },
+  ])
+
+  const strengthProgress = await WorkoutSession.aggregate<StrengthProgress>([
+    { $match: match },
+    { $unwind: '$exercises' },
+    { $unwind: '$exercises.sets' },
+    {
+      $match: {
+        'exercises.sets.weightUsedKg': { $gt: 0 },
+        'exercises.sets.repsCompleted': { $gt: 0 },
+      },
+    },
+    {
+      $project: {
+        exerciseKey: { $ifNull: ['$exercises.exerciseKey', '$exercises.name'] },
+        exerciseName: '$exercises.name',
+        date: { $dateToString: { format: '%Y-%m-%d', date: '$scheduledDate' } },
+        completedAt: 1,
+        estimatedOneRepMaxKg: {
+          $multiply: [
+            '$exercises.sets.weightUsedKg',
+            { $add: [1, { $divide: ['$exercises.sets.repsCompleted', 30] }] },
+          ],
+        },
+      },
+    },
+    { $sort: { completedAt: 1 } },
+    {
+      $group: {
+        _id: { exerciseKey: '$exerciseKey', date: '$date' },
+        exerciseName: { $last: '$exerciseName' },
+        estimatedOneRepMaxKg: { $max: '$estimatedOneRepMaxKg' },
+        completedAt: { $max: '$completedAt' },
+      },
+    },
+    { $sort: { completedAt: 1 } },
+    {
+      $group: {
+        _id: '$_id.exerciseKey',
+        exerciseName: { $last: '$exerciseName' },
+        firstEstimatedOneRepMaxKg: { $first: '$estimatedOneRepMaxKg' },
+        currentEstimatedOneRepMaxKg: { $last: '$estimatedOneRepMaxKg' },
+        latestWorkoutAt: { $last: '$completedAt' },
+        daysTracked: { $sum: 1 },
+      },
+    },
+    { $match: { daysTracked: { $gte: 2 } } },
+    {
+      $project: {
+        _id: 0,
+        exerciseKey: '$_id',
+        exerciseName: 1,
+        currentEstimatedOneRepMaxKg: { $round: ['$currentEstimatedOneRepMaxKg', 1] },
+        improvementPercent: {
+          $round: [
+            {
+              $multiply: [
+                {
+                  $divide: [
+                    { $subtract: ['$currentEstimatedOneRepMaxKg', '$firstEstimatedOneRepMaxKg'] },
+                    '$firstEstimatedOneRepMaxKg',
+                  ],
+                },
+                100,
+              ],
+            },
+            1,
+          ],
+        },
+        latestWorkoutAt: 1,
+        daysTracked: 1,
+      },
+    },
+    { $sort: { currentEstimatedOneRepMaxKg: -1 } },
   ])
 
   // Streak needs one lightweight pass over completed dates.
@@ -179,6 +268,7 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
     averageDurationMinutes: Math.round(totals?.averageDurationMinutes ?? 0),
     currentStreakDays,
     personalRecords,
+    strengthProgress,
   }
 }
 
@@ -190,15 +280,38 @@ export const getExerciseSeries = async (
   userId: string,
   exerciseName: string
 ): Promise<ExercisePoint[]> => {
+  const exerciseKey = toExerciseKey(exerciseName)
+
   return WorkoutSession.aggregate<ExercisePoint>([
     { $match: completedMatch(userId) },
     { $unwind: '$exercises' },
-    { $match: { 'exercises.name': exerciseName } },
+    {
+      $match: {
+        $or: [
+          { 'exercises.exerciseKey': exerciseKey },
+          { 'exercises.name': exerciseName },
+        ],
+      },
+    },
     { $unwind: '$exercises.sets' },
+    {
+      $match: {
+        'exercises.sets.weightUsedKg': { $gt: 0 },
+        'exercises.sets.repsCompleted': { $gt: 0 },
+      },
+    },
     {
       $group: {
         _id: { $dateToString: { format: '%Y-%m-%d', date: '$scheduledDate' } },
         maxWeightKg: { $max: { $ifNull: ['$exercises.sets.weightUsedKg', 0] } },
+        estimatedOneRepMaxKg: {
+          $max: {
+            $multiply: [
+              '$exercises.sets.weightUsedKg',
+              { $add: [1, { $divide: ['$exercises.sets.repsCompleted', 30] }] },
+            ],
+          },
+        },
         totalVolumeKg: {
           $sum: {
             $multiply: [
@@ -215,6 +328,7 @@ export const getExerciseSeries = async (
         _id: 0,
         date: '$_id',
         maxWeightKg: 1,
+        estimatedOneRepMaxKg: { $round: ['$estimatedOneRepMaxKg', 1] },
         totalVolumeKg: { $round: ['$totalVolumeKg', 0] },
       },
     },
