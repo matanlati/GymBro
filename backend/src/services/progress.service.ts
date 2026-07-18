@@ -13,6 +13,7 @@ export interface PersonalRecord {
 export interface ProgressSummary {
   totalSessions: number
   totalVolumeKg: number
+  averageDurationMinutes: number
   currentStreakDays: number
   personalRecords: PersonalRecord[]
 }
@@ -88,10 +89,18 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
   const [totals] = await WorkoutSession.aggregate<{
     totalSessions: number
     totalVolumeKg: number
+    averageDurationMinutes: number | null
   }>([
     { $match: match },
     {
       $project: {
+        durationMinutes: {
+          $cond: [
+            { $ne: [{ $type: '$startedAt' }, 'missing'] },
+            { $divide: [{ $subtract: ['$completedAt', '$startedAt'] }, 60_000] },
+            null,
+          ],
+        },
         volume: {
           $sum: {
             $map: {
@@ -121,6 +130,7 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
         _id: null,
         totalSessions: { $sum: 1 },
         totalVolumeKg: { $sum: '$volume' },
+        averageDurationMinutes: { $avg: '$durationMinutes' },
       },
     },
   ])
@@ -166,6 +176,7 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
   return {
     totalSessions: totals?.totalSessions ?? 0,
     totalVolumeKg: Math.round(totals?.totalVolumeKg ?? 0),
+    averageDurationMinutes: Math.round(totals?.averageDurationMinutes ?? 0),
     currentStreakDays,
     personalRecords,
   }
