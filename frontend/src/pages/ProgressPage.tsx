@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Card, CardHeader, EmptyState, LoadingState, PageHeader, Select } from '@gymbro/ui-kit'
+import { Alert, Card, CardHeader, EmptyState, LoadingState, PageHeader } from '@gymbro/ui-kit'
 import type { SelectOption } from '@gymbro/ui-kit'
 import { CalendarDays, Dumbbell, Flame, Timer, TrendingDown, TrendingUp, Trophy } from 'lucide-react'
 import {
@@ -13,6 +13,7 @@ import BarChart from '../components/progress/BarChart'
 import LineChart from '../components/progress/LineChart'
 import GoalsAchievements from '../components/progress/GoalsAchievements'
 import BodyMeasurements from '../components/progress/BodyMeasurements'
+import ProgressSelect from '../components/progress/ProgressSelect'
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -145,12 +146,12 @@ export default function ProgressPage() {
                 title="Strength Progress"
                 trailing={
                   exerciseOptions.length > 0 ? (
-                    <Select
-                      className="progress-select"
+                    <ProgressSelect
+                      className="progress-select progress-control-select"
                       options={exerciseOptions}
                       value={selectedExercise}
                       onValueChange={setSelectedExercise}
-                      aria-label="Select exercise"
+                      ariaLabel="Select exercise"
                     />
                   ) : undefined
                 }

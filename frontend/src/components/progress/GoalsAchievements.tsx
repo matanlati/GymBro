@@ -9,7 +9,6 @@ import {
   FormField,
   Input,
   LoadingState,
-  Select,
 } from '@gymbro/ui-kit'
 import type { SelectOption } from '@gymbro/ui-kit'
 import {
@@ -21,12 +20,27 @@ import {
   ProgressGoalType,
   updateGoal,
 } from '../../api/progress.api'
+import ProgressSelect from './ProgressSelect'
 
 const GOAL_TYPES: SelectOption<ProgressGoalType>[] = [
   { value: 'weekly_workouts', label: 'Weekly workouts' },
   { value: 'exercise_strength', label: 'Exercise strength' },
   { value: 'body_weight', label: 'Body weight' },
   { value: 'muscle_mass', label: 'Muscle mass' },
+]
+
+const DEFAULT_STRENGTH_EXERCISES = [
+  'Barbell Row',
+  'Bench Press',
+  'Biceps Curl',
+  'Calf Raise',
+  'Deadlift',
+  'Hip Thrust',
+  'Lat Pulldown',
+  'Leg Press',
+  'Shoulder Press',
+  'Squat',
+  'Triceps Extension',
 ]
 
 const goalLabel = (goal: ProgressGoal) => {
@@ -61,16 +75,26 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    Promise.all([listGoals('active'), listAchievements(undefined, 8)])
+    const loadProgressPanels = () => Promise.all([
+      listGoals('active'),
+      listAchievements(undefined, 8),
+    ])
       .then(([goalResponse, achievementResponse]) => {
         setGoals(goalResponse.data)
         setAchievements(achievementResponse.data)
       })
       .catch(() => setError('Could not load goals and achievements.'))
-      .finally(() => setLoading(false))
+
+    loadProgressPanels().finally(() => setLoading(false))
+    window.addEventListener('progress-data-changed', loadProgressPanels)
+    return () => window.removeEventListener('progress-data-changed', loadProgressPanels)
   }, [])
 
-  const exerciseOptions: SelectOption[] = exercises.map(name => ({ value: name, label: name }))
+  const exerciseOptions: SelectOption[] = Array.from(
+    new Set([...exercises, ...DEFAULT_STRENGTH_EXERCISES])
+  )
+    .sort((left, right) => left.localeCompare(right))
+    .map(name => ({ value: name, label: name }))
   const unit = goalType === 'weekly_workouts' ? 'workouts' : 'kg'
 
   const resetForm = () => {
@@ -150,16 +174,23 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
         {showForm && (
           <form className="goal-form" onSubmit={submitGoal}>
             <FormField label="Goal type">
-              <Select options={GOAL_TYPES} value={goalType} onValueChange={setGoalType} />
+              <ProgressSelect
+                className="progress-control-select"
+                options={GOAL_TYPES}
+                value={goalType}
+                onValueChange={setGoalType}
+                ariaLabel="Goal type"
+              />
             </FormField>
             {goalType === 'exercise_strength' && (
               <FormField label="Exercise">
-                <Select
+                <ProgressSelect
+                  className="progress-control-select"
                   options={exerciseOptions}
                   value={exerciseName}
                   placeholder="Choose exercise"
                   onValueChange={setExerciseName}
-                  required
+                  ariaLabel="Exercise"
                 />
               </FormField>
             )}
@@ -177,7 +208,7 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
             <FormField label={`Target (${unit})`}>
               <Input
                 type="number"
-                min="0.1"
+                min={goalType === 'weekly_workouts' ? '1' : '0.1'}
                 step={goalType === 'weekly_workouts' ? '1' : '0.1'}
                 value={targetValue}
                 onChange={event => setTargetValue(event.target.value)}

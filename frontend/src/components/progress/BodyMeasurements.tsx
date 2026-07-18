@@ -112,6 +112,7 @@ export default function BodyMeasurements() {
       if (editing) await updateMeasurement(editing._id, payload)
       else await createMeasurement(payload)
       await loadMeasurements()
+      window.dispatchEvent(new Event('progress-data-changed'))
       closeForm()
     } catch {
       setError('Could not save this measurement. Please check the values and try again.')
@@ -125,6 +126,7 @@ export default function BodyMeasurements() {
     try {
       await deleteMeasurement(measurement._id)
       setMeasurements(current => current.filter(item => item._id !== measurement._id))
+      window.dispatchEvent(new Event('progress-data-changed'))
     } catch {
       setError('Could not delete this measurement.')
     }

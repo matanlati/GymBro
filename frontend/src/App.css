@@ -2026,8 +2026,104 @@ button {
 .progress-select {
   width: auto;
   max-width: 200px;
-  min-height: 34px;
-  padding: 6px 10px;
+}
+
+.progress-control-select {
+  position: relative;
+  width: 100%;
+}
+
+.progress-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 36px 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #0f172a;
+  background-color: #fff;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.progress-dropdown-trigger svg {
+  position: absolute;
+  right: 12px;
+  flex-shrink: 0;
+  color: #64748b;
+  transition: transform 160ms ease;
+}
+
+.progress-dropdown-trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.progress-dropdown-trigger:hover {
+  border-color: #fb923c;
+  background-color: #fffaf5;
+}
+
+.progress-dropdown-trigger:focus-visible,
+.progress-dropdown-trigger[aria-expanded="true"] {
+  outline: 0;
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.16);
+}
+
+.progress-dropdown-trigger .is-placeholder {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.progress-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+}
+
+.progress-dropdown-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  color: #0f172a;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.progress-dropdown-menu button:hover,
+.progress-dropdown-menu button.is-active {
+  color: #c2410c;
+  background: #fff7ed;
+}
+
+.progress-dropdown-menu button[aria-selected="true"] {
+  color: #ea580c;
+}
+
+.progress-dropdown-menu button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .strength-summary {
@@ -2138,6 +2234,16 @@ button {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #f8fafc;
+}
+
+.goal-form .gb-field {
+  align-self: start;
+  margin: 0;
+}
+
+.goal-form .progress-dropdown-trigger,
+.goal-form .gb-input {
+  min-height: 48px;
 }
 
 .goal-form .gb-button {

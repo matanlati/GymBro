@@ -78,11 +78,21 @@ export const listGoals = async (
     completedAt: { $ne: null },
   }
 
-  const [completed, user, latestWeight, latestMuscleMass, strengthValues] = await Promise.all([
+  const [
+    completed,
+    user,
+    latestWeight,
+    latestMuscleMass,
+    earliestWeight,
+    earliestMuscleMass,
+    strengthValues,
+  ] = await Promise.all([
     WorkoutSession.find(completedMatch).select('completedAt').lean(),
     User.findById(userId).select('timezone').lean(),
     BodyMeasurement.findOne({ userId, weightKg: { $exists: true } }).sort({ measuredAt: -1 }),
     BodyMeasurement.findOne({ userId, muscleMassKg: { $exists: true } }).sort({ measuredAt: -1 }),
+    BodyMeasurement.findOne({ userId, weightKg: { $exists: true } }).sort({ measuredAt: 1 }),
+    BodyMeasurement.findOne({ userId, muscleMassKg: { $exists: true } }).sort({ measuredAt: 1 }),
     exerciseKeys.length > 0
       ? WorkoutSession.aggregate<{ exerciseKey: string; currentValue: number }>([
           { $match: completedMatch },
@@ -154,6 +164,8 @@ export const listGoals = async (
 
     let baseline = goal.baselineValue
     if (goal.type === 'weekly_workouts' || goal.type === 'exercise_strength') baseline ??= 0
+    if (goal.type === 'body_weight') baseline ??= earliestWeight?.weightKg
+    if (goal.type === 'muscle_mass') baseline ??= earliestMuscleMass?.muscleMassKg
     let progressPercent: number | null = null
     if (goal.status === 'completed') {
       progressPercent = 100
@@ -191,12 +203,28 @@ export const createGoal = async (
     throw new Error('INVALID_GOAL_PAYLOAD')
   }
 
+  let baselineValue = payload.baselineValue
+  if (baselineValue === undefined && payload.type === 'body_weight') {
+    const latest = await BodyMeasurement.findOne({
+      userId,
+      weightKg: { $exists: true },
+    }).sort({ measuredAt: -1 })
+    baselineValue = latest?.weightKg
+  }
+  if (baselineValue === undefined && payload.type === 'muscle_mass') {
+    const latest = await BodyMeasurement.findOne({
+      userId,
+      muscleMassKg: { $exists: true },
+    }).sort({ measuredAt: -1 })
+    baselineValue = latest?.muscleMassKg
+  }
+
   return ProgressGoal.create({
     userId,
     type: payload.type,
     exerciseKey: exerciseName ? toExerciseKey(exerciseName) : undefined,
     exerciseName,
-    baselineValue: payload.baselineValue,
+    baselineValue,
     targetValue: payload.targetValue,
     unit: UNIT_BY_TYPE[payload.type],
     startsAt: parseDate(payload.startsAt),

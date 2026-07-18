@@ -48,6 +48,23 @@ describe('progressGoals.service', () => {
     })).rejects.toThrow('INVALID_GOAL_PAYLOAD')
   })
 
+  it('uses the latest body measurement when a body goal omits its baseline', async () => {
+    ;(MockGoal.create as jest.Mock) = jest.fn().mockImplementation(async value => value)
+    ;(MockMeasurement.findOne as jest.Mock) = jest.fn().mockReturnValue({
+      sort: jest.fn().mockResolvedValue({ weightKg: 75 }),
+    })
+
+    await createGoal('user1', {
+      type: 'body_weight',
+      targetValue: 70,
+    })
+
+    expect(MockGoal.create).toHaveBeenCalledWith(expect.objectContaining({
+      baselineValue: 75,
+      targetValue: 70,
+    }))
+  })
+
   it('sets completedAt when a goal is completed', async () => {
     const goal = {
       type: 'weekly_workouts',
@@ -113,6 +130,8 @@ describe('progressGoals.service', () => {
     ;(MockMeasurement.findOne as jest.Mock) = jest.fn()
       .mockReturnValueOnce({ sort: jest.fn().mockResolvedValue({ weightKg: 75 }) })
       .mockReturnValueOnce({ sort: jest.fn().mockResolvedValue({ muscleMassKg: 32.5 }) })
+      .mockReturnValueOnce({ sort: jest.fn().mockResolvedValue({ weightKg: 80 }) })
+      .mockReturnValueOnce({ sort: jest.fn().mockResolvedValue({ muscleMassKg: 30 }) })
 
     const result = await listGoals(USER_ID, 'active')
 
