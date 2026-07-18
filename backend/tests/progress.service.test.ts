@@ -33,6 +33,7 @@ describe('progress.service.getSummary', () => {
       }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
 
     const summary = await getSummary(USER_ID)
 
@@ -46,6 +47,7 @@ describe('progress.service.getSummary', () => {
         totalVolumeKg: 0,
         averageDurationMinutes: null,
       }])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
 
@@ -66,10 +68,30 @@ describe('progress.service.getSummary', () => {
     ;(MockSession.aggregate as jest.Mock) = jest.fn()
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce(strengthProgress)
 
     const summary = await getSummary(USER_ID)
 
     expect(summary.strengthProgress).toEqual(strengthProgress)
+  })
+
+  it('returns rep-based records for bodyweight exercises', async () => {
+    const bodyweightRecords = [{
+      exerciseKey: 'pull_up',
+      exerciseName: 'Pull-ups',
+      maxReps: 15,
+      achievedAt: '2026-07-18T10:00:00.000Z',
+      daysTracked: 4,
+    }]
+    ;(MockSession.aggregate as jest.Mock) = jest.fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(bodyweightRecords)
+      .mockResolvedValueOnce([])
+
+    const summary = await getSummary(USER_ID)
+
+    expect(summary.bodyweightRecords).toEqual(bodyweightRecords)
   })
 })

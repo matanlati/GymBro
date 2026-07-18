@@ -14,6 +14,14 @@ export interface PersonalRecord {
   daysTracked: number // distinct days this exercise was logged with weight
 }
 
+export interface BodyweightRecord {
+  exerciseKey: string
+  exerciseName: string
+  maxReps: number
+  achievedAt: string
+  daysTracked: number
+}
+
 export interface StrengthProgress {
   exerciseKey: string
   exerciseName: string
@@ -31,6 +39,7 @@ export interface ProgressSummary {
   bestStreakDays: number
   weeklyActivity: WeeklyActivity[]
   personalRecords: PersonalRecord[]
+  bodyweightRecords: BodyweightRecord[]
   strengthProgress: StrengthProgress[]
 }
 
@@ -128,12 +137,13 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
     { $unwind: '$exercises' },
     { $unwind: '$exercises.sets' },
     { $match: { 'exercises.sets.weightUsedKg': { $gt: 0 } } },
+    { $sort: { 'exercises.sets.weightUsedKg': -1, completedAt: 1 } },
     {
       $group: {
         _id: { $ifNull: ['$exercises.exerciseKey', '$exercises.name'] },
-        exerciseName: { $last: '$exercises.name' },
-        maxWeightKg: { $max: '$exercises.sets.weightUsedKg' },
-        achievedAt: { $max: '$completedAt' },
+        exerciseName: { $first: '$exercises.name' },
+        maxWeightKg: { $first: '$exercises.sets.weightUsedKg' },
+        achievedAt: { $first: '$completedAt' },
         // Distinct calendar days this exercise was actually trained with weight.
         days: {
           $addToSet: {
@@ -151,6 +161,44 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
         exerciseKey: '$_id',
         exerciseName: 1,
         maxWeightKg: 1,
+        achievedAt: 1,
+        daysTracked: { $size: '$days' },
+      },
+    },
+  ])
+
+  const bodyweightRecords = await WorkoutSession.aggregate<BodyweightRecord>([
+    { $match: match },
+    { $unwind: '$exercises' },
+    { $unwind: '$exercises.sets' },
+    {
+      $match: {
+        'exercises.sets.weightUsedKg': { $not: { $gt: 0 } },
+        'exercises.sets.repsCompleted': { $gt: 0 },
+      },
+    },
+    { $sort: { 'exercises.sets.repsCompleted': -1, completedAt: 1 } },
+    {
+      $group: {
+        _id: { $ifNull: ['$exercises.exerciseKey', '$exercises.name'] },
+        exerciseName: { $first: '$exercises.name' },
+        maxReps: { $first: '$exercises.sets.repsCompleted' },
+        achievedAt: { $first: '$completedAt' },
+        days: {
+          $addToSet: {
+            $dateToString: { format: '%Y-%m-%d', date: '$scheduledDate' },
+          },
+        },
+      },
+    },
+    { $match: { $expr: { $gte: [{ $size: '$days' }, 2] } } },
+    { $sort: { maxReps: -1 } },
+    {
+      $project: {
+        _id: 0,
+        exerciseKey: '$_id',
+        exerciseName: 1,
+        maxReps: 1,
         achievedAt: 1,
         daysTracked: { $size: '$days' },
       },
@@ -248,6 +296,7 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
     bestStreakDays: calendarMetrics.bestStreakDays,
     weeklyActivity: calendarMetrics.weeklyActivity,
     personalRecords,
+    bodyweightRecords,
     strengthProgress,
   }
 }
