@@ -6,6 +6,13 @@ export interface FeedAuthor {
   photo?: string
 }
 
+export interface WorkoutComment {
+  _id: string
+  userId: FeedAuthor
+  text: string
+  createdAt: string
+}
+
 export interface WorkoutPost {
   _id: string
   userId: FeedAuthor
@@ -15,6 +22,8 @@ export interface WorkoutPost {
   caption: string
   postDate: string
   photoUrl?: string
+  likedBy: string[]
+  comments: WorkoutComment[]
   createdAt: string
 }
 
@@ -39,3 +48,9 @@ export const createPost = (payload: CreateWorkoutPostPayload) => {
   if (payload.photo) form.append('photo', payload.photo)
   return client.post<WorkoutPost>('/posts', form)
 }
+
+export const toggleLike = (postId: string) =>
+  client.post<WorkoutPost>(`/posts/${postId}/like`)
+
+export const addComment = (postId: string, text: string) =>
+  client.post<WorkoutPost>(`/posts/${postId}/comments`, { text })

@@ -15,8 +15,22 @@ export const listPosts = async () => {
   return WorkoutPost.find()
     .sort({ postDate: -1, createdAt: -1 })
     .populate('userId', 'name photo')
+    .populate('comments.userId', 'name photo')
     .lean()
 }
+
+const loadPost = async (postId: string) => {
+  if (!Types.ObjectId.isValid(postId)) throw new Error('INVALID_POST')
+  const post = await WorkoutPost.findById(postId)
+  if (!post) throw new Error('POST_NOT_FOUND')
+  return post
+}
+
+const populatePost = (post: Awaited<ReturnType<typeof loadPost>>) =>
+  post.populate([
+    { path: 'userId', select: 'name photo' },
+    { path: 'comments.userId', select: 'name photo' },
+  ])
 
 export const createPost = async (userId: string, payload: CreatePostPayload) => {
   if (!Types.ObjectId.isValid(payload.sessionId)) throw new Error('INVALID_SESSION')
@@ -46,5 +60,26 @@ export const createPost = async (userId: string, payload: CreatePostPayload) => 
     postDate,
     photoUrl: payload.photoUrl,
   })
-  return post.populate('userId', 'name photo')
+  return populatePost(post)
+}
+
+export const toggleLike = async (userId: string, postId: string) => {
+  const post = await loadPost(postId)
+  const userObjectId = new Types.ObjectId(userId)
+  if (post.userId.equals(userObjectId)) throw new Error('CANNOT_LIKE_OWN_POST')
+  const liked = post.likedBy.some(id => id.equals(userObjectId))
+  post.likedBy = liked
+    ? post.likedBy.filter(id => !id.equals(userObjectId))
+    : [...post.likedBy, userObjectId]
+  await post.save()
+  return populatePost(post)
+}
+
+export const addComment = async (userId: string, postId: string, text: string) => {
+  const post = await loadPost(postId)
+  const cleaned = text?.trim()
+  if (!cleaned) throw new Error('INVALID_COMMENT')
+  post.comments.push({ userId: new Types.ObjectId(userId), text: cleaned, createdAt: new Date() })
+  await post.save()
+  return populatePost(post)
 }

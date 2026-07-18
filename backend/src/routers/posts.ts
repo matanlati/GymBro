@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import multer from 'multer'
 import { authMiddleware } from '../middleware/auth'
-import { createPost, listPosts } from '../controllers/posts.controller'
+import { addComment, createPost, listPosts, toggleLike } from '../controllers/posts.controller'
 
 const router = Router()
 const uploadDir = path.resolve(process.cwd(), 'uploads', 'feed')
@@ -27,5 +27,7 @@ router.use(authMiddleware)
 
 router.get('/', listPosts)
 router.post('/', upload.single('photo'), createPost)
+router.post('/:id/like', toggleLike)
+router.post('/:id/comments', addComment)
 
 export default router

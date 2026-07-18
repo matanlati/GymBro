@@ -2256,6 +2256,126 @@ button {
   line-height: 1.45;
 }
 
+.feed-post-social {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #eef2f7;
+}
+
+.feed-post-social button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #64748b;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.feed-post-social button.liked {
+  color: #ef4444;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.feed-post-social button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.feed-post-social button span {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.feed-post-social button strong {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.feed-post-social span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.feed-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.feed-suggestions button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  color: #c2410c;
+  background: #fff7ed;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.feed-comments {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.feed-comment {
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.feed-comment strong {
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.feed-comment span {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.feed-comment-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.feed-comment-form input {
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.feed-comment-form button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: #ff6b1a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .feed-modal-backdrop {
   position: fixed;
   inset: 0;

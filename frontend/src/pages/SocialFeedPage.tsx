@@ -1,9 +1,10 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Alert, Button, Card, EmptyState, LoadingState, PageHeader } from '@gymbro/ui-kit'
-import { createPost, listPosts, WorkoutPost } from '../api/posts.api'
+import { addComment, createPost, listPosts, toggleLike, WorkoutPost } from '../api/posts.api'
 import { listSessions, Session } from '../api/sessions.api'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
+import { useAuth } from '../context/AuthContext'
 
 const dateInputValue = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -23,7 +24,15 @@ const sessionName = (session: Session, plan: WorkoutPlan | null) => {
   return session.exercises?.[0]?.name ? `${session.exercises[0].name} workout` : `Workout on ${formatSessionDate(session.scheduledDate)}`
 }
 
+const suggestedComments = [
+  'Congrats on your PB!',
+  'Amazing progress!',
+  'Strong work!',
+  'Keep it up!',
+]
+
 const SocialFeedPage = () => {
+  const { user } = useAuth()
   const location = useLocation()
   const state = location.state as { openComposer?: boolean; sessionId?: string; caption?: string } | null
   const [posts, setPosts] = useState<WorkoutPost[]>([])
@@ -39,6 +48,7 @@ const SocialFeedPage = () => {
   const [photo, setPhoto] = useState<File | undefined>()
   const [error, setError] = useState('')
   const [posting, setPosting] = useState(false)
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
 
   useEffect(() => {
     Promise.all([
@@ -106,6 +116,23 @@ const SocialFeedPage = () => {
     }
   }
 
+  const replacePost = (updated: WorkoutPost) => {
+    setPosts(current => current.map(post => post._id === updated._id ? updated : post))
+  }
+
+  const handleLike = async (postId: string) => {
+    const { data } = await toggleLike(postId)
+    replacePost(data)
+  }
+
+  const submitComment = async (postId: string, text: string) => {
+    const cleaned = text.trim()
+    if (!cleaned) return
+    const { data } = await addComment(postId, cleaned)
+    replacePost(data)
+    setCommentDrafts(current => ({ ...current, [postId]: '' }))
+  }
+
   return (
     <main className="social-feed-page">
       <PageHeader
@@ -120,28 +147,73 @@ const SocialFeedPage = () => {
         <EmptyState>No posts yet. Share a completed workout to start the feed.</EmptyState>
       ) : (
         <section className="feed-gallery" aria-label="Workout posts">
-          {posts.map(post => (
-            <Card as="article" className="feed-post-card" key={post._id}>
-              {post.photoUrl ? (
-                <img className="feed-post-photo" src={post.photoUrl} alt={post.workoutName} />
-              ) : (
-                <div className="feed-post-visual">
-                  <span>{post.workoutName}</span>
-                </div>
-              )}
-              <div className="feed-post-body">
-                <div className="feed-post-author">
-                  <span className="feed-avatar">{initials(post.userId?.name ?? 'GymBro')}</span>
-                  <div>
-                    <strong>{post.userId?.name ?? 'GymBro User'}</strong>
-                    <small>{formatPostDate(post.postDate)}</small>
+          {posts.map(post => {
+            const isOwnPost = post.userId?._id === user?._id
+            const likedByMe = post.likedBy?.includes(user?._id ?? '') ?? false
+
+            return (
+              <Card as="article" className="feed-post-card" key={post._id}>
+                {post.photoUrl ? (
+                  <img className="feed-post-photo" src={post.photoUrl} alt={post.workoutName} />
+                ) : (
+                  <div className="feed-post-visual">
+                    <span>{post.workoutName}</span>
                   </div>
+                )}
+                <div className="feed-post-body">
+                  <div className="feed-post-author">
+                    <span className="feed-avatar">{initials(post.userId?.name ?? 'GymBro')}</span>
+                    <div>
+                      <strong>{post.userId?.name ?? 'GymBro User'}</strong>
+                      <small>{formatPostDate(post.postDate)}</small>
+                    </div>
+                  </div>
+                  <h2>{post.title}</h2>
+                  {post.caption ? <p>{post.caption}</p> : null}
+                  <div className="feed-post-social">
+                    <button
+                      type="button"
+                      className={likedByMe ? 'liked' : ''}
+                      disabled={isOwnPost}
+                      aria-label={isOwnPost ? 'You cannot like your own post' : likedByMe ? 'Unlike post' : 'Like post'}
+                      title={isOwnPost ? 'You can only like other posts' : undefined}
+                      onClick={() => handleLike(post._id)}
+                    >
+                      <span aria-hidden="true">{likedByMe ? '❤️' : '🤍'}</span>
+                      <strong>{post.likedBy?.length ?? 0}</strong>
+                    </button>
+                    <span>{post.comments?.length ?? 0} comments</span>
+                  </div>
+                  <div className="feed-suggestions">
+                    {suggestedComments.map(text => (
+                      <button type="button" key={text} onClick={() => submitComment(post._id, text)}>
+                        {text}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="feed-comments">
+                    {(post.comments ?? []).slice(-3).map(comment => (
+                      <div className="feed-comment" key={comment._id}>
+                        <strong>{comment.userId?.name ?? 'GymBro User'}</strong>
+                        <span>{comment.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <form className="feed-comment-form" onSubmit={event => {
+                    event.preventDefault()
+                    submitComment(post._id, commentDrafts[post._id] ?? '')
+                  }}>
+                    <input
+                      value={commentDrafts[post._id] ?? ''}
+                      onChange={event => setCommentDrafts(current => ({ ...current, [post._id]: event.target.value }))}
+                      placeholder="Add a comment..."
+                    />
+                    <button type="submit">Post</button>
+                  </form>
                 </div>
-                <h2>{post.title}</h2>
-                {post.caption ? <p>{post.caption}</p> : null}
-              </div>
-            </Card>
-          ))}
+              </Card>
+            )
+          })}
         </section>
       )}
 
