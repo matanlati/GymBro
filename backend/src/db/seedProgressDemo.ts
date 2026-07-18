@@ -91,7 +91,8 @@ const PLAN_DAYS: SeedDay[] = [
   },
 ]
 
-const SESSION_COUNT = 24 // ~8 weeks × 3 days
+const TRAINING_WEEKS = 16
+const SESSION_COUNT = TRAINING_WEEKS * PLAN_DAYS.length
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const startOfDay = (d: Date): Date => {
@@ -253,10 +254,11 @@ async function run() {
 
     // Date: spread older sessions further apart, tighten the last few days
     // so the "current streak" metric shows something meaningful.
-    const daysAgo =
-      i >= SESSION_COUNT - 4
-        ? SESSION_COUNT - 1 - i // last 4 sessions on consecutive days (3,2,1,0)
-        : (SESSION_COUNT - 1 - i) + 6 // older ones further back
+    const weeksAgo = TRAINING_WEEKS - 1 - blockIndex
+    const weeklyOffsets = [5, 2, 0]
+    const daysAgo = i >= SESSION_COUNT - 4
+      ? SESSION_COUNT - 1 - i
+      : weeksAgo * 7 + weeklyOffsets[dayIndex]
     const scheduledDate = new Date(today)
     scheduledDate.setDate(scheduledDate.getDate() - daysAgo)
     const startedAt = new Date(scheduledDate)
@@ -307,10 +309,10 @@ async function run() {
 
   // Body-composition history. Stable offsets make repeated runs idempotent.
   const measurements = [
-    { daysAgo: 56, weightKg: 78.0, bodyFatPercent: 19.2, muscleMassKg: 32.0 },
-    { daysAgo: 42, weightKg: 77.7, bodyFatPercent: 18.8, muscleMassKg: 32.6 },
-    { daysAgo: 28, weightKg: 77.4, bodyFatPercent: 18.3, muscleMassKg: 33.2 },
-    { daysAgo: 14, weightKg: 77.0, bodyFatPercent: 17.9, muscleMassKg: 33.9 },
+    { daysAgo: 112, weightKg: 78.0, bodyFatPercent: 19.2, muscleMassKg: 32.0 },
+    { daysAgo: 84, weightKg: 77.7, bodyFatPercent: 18.8, muscleMassKg: 32.6 },
+    { daysAgo: 56, weightKg: 77.4, bodyFatPercent: 18.3, muscleMassKg: 33.2 },
+    { daysAgo: 28, weightKg: 77.0, bodyFatPercent: 17.9, muscleMassKg: 33.9 },
     { daysAgo: 0, weightKg: 76.8, bodyFatPercent: 17.5, muscleMassKg: 34.5 },
   ]
   await Promise.all(measurements.map(measurement => {
@@ -333,7 +335,7 @@ async function run() {
 
   // Active goals used by the progress panel. Existing matching user goals win.
   const goalStart = new Date(today)
-  goalStart.setDate(goalStart.getDate() - 56)
+  goalStart.setDate(goalStart.getDate() - 112)
   await Promise.all([
     ProgressGoal.updateOne(
       { userId: user._id, type: 'weekly_workouts', status: 'active' },
@@ -372,7 +374,22 @@ async function run() {
   await Promise.all([
     { achievementKey: 'workouts_1', category: 'workout_count', value: 1 },
     { achievementKey: 'workouts_10', category: 'workout_count', value: 10 },
+    { achievementKey: 'workouts_25', category: 'workout_count', value: 25 },
     { achievementKey: 'streak_3', category: 'streak', value: 3 },
+    {
+      achievementKey: 'personal_record_bench_press_weight_85',
+      category: 'personal_record',
+      value: 85,
+      exerciseKey: 'bench_press',
+      exerciseName: 'Bench Press',
+    },
+    {
+      achievementKey: 'personal_record_pull_ups_reps_18',
+      category: 'personal_record',
+      value: 18,
+      exerciseKey: 'pull_ups',
+      exerciseName: 'Pull-ups',
+    },
   ].map(achievement => AchievementUnlock.updateOne(
     { userId: user!._id, achievementKey: achievement.achievementKey },
     { $setOnInsert: { userId: user!._id, ...achievement, unlockedAt: today } },
