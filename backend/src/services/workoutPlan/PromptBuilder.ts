@@ -24,6 +24,9 @@ ${contextStr}
 
 Instructions:
 - Create a realistic, safe workout plan for ${questionnaireData.trainingDays} days per week.
+- weeklyPlan must contain exactly ${questionnaireData.trainingDays} workout-day objects.
+- Do not include rest days, recovery days, or days without exercises in weeklyPlan.
+- Every weeklyPlan item must include day, focus, and a non-empty exercises array.
 - Consider the user's training level, injuries, and available equipment.
 - Include warm-up and cool-down if appropriate.
 - Provide sets and reps appropriate for their level.
@@ -52,5 +55,17 @@ Instructions:
 
 IMPORTANT: Return ONLY the JSON object. Do not wrap it in markdown code blocks, backticks, or any other formatting. Do not include any explanatory text before or after the JSON.
 `
+  }
+
+  static buildCorrectionPrompt(originalPrompt: string, invalidResponse: string): string {
+    return `${originalPrompt}
+
+The previous response was rejected because it did not follow the required structure.
+Do not include entries such as { "day": "Wednesday (Rest Day)" }.
+Every weeklyPlan item must be a workout day with day, focus, and at least one exercise.
+Return a corrected JSON object only.
+
+Previous invalid response:
+${invalidResponse}`
   }
 }

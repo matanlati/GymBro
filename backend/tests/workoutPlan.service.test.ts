@@ -10,9 +10,13 @@ jest.mock('../src/services/workoutPlan/AiModelService', () => ({
 
 import { WorkoutPlan } from '../src/models/WorkoutPlan.model'
 import WorkoutPlanService from '../src/services/workoutPlan/WorkoutPlanService'
+import AiModelService from '../src/services/workoutPlan/AiModelService'
+import RagRetrieverService from '../src/services/workoutPlan/RagRetrieverService'
 import { WorkoutPlan as WorkoutPlanDTO } from '../src/types'
 
 const MockWorkoutPlan = WorkoutPlan as jest.Mocked<typeof WorkoutPlan>
+const MockAiModelService = AiModelService as jest.Mocked<typeof AiModelService>
+const MockRagRetrieverService = RagRetrieverService as jest.Mocked<typeof RagRetrieverService>
 
 const samplePlan: WorkoutPlanDTO = {
   summary: 'A balanced plan',
@@ -22,6 +26,34 @@ const samplePlan: WorkoutPlanDTO = {
   safetyNotes: ['Warm up'],
   progressionNotes: 'Add 2.5kg weekly',
 }
+
+describe('WorkoutPlanService.generatePlan', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    MockRagRetrieverService.retrieve.mockResolvedValue([])
+  })
+
+  it('retries once when the model includes an invalid rest-day entry', async () => {
+    const invalidPlan = JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [
+        ...samplePlan.weeklyPlan,
+        { day: 'Wednesday (Rest Day)' },
+      ],
+    })
+    MockAiModelService.generateResponse
+      .mockResolvedValueOnce(invalidPlan)
+      .mockResolvedValueOnce(JSON.stringify(samplePlan))
+
+    const result = await WorkoutPlanService.generatePlan({ trainingDays: 1 })
+
+    expect(result).toEqual(samplePlan)
+    expect(MockAiModelService.generateResponse).toHaveBeenCalledTimes(2)
+    expect(MockAiModelService.generateResponse.mock.calls[1][0]).toContain(
+      'Do not include entries such as { "day": "Wednesday (Rest Day)" }.'
+    )
+  })
+})
 
 describe('WorkoutPlanService.saveGeneratedPlan', () => {
   beforeEach(() => {

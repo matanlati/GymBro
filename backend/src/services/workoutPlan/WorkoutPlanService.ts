@@ -12,7 +12,13 @@ class WorkoutPlanService {
     const retrievedContext = await RagRetrieverService.retrieve(searchQuery)
     const prompt = PromptBuilder.buildPrompt(questionnaireData, retrievedContext)
     const aiResponse = await AiModelService.generateResponse(prompt)
-    return ResponseValidator.validate(aiResponse)
+    try {
+      return ResponseValidator.validate(aiResponse)
+    } catch {
+      const correctionPrompt = PromptBuilder.buildCorrectionPrompt(prompt, aiResponse)
+      const correctedResponse = await AiModelService.generateResponse(correctionPrompt)
+      return ResponseValidator.validate(correctedResponse)
+    }
   }
 
   async saveGeneratedPlan(
