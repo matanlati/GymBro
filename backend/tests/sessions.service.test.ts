@@ -64,6 +64,7 @@ describe('sessions.service.getOrCreateTodaySession', () => {
     const createArg = (MockSession.create as jest.Mock).mock.calls[0][0]
     expect(createArg.planId).toBe('plan1')
     expect(createArg.dayIndex).toBe(1)
+    expect(createArg.startedAt).toBeInstanceOf(Date)
     expect(createArg.exercises).toEqual([
       { name: 'Row', prescribedSets: '4', prescribedReps: '10', orderIndex: 0, sets: [] },
     ])

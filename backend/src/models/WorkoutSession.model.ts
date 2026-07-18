@@ -22,6 +22,7 @@ export interface IWorkoutSession extends Document {
   planId: Types.ObjectId
   dayIndex: number
   scheduledDate: Date
+  startedAt: Date
   completedAt?: Date
   notes?: string
   exercises: IExerciseLog[]
@@ -56,6 +57,7 @@ const workoutSessionSchema = new Schema<IWorkoutSession>(
     planId: { type: Schema.Types.ObjectId, ref: 'WorkoutPlan', required: true, index: true },
     dayIndex: { type: Number, required: true },
     scheduledDate: { type: Date, required: true },
+    startedAt: { type: Date, required: true, default: Date.now },
     completedAt: Date,
     notes: String,
     exercises: { type: [exerciseLogSchema], default: [] },

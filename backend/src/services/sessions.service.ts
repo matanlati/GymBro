@@ -112,6 +112,7 @@ export const getOrCreateTodaySession = async (
     planId: plan._id,
     dayIndex: index,
     scheduledDate: dayStart,
+    startedAt: new Date(),
     exercises,
   })
 }
