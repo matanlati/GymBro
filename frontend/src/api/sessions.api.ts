@@ -35,6 +35,17 @@ export interface SetPayload {
   weightUsedKg?: number
 }
 
+export interface PersonalBestAchievement {
+  exerciseName: string
+  weightUsedKg?: number
+  repsCompleted?: number
+}
+
+export interface CompleteSessionResult {
+  session: Session
+  achievements: PersonalBestAchievement[]
+}
+
 export interface ScheduleSessionPayload {
   scheduledDate: string
   dayIndex?: number
@@ -53,7 +64,7 @@ export const scheduleSession = (payload: ScheduleSessionPayload) =>
 export const getSession = (id: string) => client.get<Session>(`/sessions/${id}`)
 
 export const completeSession = (id: string) =>
-  client.post<Session>(`/sessions/${id}/complete`)
+  client.post<CompleteSessionResult>(`/sessions/${id}/complete`)
 
 export const logSet = (sessionId: string, exerciseIndex: number, payload: SetPayload) =>
   client.post<Session>(`/sessions/${sessionId}/exercises/${exerciseIndex}/sets`, payload)

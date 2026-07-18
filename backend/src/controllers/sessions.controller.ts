@@ -91,8 +91,8 @@ export const getSession = async (req: AuthRequest, res: Response) => {
 
 export const completeSession = async (req: AuthRequest, res: Response) => {
   try {
-    const session = await sessionsService.completeSession(req.user!.userId, req.params.id)
-    return res.json(session)
+    const result = await sessionsService.completeSession(req.user!.userId, req.params.id)
+    return res.json(result)
   } catch (err) {
     return handleError(res, err)
   }

@@ -2160,6 +2160,248 @@ button {
   text-align: right;
 }
 
+/* Social feed */
+.social-feed-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.feed-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.feed-post-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.feed-post-visual {
+  display: grid;
+  place-items: end start;
+  min-height: 164px;
+  padding: 18px;
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(255, 107, 26, 0.92), rgba(239, 54, 68, 0.9)),
+    #ff6b1a;
+}
+
+.feed-post-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: #f1f5f9;
+}
+
+.feed-post-visual span {
+  max-width: 100%;
+  font-size: 22px;
+  font-weight: 850;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.feed-post-body {
+  padding: 18px;
+}
+
+.feed-post-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.feed-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  color: #ea580c;
+  background: #fff7ed;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.feed-post-author strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.feed-post-author small {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.feed-post-body h2 {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.feed-post-body p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.feed-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.44);
+}
+
+.feed-composer-modal {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.feed-composer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.feed-composer-head h2 {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.feed-composer-head p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.feed-composer-head button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  background: #fff;
+  font-weight: 850;
+}
+
+.feed-composer-form {
+  display: grid;
+  gap: 14px;
+}
+
+.feed-composer-form label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.feed-composer-form select,
+.feed-composer-form input,
+.feed-composer-form textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.feed-composer-form textarea {
+  resize: vertical;
+}
+
+.feed-composer-form select:focus,
+.feed-composer-form input:focus,
+.feed-composer-form textarea:focus {
+  outline: none;
+  border-color: #fb923c;
+  box-shadow: 0 0 0 3px rgba(255, 107, 26, 0.16);
+}
+
+.feed-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.pb-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.44);
+}
+
+.pb-share-modal {
+  width: min(420px, 100%);
+  padding: 26px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.pb-share-modal h2 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.pb-share-modal p {
+  margin: 0 0 10px;
+  color: #334155;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.pb-share-modal span {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.pb-share-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
 @media (max-width: 720px) {
   .progress-stats {
     grid-template-columns: repeat(2, 1fr);

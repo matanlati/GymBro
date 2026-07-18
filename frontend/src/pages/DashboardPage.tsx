@@ -264,7 +264,9 @@ function Dashboard() {
           <h1>Welcome Back, {user?.name ?? 'there'}!</h1>
           <p>Let's crush your fitness goals today</p>
         </div>
-        <Button leadingIcon={<Icon name="share" />}>Share Workout</Button>
+        <Button leadingIcon={<Icon name="share" />} onClick={() => navigate('/feed', { state: { openComposer: true } })}>
+          Share Workout
+        </Button>
       </section>
 
       <section className="stats-grid" aria-label="Workout stats">
