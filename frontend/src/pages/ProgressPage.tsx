@@ -11,6 +11,7 @@ import {
 import StatCard from '../components/progress/StatCard'
 import BarChart from '../components/progress/BarChart'
 import LineChart from '../components/progress/LineChart'
+import GoalsAchievements from '../components/progress/GoalsAchievements'
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -218,6 +219,8 @@ export default function ProgressPage() {
               </ul>
             )}
           </Card>
+
+          <GoalsAchievements exercises={summary.strengthProgress.map(item => item.exerciseName)} />
         </>
       )}
     </main>
