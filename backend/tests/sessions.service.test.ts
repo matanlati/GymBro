@@ -1,5 +1,8 @@
 jest.mock('../src/models/WorkoutPlan.model')
 jest.mock('../src/models/WorkoutSession.model')
+jest.mock('../src/services/achievements.service', () => ({
+  evaluateAchievements: jest.fn().mockResolvedValue([]),
+}))
 
 import { WorkoutPlan } from '../src/models/WorkoutPlan.model'
 import { WorkoutSession } from '../src/models/WorkoutSession.model'
@@ -64,8 +67,9 @@ describe('sessions.service.getOrCreateTodaySession', () => {
     const createArg = (MockSession.create as jest.Mock).mock.calls[0][0]
     expect(createArg.planId).toBe('plan1')
     expect(createArg.dayIndex).toBe(1)
+    expect(createArg.startedAt).toBeInstanceOf(Date)
     expect(createArg.exercises).toEqual([
-      { name: 'Row', prescribedSets: '4', prescribedReps: '10', orderIndex: 0, sets: [] },
+      { exerciseKey: 'row', name: 'Row', prescribedSets: '4', prescribedReps: '10', orderIndex: 0, sets: [] },
     ])
   })
 })
@@ -99,7 +103,7 @@ describe('sessions.service.completeSession', () => {
     const save = jest.fn().mockImplementation(function (this: unknown) {
       return Promise.resolve(this)
     })
-    const doc = { userId: { toString: () => 'user1' }, save } as Record<string, unknown>
+    const doc = { userId: { toString: () => 'user1' }, exercises: [], save } as Record<string, unknown>
     ;(MockSession.findById as jest.Mock) = jest.fn().mockResolvedValue(doc)
 
     await completeSession('user1', 's1')

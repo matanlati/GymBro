@@ -1,6 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import { User } from '../models/User.model'
+import { createMeasurement } from './bodyMeasurements.service'
 
 export async function getMe(userId: string) {
   const user = await User.findById(userId).select('-passwordHash')
@@ -16,11 +17,21 @@ export async function updateMe(userId: string, updates: {
   fitnessLevel?: string
   goals?: string
   limitations?: string
+  timezone?: string
 }) {
-  const allowed = ['name', 'age', 'weightKg', 'heightCm', 'fitnessLevel', 'goals', 'limitations']
+  const allowed = ['name', 'age', 'weightKg', 'heightCm', 'fitnessLevel', 'goals', 'limitations', 'timezone']
   const sanitized = Object.fromEntries(
     Object.entries(updates).filter(([k, v]) => allowed.includes(k) && v !== undefined && v !== '')
   )
+
+  const currentUser = await User.findById(userId).select('weightKg')
+  if (!currentUser) throw new Error('USER_NOT_FOUND')
+
+  const nextWeight = sanitized.weightKg
+  if (typeof nextWeight === 'number' && nextWeight !== currentUser.weightKg) {
+    await createMeasurement(userId, { weightKg: nextWeight })
+  }
+  delete sanitized.weightKg
 
   const user = await User.findByIdAndUpdate(
     userId,

@@ -2,9 +2,9 @@
   "name": "gymbro-backend",
   "version": "1.0.0",
   "description": "GymBro AI Fitness Trainer Backend",
-  "main": "dist/server.js",
+  "main": "dist/src/server.js",
   "scripts": {
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "dev": "ts-node src/server.ts",
     "build": "tsc",
     "test": "jest",

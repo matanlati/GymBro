@@ -56,6 +56,8 @@ export default function Layout({ children }: { children: ReactNode }) {
               className={pathname === item.path ? 'nav-tab active' : 'nav-tab'}
               type="button"
               onClick={() => navigate(item.path)}
+              title={item.label}
+              aria-label={item.label}
             >
               <Icon name={item.icon} />
               <span>{item.label}</span>

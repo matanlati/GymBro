@@ -4,6 +4,7 @@ import { PromptBuilder } from './PromptBuilder'
 import { ResponseValidator } from './ResponseValidator'
 import { QuestionnaireData, WorkoutPlan as WorkoutPlanDTO } from '../../types'
 import { WorkoutPlan, IWorkoutPlan } from '../../models/WorkoutPlan.model'
+import { toExerciseKey } from '../../utils/exerciseKey'
 
 class WorkoutPlanService {
   async generatePlan(questionnaireData: QuestionnaireData): Promise<WorkoutPlanDTO> {
@@ -11,7 +12,13 @@ class WorkoutPlanService {
     const retrievedContext = await RagRetrieverService.retrieve(searchQuery)
     const prompt = PromptBuilder.buildPrompt(questionnaireData, retrievedContext)
     const aiResponse = await AiModelService.generateResponse(prompt)
-    return ResponseValidator.validate(aiResponse)
+    try {
+      return ResponseValidator.validate(aiResponse)
+    } catch {
+      const correctionPrompt = PromptBuilder.buildCorrectionPrompt(prompt, aiResponse)
+      const correctedResponse = await AiModelService.generateResponse(correctionPrompt)
+      return ResponseValidator.validate(correctedResponse)
+    }
   }
 
   async saveGeneratedPlan(
@@ -25,7 +32,13 @@ class WorkoutPlanService {
       userId,
       title: title ?? this.deriveTitle(plan),
       summary: plan.summary,
-      weeklyPlan: plan.weeklyPlan,
+      weeklyPlan: plan.weeklyPlan.map(day => ({
+        ...day,
+        exercises: day.exercises.map(exercise => ({
+          ...exercise,
+          exerciseKey: toExerciseKey(exercise.name),
+        })),
+      })),
       safetyNotes: plan.safetyNotes,
       progressionNotes: plan.progressionNotes,
       questionnaireData,

@@ -1,6 +1,4 @@
-import { Types } from 'mongoose'
-import { WeightEntry } from '../models/WeightEntry.model'
-import { User } from '../models/User.model'
+import { createMeasurement, listMeasurements } from './bodyMeasurements.service'
 
 export interface WeightEntryDTO {
   _id: string
@@ -10,24 +8,24 @@ export interface WeightEntryDTO {
 }
 
 const toDTO = (entry: {
-  _id: Types.ObjectId
+  _id: { toString(): string }
   weightKg: number
-  recordedAt: Date
+  measuredAt: Date
   createdAt: Date
 }): WeightEntryDTO => ({
   _id: entry._id.toString(),
   weightKg: entry.weightKg,
-  recordedAt: entry.recordedAt.toISOString(),
+  recordedAt: entry.measuredAt.toISOString(),
   createdAt: entry.createdAt.toISOString(),
 })
 
 export async function listWeights(userId: string): Promise<WeightEntryDTO[]> {
-  const entries = await WeightEntry.find({ userId: new Types.ObjectId(userId) })
-    .sort({ recordedAt: 1, createdAt: 1 })
-    .limit(90)
-    .lean()
-
-  return entries.map(toDTO)
+  const measurements = await listMeasurements(userId, { limit: 365 })
+  return measurements
+    .filter((entry): entry is typeof entry & { weightKg: number } => entry.weightKg !== undefined)
+    .slice(0, 90)
+    .reverse()
+    .map(toDTO)
 }
 
 export async function createWeight(userId: string, payload: { weightKg?: number; recordedAt?: string }): Promise<WeightEntryDTO> {
@@ -41,18 +39,10 @@ export async function createWeight(userId: string, payload: { weightKg?: number;
     throw new Error('INVALID_DATE')
   }
 
-  const entry = await WeightEntry.create({
-    userId: new Types.ObjectId(userId),
+  const entry = await createMeasurement(userId, {
     weightKg,
-    recordedAt,
+    measuredAt: recordedAt,
   })
 
-  await User.findByIdAndUpdate(userId, { $set: { weightKg } })
-
-  return toDTO({
-    _id: entry._id as Types.ObjectId,
-    weightKg: entry.weightKg,
-    recordedAt: entry.recordedAt,
-    createdAt: entry.createdAt,
-  })
+  return toDTO(entry as typeof entry & { weightKg: number })
 }

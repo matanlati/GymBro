@@ -30,6 +30,10 @@ import mongoose from 'mongoose'
 import { User } from '../models/User.model'
 import { WorkoutPlan } from '../models/WorkoutPlan.model'
 import { WorkoutSession } from '../models/WorkoutSession.model'
+import { ProgressGoal } from '../models/ProgressGoal.model'
+import { BodyMeasurement } from '../models/BodyMeasurement.model'
+import { AchievementUnlock } from '../models/AchievementUnlock.model'
+import { toExerciseKey } from '../utils/exerciseKey'
 
 const DEMO_EMAIL = 'demo@gymbro.dev'
 const DEMO_PASSWORD = 'Demo1234'
@@ -37,15 +41,17 @@ const DEMO_NAME = 'Demo Trainee'
 const SEED_PLAN_TITLE = 'Strength Builder'
 
 // ── Plan definition ──────────────────────────────────────────────────────────
-// Two training days. Each exercise has a starting weight and a per-session
-// increment so the strength line trends upward.
+// Three training days. Weighted exercises trend upward; pull-ups progress by reps.
 interface SeedExercise {
   name: string
   sets: number
   reps: number
-  startWeight: number
-  increment: number
+  startWeight?: number
+  increment?: number
+  bodyweight?: boolean
 }
+
+type WeightedSeedExercise = SeedExercise & { startWeight: number; increment: number }
 
 interface SeedDay {
   day: string
@@ -61,6 +67,7 @@ const PLAN_DAYS: SeedDay[] = [
       { name: 'Bench Press', sets: 4, reps: 8, startWeight: 60, increment: 2.5 },
       { name: 'Shoulder Press', sets: 3, reps: 10, startWeight: 30, increment: 1.5 },
       { name: 'Barbell Row', sets: 4, reps: 8, startWeight: 50, increment: 2 },
+      { name: 'Pull-ups', sets: 3, reps: 8, bodyweight: true },
     ],
   },
   {
@@ -84,7 +91,8 @@ const PLAN_DAYS: SeedDay[] = [
   },
 ]
 
-const SESSION_COUNT = 24 // ~8 weeks × 3 days
+const TRAINING_WEEKS = 16
+const SESSION_COUNT = TRAINING_WEEKS * PLAN_DAYS.length
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const startOfDay = (d: Date): Date => {
@@ -108,7 +116,7 @@ const roundToPlate = (w: number): number => Math.round(w * 2) / 2
  *
  * `blocks` = number of times this exercise is trained across the seed.
  */
-const buildWeightSeries = (ex: SeedExercise, blocks: number): number[] => {
+const buildWeightSeries = (ex: WeightedSeedExercise, blocks: number): number[] => {
   const series: number[] = []
   let weight = ex.startWeight
 
@@ -164,6 +172,7 @@ async function run() {
       heightCm: 180,
       fitnessLevel: 'intermediate',
       goals: 'Build strength',
+      timezone: 'Asia/Jerusalem',
     })
     console.log(`✓ Created new user: ${targetEmail} / ${DEMO_PASSWORD}  (id ${user._id})`)
   } else {
@@ -172,10 +181,15 @@ async function run() {
 
   // 2. Data cleanup policy.
   if (reset) {
-    // Explicit opt-in: wipe this user's plans + sessions.
-    const p = await WorkoutPlan.deleteMany({ userId: user._id })
-    const s = await WorkoutSession.deleteMany({ userId: user._id })
-    console.log(`  --reset: removed ${p.deletedCount} plans, ${s.deletedCount} sessions`)
+    // Explicit opt-in: wipe this user's progress data.
+    const [p, s] = await Promise.all([
+      WorkoutPlan.deleteMany({ userId: user._id }),
+      WorkoutSession.deleteMany({ userId: user._id }),
+      ProgressGoal.deleteMany({ userId: user._id }),
+      BodyMeasurement.deleteMany({ userId: user._id }),
+      AchievementUnlock.deleteMany({ userId: user._id }),
+    ])
+    console.log(`  --reset: removed ${p.deletedCount} plans, ${s.deletedCount} sessions and supplemental progress data`)
   } else {
     // Preserve existing data. Only remove a previous run of THIS seed plan and
     // its sessions, and deactivate any other active plan (one active at a time).
@@ -195,11 +209,12 @@ async function run() {
     userId: user._id,
     title: SEED_PLAN_TITLE,
     programType: 'Strength',
-    summary: 'A 2-day upper/lower strength split with progressive overload.',
+    summary: 'A 3-day strength split with progressive overload.',
     weeklyPlan: PLAN_DAYS.map(d => ({
       day: d.day,
       focus: d.focus,
       exercises: d.exercises.map(e => ({
+        exerciseKey: toExerciseKey(e.name),
         name: e.name,
         sets: String(e.sets),
         reps: String(e.reps),
@@ -223,7 +238,12 @@ async function run() {
   const weightSeriesByExercise = new Map<string, number[]>()
   for (const day of PLAN_DAYS) {
     for (const ex of day.exercises) {
-      weightSeriesByExercise.set(ex.name, buildWeightSeries(ex, blocksPerExercise))
+      if (ex.startWeight !== undefined && ex.increment !== undefined) {
+        weightSeriesByExercise.set(
+          ex.name,
+          buildWeightSeries(ex as WeightedSeedExercise, blocksPerExercise)
+        )
+      }
     }
   }
 
@@ -234,30 +254,38 @@ async function run() {
 
     // Date: spread older sessions further apart, tighten the last few days
     // so the "current streak" metric shows something meaningful.
-    const daysAgo =
-      i >= SESSION_COUNT - 4
-        ? SESSION_COUNT - 1 - i // last 4 sessions on consecutive days (3,2,1,0)
-        : (SESSION_COUNT - 1 - i) + 6 // older ones further back
+    const weeksAgo = TRAINING_WEEKS - 1 - blockIndex
+    const weeklyOffsets = [5, 2, 0]
+    const daysAgo = i >= SESSION_COUNT - 4
+      ? SESSION_COUNT - 1 - i
+      : weeksAgo * 7 + weeklyOffsets[dayIndex]
     const scheduledDate = new Date(today)
     scheduledDate.setDate(scheduledDate.getDate() - daysAgo)
-    const completedAt = new Date(scheduledDate)
-    completedAt.setHours(completedAt.getHours() + 1)
+    const startedAt = new Date(scheduledDate)
+    const completedAt = new Date(startedAt.getTime() + (42 + (i * 7) % 24) * 60_000)
 
     const exercises = dayDef.exercises.map((ex, orderIndex) => {
-      const series = weightSeriesByExercise.get(ex.name)!
-      const topWeight = series[Math.min(blockIndex, series.length - 1)]
+      const series = weightSeriesByExercise.get(ex.name)
+      const topWeight = series?.[Math.min(blockIndex, series.length - 1)]
       const sets = Array.from({ length: ex.sets }, (_, s) => {
-        // Some sessions ramp up across sets; occasionally a heavy top single/AMRAP.
-        const rampFactor = ex.sets > 1 ? 0.9 + (0.1 * s) / (ex.sets - 1) : 1
-        const weightUsedKg = roundToPlate(Math.max(ex.startWeight, topWeight * rampFactor))
+        const targetReps = ex.bodyweight
+          ? ex.reps + Math.floor(blockIndex * 0.8)
+          : ex.reps
+        let weightUsedKg: number | undefined
+        if (ex.startWeight !== undefined && topWeight !== undefined) {
+          // Weighted sets ramp toward the top set; bodyweight sets intentionally omit weight.
+          const rampFactor = ex.sets > 1 ? 0.9 + (0.1 * s) / (ex.sets - 1) : 1
+          weightUsedKg = roundToPlate(Math.max(ex.startWeight, topWeight * rampFactor))
+        }
         return {
           setNumber: s + 1,
-          repsCompleted: Math.max(1, Math.round(jitter(ex.reps, 1.5))),
-          weightUsedKg,
+          repsCompleted: Math.max(1, Math.round(jitter(targetReps, 1.5))),
+          ...(weightUsedKg !== undefined ? { weightUsedKg } : {}),
           loggedAt: completedAt,
         }
       })
       return {
+        exerciseKey: toExerciseKey(ex.name),
         name: ex.name,
         prescribedSets: String(ex.sets),
         prescribedReps: String(ex.reps),
@@ -271,12 +299,102 @@ async function run() {
       planId: plan._id,
       dayIndex,
       scheduledDate,
+      startedAt,
       completedAt,
       exercises,
     })
   }
 
   await WorkoutSession.insertMany(sessions)
+
+  // Body-composition history. Stable offsets make repeated runs idempotent.
+  const measurements = [
+    { daysAgo: 112, weightKg: 78.0, bodyFatPercent: 19.2, muscleMassKg: 32.0 },
+    { daysAgo: 84, weightKg: 77.7, bodyFatPercent: 18.8, muscleMassKg: 32.6 },
+    { daysAgo: 56, weightKg: 77.4, bodyFatPercent: 18.3, muscleMassKg: 33.2 },
+    { daysAgo: 28, weightKg: 77.0, bodyFatPercent: 17.9, muscleMassKg: 33.9 },
+    { daysAgo: 0, weightKg: 76.8, bodyFatPercent: 17.5, muscleMassKg: 34.5 },
+  ]
+  await Promise.all(measurements.map(measurement => {
+    const measuredAt = new Date(today)
+    measuredAt.setDate(measuredAt.getDate() - measurement.daysAgo)
+    return BodyMeasurement.updateOne(
+      { userId: user!._id, measuredAt },
+      {
+        $setOnInsert: {
+          userId: user!._id,
+          measuredAt,
+          weightKg: measurement.weightKg,
+          bodyFatPercent: measurement.bodyFatPercent,
+          muscleMassKg: measurement.muscleMassKg,
+        },
+      },
+      { upsert: true }
+    )
+  }))
+
+  // Active goals used by the progress panel. Existing matching user goals win.
+  const goalStart = new Date(today)
+  goalStart.setDate(goalStart.getDate() - 112)
+  await Promise.all([
+    ProgressGoal.updateOne(
+      { userId: user._id, type: 'weekly_workouts', status: 'active' },
+      {
+        $setOnInsert: {
+          userId: user._id, type: 'weekly_workouts', baselineValue: 0,
+          targetValue: 4, unit: 'workouts', startsAt: goalStart, status: 'active',
+        },
+      },
+      { upsert: true }
+    ),
+    ProgressGoal.updateOne(
+      { userId: user._id, type: 'exercise_strength', exerciseKey: 'bench_press', status: 'active' },
+      {
+        $setOnInsert: {
+          userId: user._id, type: 'exercise_strength', exerciseKey: 'bench_press',
+          exerciseName: 'Bench Press', baselineValue: 80, targetValue: 110,
+          unit: 'kg', startsAt: goalStart, status: 'active',
+        },
+      },
+      { upsert: true }
+    ),
+    ProgressGoal.updateOne(
+      { userId: user._id, type: 'muscle_mass', status: 'active' },
+      {
+        $setOnInsert: {
+          userId: user._id, type: 'muscle_mass', baselineValue: 32,
+          targetValue: 36, unit: 'kg', startsAt: goalStart, status: 'active',
+        },
+      },
+      { upsert: true }
+    ),
+  ])
+
+  // Previously unlocked milestones. Keys match the production evaluator.
+  await Promise.all([
+    { achievementKey: 'workouts_1', category: 'workout_count', value: 1 },
+    { achievementKey: 'workouts_10', category: 'workout_count', value: 10 },
+    { achievementKey: 'workouts_25', category: 'workout_count', value: 25 },
+    { achievementKey: 'streak_3', category: 'streak', value: 3 },
+    {
+      achievementKey: 'personal_record_bench_press_weight_85',
+      category: 'personal_record',
+      value: 85,
+      exerciseKey: 'bench_press',
+      exerciseName: 'Bench Press',
+    },
+    {
+      achievementKey: 'personal_record_pull_ups_reps_18',
+      category: 'personal_record',
+      value: 18,
+      exerciseKey: 'pull_ups',
+      exerciseName: 'Pull-ups',
+    },
+  ].map(achievement => AchievementUnlock.updateOne(
+    { userId: user!._id, achievementKey: achievement.achievementKey },
+    { $setOnInsert: { userId: user!._id, ...achievement, unlockedAt: today } },
+    { upsert: true }
+  )))
   console.log(`✓ Inserted ${sessions.length} completed sessions`)
 
   console.log('\nDone. Log in as the demo user and open /progress.')
