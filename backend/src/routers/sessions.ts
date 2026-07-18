@@ -4,6 +4,7 @@ import {
   listSessions,
   getTodaySession,
   createTodaySession,
+  scheduleSession,
   getSession,
   completeSession,
   logSet,
@@ -19,6 +20,7 @@ router.get('/', listSessions)
 // GET returns today's existing session (or 404); POST creates-or-returns it.
 router.get('/today', getTodaySession)
 router.post('/today', createTodaySession)
+router.post('/scheduled', scheduleSession)
 router.get('/:id', getSession)
 router.post('/:id/complete', completeSession)
 router.post('/:sessionId/exercises/:exerciseIndex/sets', logSet)

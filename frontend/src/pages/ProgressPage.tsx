@@ -26,7 +26,7 @@ const formatVolume = (kg: number): string =>
   kg >= 1000 ? `${(kg / 1000).toFixed(1)}t` : `${kg} kg`
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
 export default function ProgressPage() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null)
