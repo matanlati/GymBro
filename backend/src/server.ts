@@ -16,6 +16,7 @@ import plansRouter from './routers/plans'
 import sessionsRouter from './routers/sessions'
 import progressRouter from './routers/progress'
 import postsRouter from './routers/posts'
+import weightsRouter from './routers/weights'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
@@ -43,6 +44,7 @@ app.use('/api/plans', plansRouter)
 app.use('/api/sessions', sessionsRouter)
 app.use('/api/progress', progressRouter)
 app.use('/api/posts', postsRouter)
+app.use('/api/weights', weightsRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
 

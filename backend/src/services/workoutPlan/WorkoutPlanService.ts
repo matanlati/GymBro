@@ -18,7 +18,8 @@ class WorkoutPlanService {
   async saveGeneratedPlan(
     userId: string,
     plan: WorkoutPlanDTO,
-    title?: string
+    title?: string,
+    questionnaireData?: QuestionnaireData
   ): Promise<IWorkoutPlan> {
     await WorkoutPlan.updateMany({ userId }, { $set: { isActive: false } })
     return WorkoutPlan.create({
@@ -34,6 +35,7 @@ class WorkoutPlanService {
       })),
       safetyNotes: plan.safetyNotes,
       progressionNotes: plan.progressionNotes,
+      questionnaireData,
       isActive: true,
     })
   }

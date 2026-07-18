@@ -1,6 +1,7 @@
 import { Response } from 'express'
 import { AuthRequest, QuestionnaireData } from '../types'
 import WorkoutPlanService from '../services/workoutPlan/WorkoutPlanService'
+import * as usersService from '../services/users.service'
 
 function notFound(res: Response, message = 'Plan not found') {
   return res.status(404).json({ error: 'NOT_FOUND', message })
@@ -49,7 +50,15 @@ export async function generateAndSavePlan(req: AuthRequest, res: Response) {
 
   try {
     const generated = await WorkoutPlanService.generatePlan(data)
-    const saved = await WorkoutPlanService.saveGeneratedPlan(req.user!.userId, generated)
+    const saved = await WorkoutPlanService.saveGeneratedPlan(req.user!.userId, generated, undefined, data)
+    await usersService.updateMe(req.user!.userId, {
+      age: data.age !== undefined && data.age !== '' ? Number(data.age) : undefined,
+      weightKg: data.weight !== undefined && data.weight !== '' ? Number(data.weight) : undefined,
+      heightCm: data.height !== undefined && data.height !== '' ? Number(data.height) : undefined,
+      fitnessLevel: data.trainingLevel,
+      goals: data.fitnessGoal,
+      limitations: data.injuries,
+    })
     return res.status(201).json(saved)
   } catch (err) {
     return serverError(res, err)

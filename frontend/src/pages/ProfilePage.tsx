@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { Alert, Button, Card, FormField, Input, LoadingState, PageHeader, Select, Textarea } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { getMe, updateMe, uploadPhoto, UserProfile, UpdateProfileData } from '../api/users.api'
+import { getSummary, ProgressSummary } from '../api/progress.api'
+import { createWeight, listWeights, WeightEntry } from '../api/weights.api'
 import { AxiosError } from 'axios'
-import { Settings, BarChart2, LogOut, Camera } from 'lucide-react'
+import { BarChart2, LogOut, Camera, Scale } from 'lucide-react'
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 function IconEmail() {
@@ -72,11 +74,16 @@ export default function ProfilePage() {
   const photoInputRef = useRef<HTMLInputElement>(null)
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [summary, setSummary] = useState<ProgressSummary | null>(null)
+  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([])
+  const [weighInValue, setWeighInValue] = useState('')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<UpdateProfileData>({})
   const [saving, setSaving] = useState(false)
+  const [savingWeight, setSavingWeight] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [error, setError] = useState('')
+  const [weightError, setWeightError] = useState('')
 
   useEffect(() => {
     getMe().then(({ data }) => {
@@ -87,6 +94,12 @@ export default function ProfilePage() {
         goals: data.goals, limitations: data.limitations,
       })
     }).catch(() => setError('Failed to load profile'))
+    getSummary()
+      .then(({ data }) => setSummary(data))
+      .catch(() => setSummary(null))
+    listWeights()
+      .then(({ data }) => setWeightEntries(data))
+      .catch(() => setWeightEntries([]))
   }, [])
 
   function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
@@ -128,6 +141,30 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleWeighIn(e: FormEvent) {
+    e.preventDefault()
+    const weightKg = Number(weighInValue)
+    if (!Number.isFinite(weightKg)) {
+      setWeightError('Enter a valid weight')
+      return
+    }
+
+    setSavingWeight(true)
+    setWeightError('')
+    try {
+      const { data } = await createWeight(weightKg)
+      setWeightEntries(prev => [...prev, data].sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()))
+      setProfile(prev => prev ? { ...prev, weightKg: data.weightKg } : prev)
+      setForm(prev => ({ ...prev, weightKg: data.weightKg }))
+      setWeighInValue('')
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message: string }>
+      setWeightError(axiosErr.response?.data?.message || 'Failed to save weigh-in')
+    } finally {
+      setSavingWeight(false)
+    }
+  }
+
   function handleLogout() {
     logout()
     navigate('/login')
@@ -136,6 +173,28 @@ export default function ProfilePage() {
   function getInitials(name: string) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
+
+  const formatGoal = (goal?: string) =>
+    goal
+      ? goal.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
+      : '-'
+
+  const formatLevel = (level?: string) =>
+    level ? level.charAt(0).toUpperCase() + level.slice(1) : '-'
+
+  const formatVolume = (kg: number) =>
+    kg >= 1000 ? `${(kg / 1000).toFixed(1)}k kg` : `${Math.round(kg)} kg`
+
+  const latestWeight = weightEntries.length > 0 ? weightEntries[weightEntries.length - 1].weightKg : profile?.weightKg
+
+  const hasTrainingInfo = !!(
+    profile?.age ||
+    profile?.weightKg ||
+    profile?.heightCm ||
+    profile?.fitnessLevel ||
+    profile?.goals ||
+    profile?.limitations
+  )
 
   if (!profile) {
     return (
@@ -181,18 +240,28 @@ export default function ProfilePage() {
 
         {!editing ? (
           <>
+            {!hasTrainingInfo && (
+              <div style={styles.profilePrompt}>
+                <strong>Add your info to receive the best results.</strong>
+                <span>Create a workout plan or edit your profile so GymBro can personalize your training.</span>
+                <div style={styles.profilePromptActions}>
+                  <Button size="sm" onClick={() => navigate('/plans/new')}>Create Plan</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>Add Info</Button>
+                </div>
+              </div>
+            )}
             <div style={styles.sections}>
               <div style={styles.section}>
                 <h3 style={styles.sectionTitle}>Personal Information</h3>
                 <InfoRow icon={<IconEmail />} label="Email" value={profile.email} />
-                <InfoRow icon={<IconAge />} label="Age" value={profile.age ? `${profile.age} years` : '—'} />
-                <InfoRow icon={<IconWeight />} label="Weight" value={profile.weightKg ? `${profile.weightKg} kg` : '—'} />
-                <InfoRow icon={<IconHeight />} label="Height" value={profile.heightCm ? `${profile.heightCm} cm` : '—'} />
+                <InfoRow icon={<IconAge />} label="Age" value={profile.age ? `${profile.age} years` : '-'} />
+                <InfoRow icon={<IconWeight />} label="Weight" value={profile.weightKg ? `${profile.weightKg} kg` : '-'} />
+                <InfoRow icon={<IconHeight />} label="Height" value={profile.heightCm ? `${profile.heightCm} cm` : '-'} />
               </div>
               <div style={{ ...styles.section, borderRight: 'none' }}>
                 <h3 style={styles.sectionTitle}>Fitness Profile</h3>
-                <InfoRow icon={<IconLevel />} label="Fitness Level" value={profile.fitnessLevel ? profile.fitnessLevel.charAt(0).toUpperCase() + profile.fitnessLevel.slice(1) : '—'} />
-                <InfoRow icon={<IconGoal />} label="Primary Goal" value={profile.goals || '—'} />
+                <InfoRow icon={<IconLevel />} label="Fitness Level" value={formatLevel(profile.fitnessLevel)} />
+                <InfoRow icon={<IconGoal />} label="Primary Goal" value={formatGoal(profile.goals)} />
                 <InfoRow icon={<IconCalendar />} label="Member Since" value={new Date(profile.createdAt).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} />
               </div>
             </div>
@@ -248,16 +317,33 @@ export default function ProfilePage() {
         )}
       </Card>
 
-      {/* Bottom row: Settings + Quick Stats */}
+      {/* Bottom row: Weight + Quick Stats */}
       <div style={styles.bottomRow}>
         <Card padding="none" style={styles.card}>
           <div style={styles.cardHeader}>
-            <Settings size={16} color="#6B7280" strokeWidth={1.8} />
-            <span style={styles.cardTitle}>Settings</span>
+            <Scale size={16} color="#6B7280" strokeWidth={1.8} />
+            <span style={styles.cardTitle}>Weight Progress</span>
           </div>
-          <SettingsRow title="Notifications" desc="Manage workout reminders and updates" />
-          <SettingsRow title="Privacy" desc="Control your data and visibility" />
-          <SettingsRow title="Workout Preferences" desc="Customize your training plan" />
+          <form onSubmit={handleWeighIn} style={styles.weighInForm}>
+            <div style={styles.weighInInputRow}>
+              <Input
+                type="number"
+                min="20"
+                max="400"
+                step="0.1"
+                placeholder="Weight in kg"
+                value={weighInValue}
+                onChange={(e) => setWeighInValue(e.target.value)}
+              />
+              <Button type="submit" size="sm" loading={savingWeight} loadingLabel="Saving...">Add</Button>
+            </div>
+            {weightError && <span style={styles.weightError}>{weightError}</span>}
+          </form>
+          <WeightChart entries={weightEntries} />
+          <div style={styles.weightMeta}>
+            <span>Latest</span>
+            <strong>{latestWeight ? `${latestWeight} kg` : '-'}</strong>
+          </div>
         </Card>
 
         <Card padding="none" style={styles.card}>
@@ -265,9 +351,10 @@ export default function ProfilePage() {
             <BarChart2 size={16} color="#6B7280" strokeWidth={1.8} />
             <span style={styles.cardTitle}>Quick Stats</span>
           </div>
-          <StatRow label="Total Workouts" value="—" color="#F97316" bg="#FFF7ED" />
-          <StatRow label="Current Streak" value="—" color="#22C55E" bg="#F0FDF4" />
-          <StatRow label="Personal Records" value="—" color="#3B82F6" bg="#EFF6FF" />
+          <StatRow label="Total Workouts" value={String(summary?.totalSessions ?? 0)} color="#F97316" bg="#FFF7ED" />
+          <StatRow label="Current Streak" value={`${summary?.currentStreakDays ?? 0} days`} color="#22C55E" bg="#F0FDF4" />
+          <StatRow label="Total Volume" value={formatVolume(summary?.totalVolumeKg ?? 0)} color="#EF4444" bg="#FEF2F2" />
+          <StatRow label="Personal Records" value={String(summary?.personalRecords.length ?? 0)} color="#3B82F6" bg="#EFF6FF" />
         </Card>
       </div>
 
@@ -295,20 +382,60 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
   )
 }
 
-function SettingsRow({ title, desc }: { title: string; desc: string }) {
-  return (
-    <div style={styles.settingsRow}>
-      <span style={styles.settingsTitle}>{title}</span>
-      <span style={styles.settingsDesc}>{desc}</span>
-    </div>
-  )
-}
-
 function StatRow({ label, value, color, bg }: { label: string; value: string; color: string; bg: string }) {
   return (
     <div style={{ ...styles.statRow, backgroundColor: bg }}>
       <span style={styles.statLabel}>{label}</span>
       <span style={{ ...styles.statValue, color }}>{value}</span>
+    </div>
+  )
+}
+
+function WeightChart({ entries }: { entries: WeightEntry[] }) {
+  const width = 320
+  const height = 130
+  const plotLeft = 44
+  const plotRight = 306
+  const plotTop = 16
+  const plotBottom = 98
+  const values = entries.map(entry => entry.weightKg)
+
+  if (entries.length < 2) {
+    return (
+      <div style={styles.chartEmpty}>
+        <span>{entries.length === 1 ? 'Add another weigh-in to see your trend.' : 'No weigh-ins yet.'}</span>
+      </div>
+    )
+  }
+
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = Math.max(max - min, 1)
+  const points = values.map((value, index) => {
+    const x = plotLeft + (index / (values.length - 1)) * (plotRight - plotLeft)
+    const y = plotBottom - ((value - min) / range) * (plotBottom - plotTop)
+    return { x, y, value, entry: entries[index] }
+  })
+  const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
+  const firstDate = new Date(entries[0].recordedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+  const lastDate = new Date(entries[entries.length - 1].recordedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+
+  return (
+    <div style={styles.chartWrap}>
+      <svg viewBox={`0 0 ${width} ${height}`} style={styles.chartSvg} role="img" aria-label="Weight progression chart">
+        <line x1={plotLeft} y1={plotBottom} x2={plotRight} y2={plotBottom} stroke="#E5E7EB" strokeWidth="1" />
+        <line x1={plotLeft} y1={plotTop} x2={plotLeft} y2={plotBottom} stroke="#E5E7EB" strokeWidth="1" />
+        <text x="4" y={plotTop + 4} fill="#9CA3AF" fontSize="10">{max} kg</text>
+        <text x="4" y={plotBottom + 4} fill="#9CA3AF" fontSize="10">{min} kg</text>
+        <text x={plotLeft} y="122" fill="#9CA3AF" fontSize="10">{firstDate}</text>
+        <text x={plotRight} y="122" fill="#9CA3AF" fontSize="10" textAnchor="end">{lastDate}</text>
+        <path d={path} fill="none" stroke="#F97316" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map(point => (
+          <circle key={point.entry._id} cx={point.x} cy={point.y} r="4" fill="#FFFFFF" stroke="#F97316" strokeWidth="2">
+            <title>{`${point.value} kg on ${new Date(point.entry.recordedAt).toLocaleDateString('en-GB')}`}</title>
+          </circle>
+        ))}
+      </svg>
     </div>
   )
 }
@@ -363,6 +490,21 @@ const styles: Record<string, React.CSSProperties> = {
   profileName: { fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 2px' },
   profileEmail: { fontSize: 13, color: '#6B7280', margin: 0 },
 
+  profilePrompt: {
+    display: 'grid',
+    gap: 8,
+    margin: '18px 24px 0',
+    padding: 16,
+    border: '1px solid #FED7AA',
+    borderRadius: 10,
+    background: '#FFF7ED',
+  },
+  profilePromptActions: {
+    display: 'flex',
+    gap: 10,
+    marginTop: 4,
+  },
+
   sections: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 },
   section: { padding: '20px 24px', borderRight: '1px solid #F3F4F6' },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: '#111827', margin: '0 0 14px' },
@@ -387,9 +529,34 @@ const styles: Record<string, React.CSSProperties> = {
   cardHeader: { display: 'flex', alignItems: 'center', gap: 8, padding: '16px 20px', borderBottom: '1px solid #F3F4F6' },
   cardTitle: { fontSize: 14, fontWeight: 700, color: '#111827' },
 
-  settingsRow: { padding: '12px 20px', borderBottom: '1px solid #F9FAFB', cursor: 'pointer' },
-  settingsTitle: { display: 'block', fontSize: 13, fontWeight: 500, color: '#F97316', marginBottom: 2 },
-  settingsDesc: { display: 'block', fontSize: 12, color: '#6B7280' },
+  weighInForm: { padding: '14px 20px 8px', display: 'grid', gap: 8 },
+  weighInInputRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center' },
+  weightError: { fontSize: 12, color: '#DC2626' },
+  chartWrap: { padding: '4px 20px 8px' },
+  chartSvg: { display: 'block', width: '100%', height: 130 },
+  chartEmpty: {
+    margin: '10px 20px 8px',
+    height: 130,
+    border: '1px dashed #E5E7EB',
+    borderRadius: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#6B7280',
+    fontSize: 12,
+    textAlign: 'center',
+    padding: 16,
+    boxSizing: 'border-box',
+  },
+  weightMeta: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 20px 14px',
+    borderTop: '1px solid #F3F4F6',
+    fontSize: 13,
+    color: '#6B7280',
+  },
 
   statRow: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
