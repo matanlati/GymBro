@@ -206,6 +206,7 @@ export const scheduleSession = async (
     const planDay = plan.weeklyPlan[index]
     title = planDay.focus
     exercises = (planDay.exercises ?? []).map((ex, i) => ({
+      exerciseKey: ex.exerciseKey || toExerciseKey(ex.name),
       name: ex.name,
       prescribedSets: ex.sets,
       prescribedReps: ex.reps,

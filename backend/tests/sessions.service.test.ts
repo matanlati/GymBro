@@ -100,7 +100,7 @@ describe('sessions.service.completeSession', () => {
     const save = jest.fn().mockImplementation(function (this: unknown) {
       return Promise.resolve(this)
     })
-    const doc = { userId: { toString: () => 'user1' }, save } as Record<string, unknown>
+    const doc = { userId: { toString: () => 'user1' }, exercises: [], save } as Record<string, unknown>
     ;(MockSession.findById as jest.Mock) = jest.fn().mockResolvedValue(doc)
 
     await completeSession('user1', 's1')
