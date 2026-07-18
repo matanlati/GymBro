@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import { isValidTimeZone } from '../utils/calendarMetrics'
 
 export interface IUser extends Document {
   email: string
@@ -11,6 +12,7 @@ export interface IUser extends Document {
   goals?: string
   limitations?: string
   photo?: string
+  timezone: string
   createdAt: Date
 }
 
@@ -26,6 +28,12 @@ const userSchema = new Schema<IUser>(
     goals: String,
     limitations: String,
     photo: String,
+    timezone: {
+      type: String,
+      required: true,
+      default: 'UTC',
+      validate: { validator: isValidTimeZone, message: 'timezone must be a valid IANA timezone' },
+    },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 )

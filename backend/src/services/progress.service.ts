@@ -1,6 +1,8 @@
 import { Types } from 'mongoose'
 import { WorkoutSession } from '../models/WorkoutSession.model'
+import { User } from '../models/User.model'
 import { toExerciseKey } from '../utils/exerciseKey'
+import { calculateCalendarMetrics, WeeklyActivity } from '../utils/calendarMetrics'
 
 // ── Public response shapes ──────────────────────────────────────────────────
 
@@ -26,6 +28,8 @@ export interface ProgressSummary {
   totalVolumeKg: number
   averageDurationMinutes: number
   currentStreakDays: number
+  bestStreakDays: number
+  weeklyActivity: WeeklyActivity[]
   personalRecords: PersonalRecord[]
   strengthProgress: StrengthProgress[]
 }
@@ -60,35 +64,6 @@ const completedMatch = (userId: string) => ({
   userId: new Types.ObjectId(userId),
   completedAt: { $ne: null },
 })
-
-const toDayKey = (d: Date): string => {
-  const x = new Date(d)
-  x.setHours(0, 0, 0, 0)
-  return x.toISOString().slice(0, 10)
-}
-
-// Longest run of consecutive calendar days ending today (or yesterday), based on
-// the set of days that have at least one completed session.
-const computeStreak = (completedDates: Date[]): number => {
-  if (completedDates.length === 0) return 0
-
-  const dayKeys = new Set(completedDates.map(toDayKey))
-  const cursor = new Date()
-  cursor.setHours(0, 0, 0, 0)
-
-  // Allow the streak to still be "alive" if the user hasn't trained yet today.
-  if (!dayKeys.has(toDayKey(cursor))) {
-    cursor.setDate(cursor.getDate() - 1)
-    if (!dayKeys.has(toDayKey(cursor))) return 0
-  }
-
-  let streak = 0
-  while (dayKeys.has(toDayKey(cursor))) {
-    streak += 1
-    cursor.setDate(cursor.getDate() - 1)
-  }
-  return streak
-}
 
 // ── Queries ─────────────────────────────────────────────────────────────────
 
@@ -256,17 +231,22 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
     { $sort: { currentEstimatedOneRepMaxKg: -1 } },
   ])
 
-  // Streak needs one lightweight pass over completed dates.
-  const completed = await WorkoutSession.find(match).select('completedAt').lean()
-  const currentStreakDays = computeStreak(
-    completed.map(s => s.completedAt as Date).filter(Boolean)
+  const [completed, user] = await Promise.all([
+    WorkoutSession.find(match).select('completedAt').lean(),
+    User.findById(userId).select('timezone').lean(),
+  ])
+  const calendarMetrics = calculateCalendarMetrics(
+    completed.map(s => s.completedAt as Date).filter(Boolean),
+    user?.timezone ?? 'UTC'
   )
 
   return {
     totalSessions: totals?.totalSessions ?? 0,
     totalVolumeKg: Math.round(totals?.totalVolumeKg ?? 0),
     averageDurationMinutes: Math.round(totals?.averageDurationMinutes ?? 0),
-    currentStreakDays,
+    currentStreakDays: calendarMetrics.currentStreakDays,
+    bestStreakDays: calendarMetrics.bestStreakDays,
+    weeklyActivity: calendarMetrics.weeklyActivity,
     personalRecords,
     strengthProgress,
   }

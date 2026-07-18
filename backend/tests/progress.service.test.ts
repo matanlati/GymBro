@@ -1,9 +1,12 @@
 jest.mock('../src/models/WorkoutSession.model')
+jest.mock('../src/models/User.model')
 
 import { WorkoutSession } from '../src/models/WorkoutSession.model'
+import { User } from '../src/models/User.model'
 import { getSummary } from '../src/services/progress.service'
 
 const MockSession = WorkoutSession as jest.Mocked<typeof WorkoutSession>
+const MockUser = User as jest.Mocked<typeof User>
 const USER_ID = '507f1f77bcf86cd799439011'
 
 describe('progress.service.getSummary', () => {
@@ -12,6 +15,11 @@ describe('progress.service.getSummary', () => {
     ;(MockSession.find as jest.Mock) = jest.fn().mockReturnValue({
       select: jest.fn().mockReturnValue({
         lean: jest.fn().mockResolvedValue([]),
+      }),
+    })
+    ;(MockUser.findById as jest.Mock) = jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
       }),
     })
   })

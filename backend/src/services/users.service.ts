@@ -16,8 +16,9 @@ export async function updateMe(userId: string, updates: {
   fitnessLevel?: string
   goals?: string
   limitations?: string
+  timezone?: string
 }) {
-  const allowed = ['name', 'age', 'weightKg', 'heightCm', 'fitnessLevel', 'goals', 'limitations']
+  const allowed = ['name', 'age', 'weightKg', 'heightCm', 'fitnessLevel', 'goals', 'limitations', 'timezone']
   const sanitized = Object.fromEntries(
     Object.entries(updates).filter(([k]) => allowed.includes(k))
   )
