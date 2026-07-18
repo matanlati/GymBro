@@ -1944,6 +1944,51 @@ button {
   background: #f8fafc;
 }
 
+@media (max-width: 600px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 10px 16px 0;
+  }
+
+  .nav-tabs {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0;
+    overflow: visible;
+  }
+
+  .topbar > .gb-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .nav-tab {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    padding: 0;
+  }
+
+  .nav-tab span {
+    display: none;
+  }
+
+  .nav-tab svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .nav-tab.active::after {
+    right: 6px;
+    left: 6px;
+  }
+}
+
 .progress-stat-value {
   font-size: 28px;
   font-weight: 700;
