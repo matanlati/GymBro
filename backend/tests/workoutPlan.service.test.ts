@@ -52,7 +52,13 @@ describe('WorkoutPlanService.saveGeneratedPlan', () => {
     expect(createArg.isActive).toBe(true)
     expect(createArg.userId).toBe('user1')
     expect(createArg.summary).toBe('A balanced plan')
-    expect(createArg.weeklyPlan).toEqual(samplePlan.weeklyPlan)
+    expect(createArg.weeklyPlan).toEqual([
+      {
+        day: 'Monday',
+        focus: 'Push',
+        exercises: [{ exerciseKey: 'bench', name: 'Bench', sets: '3', reps: '10' }],
+      },
+    ])
   })
 
   it('derives a title from the first day focus when none is provided', async () => {

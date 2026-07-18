@@ -1,6 +1,7 @@
 import { Types } from 'mongoose'
 import { WorkoutPlan } from '../models/WorkoutPlan.model'
 import { WorkoutSession, IWorkoutSession } from '../models/WorkoutSession.model'
+import { toExerciseKey } from '../utils/exerciseKey'
 
 export interface SetPayload {
   repsCompleted: number
@@ -100,6 +101,7 @@ export const getOrCreateTodaySession = async (
 
   const planDay = plan.weeklyPlan[index]
   const exercises = (planDay?.exercises ?? []).map((ex, i) => ({
+    exerciseKey: ex.exerciseKey || toExerciseKey(ex.name),
     name: ex.name,
     prescribedSets: ex.sets,
     prescribedReps: ex.reps,

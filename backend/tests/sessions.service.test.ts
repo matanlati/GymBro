@@ -66,7 +66,7 @@ describe('sessions.service.getOrCreateTodaySession', () => {
     expect(createArg.dayIndex).toBe(1)
     expect(createArg.startedAt).toBeInstanceOf(Date)
     expect(createArg.exercises).toEqual([
-      { name: 'Row', prescribedSets: '4', prescribedReps: '10', orderIndex: 0, sets: [] },
+      { exerciseKey: 'row', name: 'Row', prescribedSets: '4', prescribedReps: '10', orderIndex: 0, sets: [] },
     ])
   })
 })

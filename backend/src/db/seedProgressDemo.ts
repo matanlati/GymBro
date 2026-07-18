@@ -30,6 +30,7 @@ import mongoose from 'mongoose'
 import { User } from '../models/User.model'
 import { WorkoutPlan } from '../models/WorkoutPlan.model'
 import { WorkoutSession } from '../models/WorkoutSession.model'
+import { toExerciseKey } from '../utils/exerciseKey'
 
 const DEMO_EMAIL = 'demo@gymbro.dev'
 const DEMO_PASSWORD = 'Demo1234'
@@ -200,6 +201,7 @@ async function run() {
       day: d.day,
       focus: d.focus,
       exercises: d.exercises.map(e => ({
+        exerciseKey: toExerciseKey(e.name),
         name: e.name,
         sets: String(e.sets),
         reps: String(e.reps),
@@ -258,6 +260,7 @@ async function run() {
         }
       })
       return {
+        exerciseKey: toExerciseKey(ex.name),
         name: ex.name,
         prescribedSets: String(ex.sets),
         prescribedReps: String(ex.reps),

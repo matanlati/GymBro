@@ -8,6 +8,7 @@ export interface ISetLog {
 }
 
 export interface IExerciseLog {
+  exerciseKey?: string
   name: string
   muscleGroups?: string[]
   prescribedSets: string
@@ -40,6 +41,7 @@ const setLogSchema = new Schema<ISetLog>(
 
 const exerciseLogSchema = new Schema<IExerciseLog>(
   {
+    exerciseKey: { type: String, trim: true },
     name: { type: String, required: true },
     muscleGroups: { type: [String], default: undefined },
     prescribedSets: { type: String, required: true },

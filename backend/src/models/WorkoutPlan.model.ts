@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Types } from 'mongoose'
 
 export interface IExercise {
+  exerciseKey?: string
   name: string
   sets: string
   reps: string
@@ -27,6 +28,7 @@ export interface IWorkoutPlan extends Document {
 
 const exerciseSchema = new Schema<IExercise>(
   {
+    exerciseKey: { type: String, trim: true },
     name: { type: String, required: true },
     sets: { type: String, required: true },
     reps: { type: String, required: true },

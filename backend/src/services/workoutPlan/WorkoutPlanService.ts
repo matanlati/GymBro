@@ -4,6 +4,7 @@ import { PromptBuilder } from './PromptBuilder'
 import { ResponseValidator } from './ResponseValidator'
 import { QuestionnaireData, WorkoutPlan as WorkoutPlanDTO } from '../../types'
 import { WorkoutPlan, IWorkoutPlan } from '../../models/WorkoutPlan.model'
+import { toExerciseKey } from '../../utils/exerciseKey'
 
 class WorkoutPlanService {
   async generatePlan(questionnaireData: QuestionnaireData): Promise<WorkoutPlanDTO> {
@@ -24,7 +25,13 @@ class WorkoutPlanService {
       userId,
       title: title ?? this.deriveTitle(plan),
       summary: plan.summary,
-      weeklyPlan: plan.weeklyPlan,
+      weeklyPlan: plan.weeklyPlan.map(day => ({
+        ...day,
+        exercises: day.exercises.map(exercise => ({
+          ...exercise,
+          exerciseKey: toExerciseKey(exercise.name),
+        })),
+      })),
       safetyNotes: plan.safetyNotes,
       progressionNotes: plan.progressionNotes,
       isActive: true,
