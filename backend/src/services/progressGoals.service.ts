@@ -6,6 +6,11 @@ import {
   IProgressGoal,
 } from '../models/ProgressGoal.model'
 import { toExerciseKey } from '../utils/exerciseKey'
+import { BodyMeasurement } from '../models/BodyMeasurement.model'
+import { WorkoutSession } from '../models/WorkoutSession.model'
+import { User } from '../models/User.model'
+import { calculateCalendarMetrics } from '../utils/calendarMetrics'
+import { Types } from 'mongoose'
 
 const GOAL_TYPES: ProgressGoalType[] = [
   'weekly_workouts',
@@ -38,6 +43,11 @@ export interface UpdateProgressGoalPayload {
   status?: ProgressGoalStatus
 }
 
+export type ProgressGoalWithProgress = ReturnType<IProgressGoal['toObject']> & {
+  currentValue: number | null
+  progressPercent: number | null
+}
+
 const parseDate = (value: string | Date | undefined): Date | undefined => {
   if (value === undefined) return undefined
   const date = new Date(value)
@@ -55,10 +65,113 @@ const requirePositiveTarget = (type: ProgressGoalType, value: number): void => {
 export const listGoals = async (
   userId: string,
   status?: ProgressGoalStatus
-): Promise<IProgressGoal[]> => {
+): Promise<ProgressGoalWithProgress[]> => {
   if (status && !GOAL_STATUSES.includes(status)) throw new Error('INVALID_GOAL_STATUS')
   const query = status ? { userId, status } : { userId }
-  return ProgressGoal.find(query).sort({ createdAt: -1 })
+  const goals = await ProgressGoal.find(query).sort({ createdAt: -1 })
+
+  const exerciseKeys = goals
+    .filter(goal => goal.type === 'exercise_strength' && goal.exerciseKey)
+    .map(goal => goal.exerciseKey as string)
+  const completedMatch = {
+    userId: new Types.ObjectId(userId),
+    completedAt: { $ne: null },
+  }
+
+  const [completed, user, latestWeight, latestMuscleMass, strengthValues] = await Promise.all([
+    WorkoutSession.find(completedMatch).select('completedAt').lean(),
+    User.findById(userId).select('timezone').lean(),
+    BodyMeasurement.findOne({ userId, weightKg: { $exists: true } }).sort({ measuredAt: -1 }),
+    BodyMeasurement.findOne({ userId, muscleMassKg: { $exists: true } }).sort({ measuredAt: -1 }),
+    exerciseKeys.length > 0
+      ? WorkoutSession.aggregate<{ exerciseKey: string; currentValue: number }>([
+          { $match: completedMatch },
+          { $unwind: '$exercises' },
+          { $match: { 'exercises.exerciseKey': { $in: exerciseKeys } } },
+          { $unwind: '$exercises.sets' },
+          {
+            $match: {
+              'exercises.sets.weightUsedKg': { $gt: 0 },
+              'exercises.sets.repsCompleted': { $gt: 0 },
+            },
+          },
+          {
+            $project: {
+              exerciseKey: '$exercises.exerciseKey',
+              date: { $dateToString: { format: '%Y-%m-%d', date: '$scheduledDate' } },
+              completedAt: 1,
+              estimatedOneRepMaxKg: {
+                $multiply: [
+                  '$exercises.sets.weightUsedKg',
+                  { $add: [1, { $divide: ['$exercises.sets.repsCompleted', 30] }] },
+                ],
+              },
+            },
+          },
+          { $sort: { completedAt: 1 } },
+          {
+            $group: {
+              _id: { exerciseKey: '$exerciseKey', date: '$date' },
+              estimatedOneRepMaxKg: { $max: '$estimatedOneRepMaxKg' },
+              completedAt: { $max: '$completedAt' },
+            },
+          },
+          { $sort: { completedAt: 1 } },
+          {
+            $group: {
+              _id: '$_id.exerciseKey',
+              currentValue: { $last: '$estimatedOneRepMaxKg' },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              exerciseKey: '$_id',
+              currentValue: { $round: ['$currentValue', 1] },
+            },
+          },
+        ])
+      : Promise.resolve([]),
+  ])
+
+  const weeklyActivity = calculateCalendarMetrics(
+    completed.map(session => session.completedAt as Date).filter(Boolean),
+    user?.timezone ?? 'UTC'
+  ).weeklyActivity
+  const weeklyWorkouts = weeklyActivity[weeklyActivity.length - 1]?.workoutCount ?? 0
+  const strengthByExercise = new Map(
+    strengthValues.map(value => [value.exerciseKey, value.currentValue])
+  )
+
+  return goals.map(goal => {
+    let currentValue: number | null = null
+    if (goal.type === 'weekly_workouts') currentValue = weeklyWorkouts
+    if (goal.type === 'exercise_strength' && goal.exerciseKey) {
+      currentValue = strengthByExercise.get(goal.exerciseKey) ?? null
+    }
+    if (goal.type === 'body_weight') currentValue = latestWeight?.weightKg ?? null
+    if (goal.type === 'muscle_mass') currentValue = latestMuscleMass?.muscleMassKg ?? null
+
+    let baseline = goal.baselineValue
+    if (goal.type === 'weekly_workouts' || goal.type === 'exercise_strength') baseline ??= 0
+    let progressPercent: number | null = null
+    if (goal.status === 'completed') {
+      progressPercent = 100
+    } else if (
+      currentValue !== null &&
+      baseline !== undefined &&
+      goal.targetValue !== baseline
+    ) {
+      const raw = ((currentValue - baseline) / (goal.targetValue - baseline)) * 100
+      progressPercent = Math.round(Math.min(100, Math.max(0, raw)) * 10) / 10
+    }
+
+    return {
+      ...goal.toObject(),
+      currentValue,
+      progressPercent,
+    }
+  })
 }
 
 export const createGoal = async (
