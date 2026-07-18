@@ -4,7 +4,7 @@ import { Button, Card, CardHeader, IconTile } from '@gymbro/ui-kit'
 import type { IconTileTone } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
-import { getOrCreateToday, listSessions, Session } from '../api/sessions.api'
+import { getOrCreateToday, listSessions, scheduleSession, Session } from '../api/sessions.api'
 import { getSummary, ProgressSummary } from '../api/progress.api'
 
 type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
@@ -50,6 +50,14 @@ const sameDay = (left: Date, right: Date) =>
   left.getFullYear() === right.getFullYear() &&
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate()
+
+const isFutureDay = (date: Date) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const day = new Date(date)
+  day.setHours(0, 0, 0, 0)
+  return day > today
+}
 
 const completedThisWeek = (sessions: Session[]) => {
   const weekStart = startOfWeek(new Date())
@@ -105,6 +113,11 @@ function Dashboard() {
   const [starting, setStarting] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
+  const [planningDate, setPlanningDate] = useState<Date | null>(null)
+  const [selectedWorkout, setSelectedWorkout] = useState('')
+  const [customWorkoutName, setCustomWorkoutName] = useState('')
+  const [scheduleError, setScheduleError] = useState('')
+  const [scheduling, setScheduling] = useState(false)
 
   useEffect(() => {
     Promise.allSettled([getActivePlan(), getSummary(), listSessions()])
@@ -179,6 +192,7 @@ function Dashboard() {
   const weeklyGoalAchieved = weeklyGoal > 0 && weeklyCompleted.length >= weeklyGoal
 
   const workoutNameFor = (session: Session) => {
+    if (session.title) return session.title
     if (activePlan?._id === session.planId) {
       return activePlan.weeklyPlan?.[session.dayIndex]?.focus ?? activePlan.title
     }
@@ -186,19 +200,61 @@ function Dashboard() {
     return firstExercise ? `${firstExercise} workout` : 'Workout'
   }
 
-  const completedByDate = sessions.reduce<Record<string, string[]>>((acc, session) => {
-    if (!session.completedAt) return acc
+  const workoutsByDate = sessions.reduce<Record<string, { name: string; planned: boolean }[]>>((acc, session) => {
     const key = dateKey(new Date(session.scheduledDate))
-    acc[key] = [...(acc[key] ?? []), workoutNameFor(session)]
+    acc[key] = [...(acc[key] ?? []), { name: workoutNameFor(session), planned: !session.completedAt }]
     return acc
   }, {})
+  const completedByDate = Object.fromEntries(
+    Object.entries(workoutsByDate).map(([key, workouts]) => [
+      key,
+      workouts.filter(workout => !workout.planned).map(workout => workout.name),
+    ])
+  )
   const calendarCells = buildCalendarCells(calendarMonth)
-  const selectedMonthWorkoutCount = Object.entries(completedByDate).filter(([key]) =>
+  const selectedMonthWorkoutCount = Object.entries(workoutsByDate).filter(([key]) =>
     key.startsWith(`${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`)
-  ).reduce((total, [, names]) => total + names.length, 0)
+  ).reduce((total, [, workouts]) => total + workouts.length, 0)
 
   const moveCalendarMonth = (offset: number) => {
     setCalendarMonth(current => new Date(current.getFullYear(), current.getMonth() + offset, 1))
+  }
+
+  const openPlanningModal = (date: Date) => {
+    if (!isFutureDay(date)) return
+    setPlanningDate(date)
+    setSelectedWorkout(activePlan?.weeklyPlan?.length ? '0' : 'other')
+    setCustomWorkoutName('')
+    setScheduleError('')
+  }
+
+  const closePlanningModal = () => {
+    if (scheduling) return
+    setPlanningDate(null)
+    setScheduleError('')
+  }
+
+  const submitPlannedWorkout = async () => {
+    if (!planningDate) return
+    setScheduling(true)
+    setScheduleError('')
+    try {
+      const payload = selectedWorkout === 'other'
+        ? { scheduledDate: dateKey(planningDate), title: customWorkoutName.trim() }
+        : { scheduledDate: dateKey(planningDate), dayIndex: Number(selectedWorkout) }
+      if (selectedWorkout === 'other' && !payload.title) {
+        setScheduleError('Add a workout name.')
+        return
+      }
+      const { data } = await scheduleSession(payload)
+      setSessions(current => [data, ...current])
+      setPlanningDate(null)
+      setCustomWorkoutName('')
+    } catch {
+      setScheduleError('Could not schedule this workout. Please try again.')
+    } finally {
+      setScheduling(false)
+    }
   }
 
   return (
@@ -318,7 +374,7 @@ function Dashboard() {
               </button>
               <div>
                 <strong>{monthLabel(calendarMonth)}</strong>
-                <span>{selectedMonthWorkoutCount} completed workouts</span>
+                  <span>{selectedMonthWorkoutCount} planned or completed workouts</span>
               </div>
               <button type="button" aria-label="Next month" onClick={() => moveCalendarMonth(1)}>
                 <Icon name="chevronRight" />
@@ -332,35 +388,78 @@ function Dashboard() {
             </div>
             <div className="workout-calendar-grid">
               {calendarCells.map(cell => {
-                const names = cell.date ? completedByDate[dateKey(cell.date)] ?? [] : []
+                const workouts = cell.date ? workoutsByDate[dateKey(cell.date)] ?? [] : []
+                const completedNames = cell.date ? completedByDate[dateKey(cell.date)] ?? [] : []
+                const plannedCount = workouts.length - completedNames.length
                 const isToday = cell.date ? sameDay(cell.date, new Date()) : false
+                const canPlan = cell.date ? isFutureDay(cell.date) : false
                 return (
-                  <div
-                    aria-label={names.length > 0 ? `${names.length} completed workout${names.length === 1 ? '' : 's'}: ${names.join(', ')}` : undefined}
+                  <button
+                    type="button"
+                    aria-label={workouts.length > 0 ? `${workouts.length} workout${workouts.length === 1 ? '' : 's'}: ${workouts.map(workout => workout.name).join(', ')}` : undefined}
                     className={[
                       'workout-calendar-day',
                       cell.date ? '' : 'empty',
-                      names.length > 0 ? 'worked-out' : '',
+                      completedNames.length > 0 ? 'worked-out' : '',
+                      plannedCount > 0 ? 'planned' : '',
                       isToday ? 'today' : '',
+                      canPlan ? 'can-plan' : '',
                     ].filter(Boolean).join(' ')}
+                    disabled={!cell.date}
                     key={cell.key}
-                    tabIndex={names.length > 0 ? 0 : undefined}
+                    onClick={() => cell.date && openPlanningModal(cell.date)}
                   >
                     {cell.date ? <span>{cell.date.getDate()}</span> : null}
-                    {names.length > 0 ? (
+                    {workouts.length > 0 ? (
                       <>
-                        <small>{names.length}</small>
+                        <small>{workouts.length}</small>
                         <div className="workout-calendar-tooltip" role="tooltip">
-                          {names.map((name, index) => (
-                            <span key={`${name}-${index}`}>{name}</span>
+                          {workouts.map((workout, index) => (
+                            <span key={`${workout.name}-${index}`}>
+                              {workout.name}{workout.planned ? ' (planned)' : ''}
+                            </span>
                           ))}
                         </div>
                       </>
                     ) : null}
-                  </div>
+                  </button>
                 )
               })}
             </div>
+            {planningDate ? (
+              <div className="schedule-workout-modal" role="dialog" aria-modal="true" aria-label="Plan future workout">
+                <h3>Plan Workout</h3>
+                <p>{planningDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                <label>
+                  Workout type
+                  <select value={selectedWorkout} onChange={event => setSelectedWorkout(event.target.value)}>
+                    {activePlan?.weeklyPlan?.map((day, index) => (
+                      <option value={String(index)} key={`${day.focus}-${index}`}>
+                        {day.focus}
+                      </option>
+                    ))}
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                {selectedWorkout === 'other' ? (
+                  <label>
+                    Workout name
+                    <input
+                      value={customWorkoutName}
+                      onChange={event => setCustomWorkoutName(event.target.value)}
+                      placeholder="Recovery run, yoga, skills..."
+                    />
+                  </label>
+                ) : null}
+                {scheduleError ? <span className="schedule-workout-error">{scheduleError}</span> : null}
+                <div className="schedule-workout-actions">
+                  <Button variant="secondary" size="sm" onClick={closePlanningModal}>Cancel</Button>
+                  <Button size="sm" loading={scheduling} loadingLabel="Saving..." onClick={submitPlannedWorkout}>
+                    Save
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </section>
         </div>
       ) : null}

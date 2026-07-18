@@ -21,6 +21,7 @@ export interface Session {
   _id: string
   userId: string
   planId: string
+  title?: string
   dayIndex: number
   scheduledDate: string
   completedAt?: string
@@ -34,11 +35,20 @@ export interface SetPayload {
   weightUsedKg?: number
 }
 
+export interface ScheduleSessionPayload {
+  scheduledDate: string
+  dayIndex?: number
+  title?: string
+}
+
 export const listSessions = (date?: string) =>
   client.get<Session[]>('/sessions', { params: date ? { date } : undefined })
 
 export const getOrCreateToday = (dayIndex?: number) =>
   client.post<Session>('/sessions/today', dayIndex !== undefined ? { dayIndex } : {})
+
+export const scheduleSession = (payload: ScheduleSessionPayload) =>
+  client.post<Session>('/sessions/scheduled', payload)
 
 export const getSession = (id: string) => client.get<Session>(`/sessions/${id}`)
 

@@ -20,6 +20,7 @@ export interface IExerciseLog {
 export interface IWorkoutSession extends Document {
   userId: Types.ObjectId
   planId: Types.ObjectId
+  title?: string
   dayIndex: number
   scheduledDate: Date
   completedAt?: Date
@@ -54,6 +55,7 @@ const workoutSessionSchema = new Schema<IWorkoutSession>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     planId: { type: Schema.Types.ObjectId, ref: 'WorkoutPlan', required: true, index: true },
+    title: String,
     dayIndex: { type: Number, required: true },
     scheduledDate: { type: Date, required: true },
     completedAt: Date,

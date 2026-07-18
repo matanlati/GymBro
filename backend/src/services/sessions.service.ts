@@ -7,6 +7,12 @@ export interface SetPayload {
   weightUsedKg?: number
 }
 
+export interface SchedulePayload {
+  scheduledDate: string
+  dayIndex?: number
+  title?: string
+}
+
 const startOfDay = (d: Date): Date => {
   const x = new Date(d)
   x.setHours(0, 0, 0, 0)
@@ -156,6 +162,54 @@ export const listSessions = async (
     query.scheduledDate = { $gte: start, $lt: end }
   }
   return WorkoutSession.find(query).sort({ scheduledDate: -1 })
+}
+
+export const scheduleSession = async (
+  userId: string,
+  payload: SchedulePayload
+): Promise<IWorkoutSession> => {
+  const plan = await WorkoutPlan.findOne({ userId, isActive: true })
+  if (!plan) throw new Error('NO_ACTIVE_PLAN')
+
+  const scheduledDate = startOfDay(new Date(payload.scheduledDate))
+  if (Number.isNaN(scheduledDate.getTime())) throw new Error('INVALID_SCHEDULED_DATE')
+
+  const today = startOfDay(new Date())
+  if (scheduledDate <= today) throw new Error('SCHEDULED_DATE_NOT_FUTURE')
+
+  const hasPlanDay = payload.dayIndex !== undefined && payload.dayIndex !== null
+  let dayIndex = -1
+  let title = payload.title?.trim()
+  let exercises: IWorkoutSession['exercises'] = []
+
+  if (hasPlanDay) {
+    const index = Number(payload.dayIndex)
+    if (!Number.isInteger(index) || index < 0 || index >= plan.weeklyPlan.length) {
+      throw new Error('INVALID_DAY_INDEX')
+    }
+
+    dayIndex = index
+    const planDay = plan.weeklyPlan[index]
+    title = planDay.focus
+    exercises = (planDay.exercises ?? []).map((ex, i) => ({
+      name: ex.name,
+      prescribedSets: ex.sets,
+      prescribedReps: ex.reps,
+      orderIndex: i,
+      sets: [],
+    }))
+  } else if (!title) {
+    throw new Error('INVALID_SCHEDULE_TITLE')
+  }
+
+  return WorkoutSession.create({
+    userId,
+    planId: plan._id,
+    title,
+    dayIndex,
+    scheduledDate,
+    exercises,
+  })
 }
 
 export const getSession = (userId: string, id: string): Promise<IWorkoutSession> =>

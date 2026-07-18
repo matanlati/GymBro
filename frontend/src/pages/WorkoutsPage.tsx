@@ -38,7 +38,7 @@ const WorkoutsPage = () => {
   const scheduledTotal = plan?.weeklyPlan?.length ?? 0
 
   const titleFor = (session: Session) =>
-    plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
+    session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
 
   const startNext = async () => {
     setStarting(true)
