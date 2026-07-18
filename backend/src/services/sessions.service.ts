@@ -8,6 +8,23 @@ export interface SetPayload {
   weightUsedKg?: number
 }
 
+export interface SchedulePayload {
+  scheduledDate: string
+  dayIndex?: number
+  title?: string
+}
+
+export interface PersonalBestAchievement {
+  exerciseName: string
+  weightUsedKg?: number
+  repsCompleted?: number
+}
+
+export interface CompleteSessionResult {
+  session: IWorkoutSession
+  achievements: PersonalBestAchievement[]
+}
+
 const startOfDay = (d: Date): Date => {
   const x = new Date(d)
   x.setHours(0, 0, 0, 0)
@@ -161,16 +178,114 @@ export const listSessions = async (
   return WorkoutSession.find(query).sort({ scheduledDate: -1 })
 }
 
+export const scheduleSession = async (
+  userId: string,
+  payload: SchedulePayload
+): Promise<IWorkoutSession> => {
+  const plan = await WorkoutPlan.findOne({ userId, isActive: true })
+  if (!plan) throw new Error('NO_ACTIVE_PLAN')
+
+  const scheduledDate = startOfDay(new Date(payload.scheduledDate))
+  if (Number.isNaN(scheduledDate.getTime())) throw new Error('INVALID_SCHEDULED_DATE')
+
+  const today = startOfDay(new Date())
+  if (scheduledDate <= today) throw new Error('SCHEDULED_DATE_NOT_FUTURE')
+
+  const hasPlanDay = payload.dayIndex !== undefined && payload.dayIndex !== null
+  let dayIndex = -1
+  let title = payload.title?.trim()
+  let exercises: IWorkoutSession['exercises'] = []
+
+  if (hasPlanDay) {
+    const index = Number(payload.dayIndex)
+    if (!Number.isInteger(index) || index < 0 || index >= plan.weeklyPlan.length) {
+      throw new Error('INVALID_DAY_INDEX')
+    }
+
+    dayIndex = index
+    const planDay = plan.weeklyPlan[index]
+    title = planDay.focus
+    exercises = (planDay.exercises ?? []).map((ex, i) => ({
+      name: ex.name,
+      prescribedSets: ex.sets,
+      prescribedReps: ex.reps,
+      orderIndex: i,
+      sets: [],
+    }))
+  } else if (!title) {
+    throw new Error('INVALID_SCHEDULE_TITLE')
+  }
+
+  return WorkoutSession.create({
+    userId,
+    planId: plan._id,
+    title,
+    dayIndex,
+    scheduledDate,
+    exercises,
+  })
+}
+
 export const getSession = (userId: string, id: string): Promise<IWorkoutSession> =>
   loadOwned(userId, id)
+
+const detectPersonalBests = async (
+  userId: string,
+  session: IWorkoutSession
+): Promise<PersonalBestAchievement[]> => {
+  const exerciseNames = session.exercises.map(exercise => exercise.name)
+  if (exerciseNames.length === 0) return []
+
+  const previous = await WorkoutSession.find({
+    _id: { $ne: session._id },
+    userId,
+    completedAt: { $ne: null },
+    'exercises.name': { $in: exerciseNames },
+  }).select('exercises')
+
+  const previousBest = new Map<string, { weightUsedKg: number; repsCompleted: number }>()
+  previous.forEach(prevSession => {
+    prevSession.exercises.forEach(exercise => {
+      const best = previousBest.get(exercise.name) ?? { weightUsedKg: 0, repsCompleted: 0 }
+      exercise.sets.forEach(set => {
+        best.weightUsedKg = Math.max(best.weightUsedKg, set.weightUsedKg ?? 0)
+        best.repsCompleted = Math.max(best.repsCompleted, set.repsCompleted ?? 0)
+      })
+      previousBest.set(exercise.name, best)
+    })
+  })
+
+  return session.exercises.flatMap(exercise => {
+    const previous = previousBest.get(exercise.name) ?? { weightUsedKg: 0, repsCompleted: 0 }
+    const best = exercise.sets.reduce(
+      (acc, set) => ({
+        weightUsedKg: Math.max(acc.weightUsedKg, set.weightUsedKg ?? 0),
+        repsCompleted: Math.max(acc.repsCompleted, set.repsCompleted ?? 0),
+      }),
+      { weightUsedKg: 0, repsCompleted: 0 }
+    )
+
+    if (best.weightUsedKg <= previous.weightUsedKg && best.repsCompleted <= previous.repsCompleted) {
+      return []
+    }
+
+    return [{
+      exerciseName: exercise.name,
+      weightUsedKg: best.weightUsedKg > previous.weightUsedKg ? best.weightUsedKg : undefined,
+      repsCompleted: best.repsCompleted > previous.repsCompleted ? best.repsCompleted : undefined,
+    }]
+  })
+}
 
 export const completeSession = async (
   userId: string,
   id: string
-): Promise<IWorkoutSession> => {
+): Promise<CompleteSessionResult> => {
   const session = await loadOwned(userId, id)
+  const achievements = await detectPersonalBests(userId, session)
   session.completedAt = new Date()
-  return session.save()
+  const saved = await session.save()
+  return { session: saved, achievements }
 }
 
 export const logSet = async (

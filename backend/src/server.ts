@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import dotenv from 'dotenv'
-dotenv.config({ path: path.resolve(process.cwd(), '.env') })
+dotenv.config({ path: path.resolve(__dirname, '../.env') })
 
 import express from 'express'
 import cors from 'cors'
@@ -15,6 +15,7 @@ import workoutPlanRouter from './routers/workoutPlan'
 import plansRouter from './routers/plans'
 import sessionsRouter from './routers/sessions'
 import progressRouter from './routers/progress'
+import postsRouter from './routers/posts'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
@@ -41,6 +42,7 @@ app.use('/api/workout-plan', workoutPlanRouter)
 app.use('/api/plans', plansRouter)
 app.use('/api/sessions', sessionsRouter)
 app.use('/api/progress', progressRouter)
+app.use('/api/posts', postsRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
 

@@ -12,7 +12,7 @@ const startOfWeek = (d: Date): Date => {
 }
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
 const WorkoutsPage = () => {
   const navigate = useNavigate()
@@ -38,7 +38,7 @@ const WorkoutsPage = () => {
   const scheduledTotal = plan?.weeklyPlan?.length ?? 0
 
   const titleFor = (session: Session) =>
-    plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
+    session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
 
   const startNext = async () => {
     setStarting(true)

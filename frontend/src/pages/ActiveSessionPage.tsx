@@ -7,10 +7,11 @@ import {
   completeSession,
   Session,
   ExerciseLog,
+  PersonalBestAchievement,
 } from '../api/sessions.api'
 
 const formatDate = (iso?: string) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''
+  iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
 
 const ExerciseRow = ({
   exercise,
@@ -98,6 +99,7 @@ const ActiveSessionPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [finishing, setFinishing] = useState(false)
+  const [sharePrompt, setSharePrompt] = useState<PersonalBestAchievement[] | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -119,8 +121,14 @@ const ActiveSessionPage = () => {
     if (!id) return
     setFinishing(true)
     try {
-      await completeSession(id)
-      navigate('/workouts')
+      const { data } = await completeSession(id)
+      setSession(data.session)
+      if (data.achievements.length > 0) {
+        setSharePrompt(data.achievements)
+        setFinishing(false)
+      } else {
+        navigate('/workouts')
+      }
     } catch {
       setError('Could not finish the workout. Please try again.')
       setFinishing(false)
@@ -170,6 +178,33 @@ const ActiveSessionPage = () => {
           </Button>
         </footer>
       )}
+
+      {sharePrompt ? (
+        <div className="pb-modal-backdrop" role="presentation">
+          <section className="pb-share-modal" role="dialog" aria-modal="true" aria-label="Personal best achieved">
+            <h2>Good job!</h2>
+            <p>
+              A PB was achieved on exercise {sharePrompt[0].exerciseName}
+              {sharePrompt.length > 1 ? ` and ${sharePrompt.length - 1} more` : ''}.
+            </p>
+            <span>Would you like to share it with your friends?</span>
+            <div className="pb-share-actions">
+              <Button variant="secondary" onClick={() => navigate('/workouts')}>Not now</Button>
+              <Button
+                onClick={() => navigate('/feed', {
+                  state: {
+                    openComposer: true,
+                    sessionId: session._id,
+                    caption: `New PB on ${sharePrompt[0].exerciseName}!`,
+                  },
+                })}
+              >
+                Share
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }

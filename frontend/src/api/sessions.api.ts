@@ -21,6 +21,7 @@ export interface Session {
   _id: string
   userId: string
   planId: string
+  title?: string
   dayIndex: number
   scheduledDate: string
   completedAt?: string
@@ -34,16 +35,36 @@ export interface SetPayload {
   weightUsedKg?: number
 }
 
+export interface PersonalBestAchievement {
+  exerciseName: string
+  weightUsedKg?: number
+  repsCompleted?: number
+}
+
+export interface CompleteSessionResult {
+  session: Session
+  achievements: PersonalBestAchievement[]
+}
+
+export interface ScheduleSessionPayload {
+  scheduledDate: string
+  dayIndex?: number
+  title?: string
+}
+
 export const listSessions = (date?: string) =>
   client.get<Session[]>('/sessions', { params: date ? { date } : undefined })
 
 export const getOrCreateToday = (dayIndex?: number) =>
   client.post<Session>('/sessions/today', dayIndex !== undefined ? { dayIndex } : {})
 
+export const scheduleSession = (payload: ScheduleSessionPayload) =>
+  client.post<Session>('/sessions/scheduled', payload)
+
 export const getSession = (id: string) => client.get<Session>(`/sessions/${id}`)
 
 export const completeSession = (id: string) =>
-  client.post<Session>(`/sessions/${id}/complete`)
+  client.post<CompleteSessionResult>(`/sessions/${id}/complete`)
 
 export const logSet = (sessionId: string, exerciseIndex: number, payload: SetPayload) =>
   client.post<Session>(`/sessions/${sessionId}/exercises/${exerciseIndex}/sets`, payload)

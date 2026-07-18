@@ -13,6 +13,12 @@ const handleError = (res: Response, err: unknown) => {
       return res.status(403).json({ error: 'FORBIDDEN', message: 'You do not own this session' })
     case 'INVALID_DAY_INDEX':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'dayIndex is out of range for the active plan' })
+    case 'INVALID_SCHEDULED_DATE':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'scheduledDate must be a valid date' })
+    case 'SCHEDULED_DATE_NOT_FUTURE':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'scheduledDate must be in the future' })
+    case 'INVALID_SCHEDULE_TITLE':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'title is required for custom workouts' })
     case 'INVALID_EXERCISE_INDEX':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'exerciseIndex is out of range' })
     case 'INVALID_SET_INDEX':
@@ -61,6 +67,19 @@ export const createTodaySession = async (req: AuthRequest, res: Response) => {
   }
 }
 
+export const scheduleSession = async (req: AuthRequest, res: Response) => {
+  try {
+    const session = await sessionsService.scheduleSession(req.user!.userId, {
+      scheduledDate: req.body?.scheduledDate,
+      dayIndex: req.body?.dayIndex !== undefined ? Number(req.body.dayIndex) : undefined,
+      title: req.body?.title,
+    })
+    return res.status(201).json(session)
+  } catch (err) {
+    return handleError(res, err)
+  }
+}
+
 export const getSession = async (req: AuthRequest, res: Response) => {
   try {
     const session = await sessionsService.getSession(req.user!.userId, req.params.id)
@@ -72,8 +91,8 @@ export const getSession = async (req: AuthRequest, res: Response) => {
 
 export const completeSession = async (req: AuthRequest, res: Response) => {
   try {
-    const session = await sessionsService.completeSession(req.user!.userId, req.params.id)
-    return res.json(session)
+    const result = await sessionsService.completeSession(req.user!.userId, req.params.id)
+    return res.json(result)
   } catch (err) {
     return handleError(res, err)
   }
