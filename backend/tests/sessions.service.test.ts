@@ -1,5 +1,8 @@
 jest.mock('../src/models/WorkoutPlan.model')
 jest.mock('../src/models/WorkoutSession.model')
+jest.mock('../src/services/achievements.service', () => ({
+  evaluateAchievements: jest.fn().mockResolvedValue([]),
+}))
 
 import { WorkoutPlan } from '../src/models/WorkoutPlan.model'
 import { WorkoutSession } from '../src/models/WorkoutSession.model'

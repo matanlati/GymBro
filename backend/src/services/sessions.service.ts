@@ -2,6 +2,8 @@ import { Types } from 'mongoose'
 import { WorkoutPlan } from '../models/WorkoutPlan.model'
 import { WorkoutSession, IWorkoutSession } from '../models/WorkoutSession.model'
 import { toExerciseKey } from '../utils/exerciseKey'
+import { evaluateAchievements } from './achievements.service'
+import { IAchievementUnlock } from '../models/AchievementUnlock.model'
 
 export interface SetPayload {
   repsCompleted: number
@@ -15,6 +17,7 @@ export interface SchedulePayload {
 }
 
 export interface PersonalBestAchievement {
+  exerciseKey: string
   exerciseName: string
   weightUsedKg?: number
   repsCompleted?: number
@@ -23,6 +26,7 @@ export interface PersonalBestAchievement {
 export interface CompleteSessionResult {
   session: IWorkoutSession
   achievements: PersonalBestAchievement[]
+  unlockedAchievements: IAchievementUnlock[]
 }
 
 const startOfDay = (d: Date): Date => {
@@ -235,29 +239,37 @@ const detectPersonalBests = async (
   session: IWorkoutSession
 ): Promise<PersonalBestAchievement[]> => {
   const exerciseNames = session.exercises.map(exercise => exercise.name)
+  const exerciseKeys = session.exercises.map(exercise =>
+    exercise.exerciseKey || toExerciseKey(exercise.name)
+  )
   if (exerciseNames.length === 0) return []
 
   const previous = await WorkoutSession.find({
     _id: { $ne: session._id },
     userId,
     completedAt: { $ne: null },
-    'exercises.name': { $in: exerciseNames },
+    $or: [
+      { 'exercises.exerciseKey': { $in: exerciseKeys } },
+      { 'exercises.name': { $in: exerciseNames } },
+    ],
   }).select('exercises')
 
   const previousBest = new Map<string, { weightUsedKg: number; repsCompleted: number }>()
   previous.forEach(prevSession => {
     prevSession.exercises.forEach(exercise => {
-      const best = previousBest.get(exercise.name) ?? { weightUsedKg: 0, repsCompleted: 0 }
+      const key = exercise.exerciseKey || toExerciseKey(exercise.name)
+      const best = previousBest.get(key) ?? { weightUsedKg: 0, repsCompleted: 0 }
       exercise.sets.forEach(set => {
         best.weightUsedKg = Math.max(best.weightUsedKg, set.weightUsedKg ?? 0)
         best.repsCompleted = Math.max(best.repsCompleted, set.repsCompleted ?? 0)
       })
-      previousBest.set(exercise.name, best)
+      previousBest.set(key, best)
     })
   })
 
   return session.exercises.flatMap(exercise => {
-    const previous = previousBest.get(exercise.name) ?? { weightUsedKg: 0, repsCompleted: 0 }
+    const exerciseKey = exercise.exerciseKey || toExerciseKey(exercise.name)
+    const previous = previousBest.get(exerciseKey) ?? { weightUsedKg: 0, repsCompleted: 0 }
     const best = exercise.sets.reduce(
       (acc, set) => ({
         weightUsedKg: Math.max(acc.weightUsedKg, set.weightUsedKg ?? 0),
@@ -271,6 +283,7 @@ const detectPersonalBests = async (
     }
 
     return [{
+      exerciseKey,
       exerciseName: exercise.name,
       weightUsedKg: best.weightUsedKg > previous.weightUsedKg ? best.weightUsedKg : undefined,
       repsCompleted: best.repsCompleted > previous.repsCompleted ? best.repsCompleted : undefined,
@@ -286,7 +299,13 @@ export const completeSession = async (
   const achievements = await detectPersonalBests(userId, session)
   session.completedAt = new Date()
   const saved = await session.save()
-  return { session: saved, achievements }
+  let unlockedAchievements: IAchievementUnlock[] = []
+  try {
+    unlockedAchievements = await evaluateAchievements(userId, achievements)
+  } catch (err) {
+    console.error('Failed to persist achievements:', err)
+  }
+  return { session: saved, achievements, unlockedAchievements }
 }
 
 export const logSet = async (
