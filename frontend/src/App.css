@@ -1919,10 +1919,13 @@ button {
 }
 
 .progress-stat-card {
+  position: relative;
+  min-height: 132px;
   background: #fff;
   border: 1px solid #eef0f3;
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 18px;
+  padding-right: 56px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1930,8 +1933,15 @@ button {
 }
 
 .progress-stat-icon {
-  display: inline-flex;
-  align-items: center;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #f8fafc;
 }
 
 .progress-stat-value {
@@ -1945,6 +1955,12 @@ button {
   color: #6b7280;
 }
 
+.progress-stat-detail {
+  margin-top: auto;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .progress-grid {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
@@ -1954,6 +1970,11 @@ button {
 
 .progress-card {
   margin-bottom: 20px;
+}
+
+.progress-activity-card .bar-chart {
+  height: 180px;
+  padding: 12px 4px 0;
 }
 
 /* Compact sizing for the kit Select when it sits inside a card header. */
