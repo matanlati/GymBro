@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Alert, Button, Card, FormField, Input, LoadingState, PageHeader, Select, Textarea } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { getMe, updateMe, uploadPhoto, UserProfile, UpdateProfileData } from '../api/users.api'
+import { getSummary, ProgressSummary } from '../api/progress.api'
 import { AxiosError } from 'axios'
 import { Settings, BarChart2, LogOut, Camera } from 'lucide-react'
 
@@ -72,6 +73,7 @@ export default function ProfilePage() {
   const photoInputRef = useRef<HTMLInputElement>(null)
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [summary, setSummary] = useState<ProgressSummary | null>(null)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<UpdateProfileData>({})
   const [saving, setSaving] = useState(false)
@@ -87,6 +89,9 @@ export default function ProfilePage() {
         goals: data.goals, limitations: data.limitations,
       })
     }).catch(() => setError('Failed to load profile'))
+    getSummary()
+      .then(({ data }) => setSummary(data))
+      .catch(() => setSummary(null))
   }, [])
 
   function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
@@ -137,6 +142,26 @@ export default function ProfilePage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
 
+  const formatGoal = (goal?: string) =>
+    goal
+      ? goal.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
+      : '-'
+
+  const formatLevel = (level?: string) =>
+    level ? level.charAt(0).toUpperCase() + level.slice(1) : '-'
+
+  const formatVolume = (kg: number) =>
+    kg >= 1000 ? `${(kg / 1000).toFixed(1)}k kg` : `${Math.round(kg)} kg`
+
+  const hasTrainingInfo = !!(
+    profile?.age ||
+    profile?.weightKg ||
+    profile?.heightCm ||
+    profile?.fitnessLevel ||
+    profile?.goals ||
+    profile?.limitations
+  )
+
   if (!profile) {
     return (
       <div style={styles.page}>
@@ -181,18 +206,28 @@ export default function ProfilePage() {
 
         {!editing ? (
           <>
+            {!hasTrainingInfo && (
+              <div style={styles.profilePrompt}>
+                <strong>Add your info to receive the best results.</strong>
+                <span>Create a workout plan or edit your profile so GymBro can personalize your training.</span>
+                <div style={styles.profilePromptActions}>
+                  <Button size="sm" onClick={() => navigate('/plans/new')}>Create Plan</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>Add Info</Button>
+                </div>
+              </div>
+            )}
             <div style={styles.sections}>
               <div style={styles.section}>
                 <h3 style={styles.sectionTitle}>Personal Information</h3>
                 <InfoRow icon={<IconEmail />} label="Email" value={profile.email} />
-                <InfoRow icon={<IconAge />} label="Age" value={profile.age ? `${profile.age} years` : '—'} />
-                <InfoRow icon={<IconWeight />} label="Weight" value={profile.weightKg ? `${profile.weightKg} kg` : '—'} />
-                <InfoRow icon={<IconHeight />} label="Height" value={profile.heightCm ? `${profile.heightCm} cm` : '—'} />
+                <InfoRow icon={<IconAge />} label="Age" value={profile.age ? `${profile.age} years` : '-'} />
+                <InfoRow icon={<IconWeight />} label="Weight" value={profile.weightKg ? `${profile.weightKg} kg` : '-'} />
+                <InfoRow icon={<IconHeight />} label="Height" value={profile.heightCm ? `${profile.heightCm} cm` : '-'} />
               </div>
               <div style={{ ...styles.section, borderRight: 'none' }}>
                 <h3 style={styles.sectionTitle}>Fitness Profile</h3>
-                <InfoRow icon={<IconLevel />} label="Fitness Level" value={profile.fitnessLevel ? profile.fitnessLevel.charAt(0).toUpperCase() + profile.fitnessLevel.slice(1) : '—'} />
-                <InfoRow icon={<IconGoal />} label="Primary Goal" value={profile.goals || '—'} />
+                <InfoRow icon={<IconLevel />} label="Fitness Level" value={formatLevel(profile.fitnessLevel)} />
+                <InfoRow icon={<IconGoal />} label="Primary Goal" value={formatGoal(profile.goals)} />
                 <InfoRow icon={<IconCalendar />} label="Member Since" value={new Date(profile.createdAt).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} />
               </div>
             </div>
@@ -265,9 +300,10 @@ export default function ProfilePage() {
             <BarChart2 size={16} color="#6B7280" strokeWidth={1.8} />
             <span style={styles.cardTitle}>Quick Stats</span>
           </div>
-          <StatRow label="Total Workouts" value="—" color="#F97316" bg="#FFF7ED" />
-          <StatRow label="Current Streak" value="—" color="#22C55E" bg="#F0FDF4" />
-          <StatRow label="Personal Records" value="—" color="#3B82F6" bg="#EFF6FF" />
+          <StatRow label="Total Workouts" value={String(summary?.totalSessions ?? 0)} color="#F97316" bg="#FFF7ED" />
+          <StatRow label="Current Streak" value={`${summary?.currentStreakDays ?? 0} days`} color="#22C55E" bg="#F0FDF4" />
+          <StatRow label="Total Volume" value={formatVolume(summary?.totalVolumeKg ?? 0)} color="#EF4444" bg="#FEF2F2" />
+          <StatRow label="Personal Records" value={String(summary?.personalRecords.length ?? 0)} color="#3B82F6" bg="#EFF6FF" />
         </Card>
       </div>
 
@@ -362,6 +398,21 @@ const styles: Record<string, React.CSSProperties> = {
   identity: { padding: '0 24px 16px', borderBottom: '1px solid #F3F4F6' },
   profileName: { fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 2px' },
   profileEmail: { fontSize: 13, color: '#6B7280', margin: 0 },
+
+  profilePrompt: {
+    display: 'grid',
+    gap: 8,
+    margin: '18px 24px 0',
+    padding: 16,
+    border: '1px solid #FED7AA',
+    borderRadius: 10,
+    background: '#FFF7ED',
+  },
+  profilePromptActions: {
+    display: 'flex',
+    gap: 10,
+    marginTop: 4,
+  },
 
   sections: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 },
   section: { padding: '20px 24px', borderRight: '1px solid #F3F4F6' },

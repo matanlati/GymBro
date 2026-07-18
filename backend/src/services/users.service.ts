@@ -19,7 +19,7 @@ export async function updateMe(userId: string, updates: {
 }) {
   const allowed = ['name', 'age', 'weightKg', 'heightCm', 'fitnessLevel', 'goals', 'limitations']
   const sanitized = Object.fromEntries(
-    Object.entries(updates).filter(([k]) => allowed.includes(k))
+    Object.entries(updates).filter(([k, v]) => allowed.includes(k) && v !== undefined && v !== '')
   )
 
   const user = await User.findByIdAndUpdate(

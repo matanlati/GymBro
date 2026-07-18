@@ -35,6 +35,7 @@ export interface WorkoutPlan {
   weeklyPlan: PlanDay[]
   safetyNotes: string[]
   progressionNotes: string
+  questionnaireData?: QuestionnaireData
   isActive: boolean
   createdAt: string
 }

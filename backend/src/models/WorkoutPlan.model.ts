@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Types } from 'mongoose'
+import { QuestionnaireData } from '../types'
 
 export interface IExercise {
   name: string
@@ -21,6 +22,7 @@ export interface IWorkoutPlan extends Document {
   weeklyPlan: IDayPlan[]
   safetyNotes: string[]
   progressionNotes: string
+  questionnaireData?: QuestionnaireData
   isActive: boolean
   createdAt: Date
 }
@@ -53,6 +55,7 @@ const workoutPlanSchema = new Schema<IWorkoutPlan>(
     weeklyPlan: { type: [dayPlanSchema], default: [] },
     safetyNotes: { type: [String], default: [] },
     progressionNotes: { type: String, default: '' },
+    questionnaireData: { type: Schema.Types.Mixed, default: undefined },
     isActive: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
