@@ -164,7 +164,7 @@ export default function BodyMeasurements() {
             />
           </FormField>
           <FormField label="Weight (kg)">
-            <Input type="number" min="0.1" step="0.1" value={weightKg} onChange={event => setWeightKg(event.target.value)} />
+            <Input type="number" min="20" max="400" step="0.1" value={weightKg} onChange={event => setWeightKg(event.target.value)} />
           </FormField>
           <FormField label="Body fat (%)">
             <Input type="number" min="0" max="100" step="0.1" value={bodyFatPercent} onChange={event => setBodyFatPercent(event.target.value)} />

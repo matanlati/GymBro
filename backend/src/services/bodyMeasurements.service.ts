@@ -21,16 +21,16 @@ const parseDate = (value: string | Date | undefined): Date | undefined => {
   return date
 }
 
-const validateValue = (value: number | undefined, max?: number): void => {
+const validateValue = (value: number | undefined, min = 0, max?: number): void => {
   if (value === undefined) return
-  if (!Number.isFinite(value) || value < 0 || (max !== undefined && value > max)) {
+  if (!Number.isFinite(value) || value < min || (max !== undefined && value > max)) {
     throw new Error('INVALID_MEASUREMENT_PAYLOAD')
   }
 }
 
 const validatePayload = (payload: BodyMeasurementPayload, requireValue: boolean): void => {
-  validateValue(payload.weightKg)
-  validateValue(payload.bodyFatPercent, 100)
+  validateValue(payload.weightKg, 20, 400)
+  validateValue(payload.bodyFatPercent, 0, 100)
   validateValue(payload.muscleMassKg)
   const hasValue = payload.weightKg !== undefined ||
     payload.bodyFatPercent !== undefined ||
@@ -46,6 +46,8 @@ const syncLatestWeight = async (userId: string): Promise<void> => {
 
   if (latest?.weightKg !== undefined) {
     await User.findByIdAndUpdate(userId, { $set: { weightKg: latest.weightKg } })
+  } else {
+    await User.findByIdAndUpdate(userId, { $unset: { weightKg: 1 } })
   }
 }
 

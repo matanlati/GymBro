@@ -3,8 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { Alert, Button, Card, FormField, Input, LoadingState, PageHeader, Select, Textarea } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { getMe, updateMe, uploadPhoto, UserProfile, UpdateProfileData } from '../api/users.api'
-import { getSummary, ProgressSummary } from '../api/progress.api'
-import { createWeight, listWeights, WeightEntry } from '../api/weights.api'
+import {
+  BodyMeasurement,
+  createMeasurement,
+  getSummary,
+  listMeasurements,
+  ProgressSummary,
+} from '../api/progress.api'
 import { AxiosError } from 'axios'
 import { BarChart2, LogOut, Camera, Scale } from 'lucide-react'
 
@@ -75,7 +80,7 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [summary, setSummary] = useState<ProgressSummary | null>(null)
-  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([])
+  const [weightEntries, setWeightEntries] = useState<WeightMeasurement[]>([])
   const [weighInValue, setWeighInValue] = useState('')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<UpdateProfileData>({})
@@ -97,8 +102,8 @@ export default function ProfilePage() {
     getSummary()
       .then(({ data }) => setSummary(data))
       .catch(() => setSummary(null))
-    listWeights()
-      .then(({ data }) => setWeightEntries(data))
+    listMeasurements({ limit: 90 })
+      .then(({ data }) => setWeightEntries(toWeightMeasurements(data)))
       .catch(() => setWeightEntries([]))
   }, [])
 
@@ -117,6 +122,8 @@ export default function ProfilePage() {
     try {
       const { data } = await updateMe(form)
       setProfile(data)
+      const { data: measurements } = await listMeasurements({ limit: 90 })
+      setWeightEntries(toWeightMeasurements(measurements))
       setEditing(false)
     } catch (err) {
       const axiosErr = err as AxiosError<{ message: string }>
@@ -152,8 +159,8 @@ export default function ProfilePage() {
     setSavingWeight(true)
     setWeightError('')
     try {
-      const { data } = await createWeight(weightKg)
-      setWeightEntries(prev => [...prev, data].sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()))
+      const { data } = await createMeasurement({ weightKg })
+      setWeightEntries(prev => mergeWeightMeasurement(prev, data))
       setProfile(prev => prev ? { ...prev, weightKg: data.weightKg } : prev)
       setForm(prev => ({ ...prev, weightKg: data.weightKg }))
       setWeighInValue('')
@@ -279,7 +286,7 @@ export default function ProfilePage() {
                 <Input name="age" type="number" value={form.age ?? ''} onChange={handleChange} />
               </FormField>
               <FormField label="Weight (kg)">
-                <Input name="weightKg" type="number" value={form.weightKg ?? ''} onChange={handleChange} />
+                <Input name="weightKg" type="number" min="20" max="400" step="0.1" value={form.weightKg ?? ''} onChange={handleChange} />
               </FormField>
               <FormField label="Height (cm)">
                 <Input name="heightCm" type="number" value={form.heightCm ?? ''} onChange={handleChange} />
@@ -391,7 +398,23 @@ function StatRow({ label, value, color, bg }: { label: string; value: string; co
   )
 }
 
-function WeightChart({ entries }: { entries: WeightEntry[] }) {
+type WeightMeasurement = BodyMeasurement & { weightKg: number }
+
+const toWeightMeasurements = (measurements: BodyMeasurement[]): WeightMeasurement[] =>
+  measurements
+    .filter((measurement): measurement is WeightMeasurement => measurement.weightKg !== undefined)
+    .sort((left, right) => (
+      new Date(left.measuredAt).getTime() - new Date(right.measuredAt).getTime()
+    ))
+
+const mergeWeightMeasurement = (
+  measurements: WeightMeasurement[],
+  measurement: BodyMeasurement
+): WeightMeasurement[] => measurement.weightKg === undefined
+  ? measurements
+  : toWeightMeasurements([...measurements, measurement])
+
+function WeightChart({ entries }: { entries: WeightMeasurement[] }) {
   const width = 320
   const height = 130
   const plotLeft = 44
@@ -417,8 +440,8 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
     return { x, y, value, entry: entries[index] }
   })
   const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
-  const firstDate = new Date(entries[0].recordedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-  const lastDate = new Date(entries[entries.length - 1].recordedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+  const firstDate = new Date(entries[0].measuredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+  const lastDate = new Date(entries[entries.length - 1].measuredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
 
   return (
     <div style={styles.chartWrap}>
@@ -432,7 +455,7 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
         <path d={path} fill="none" stroke="#F97316" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         {points.map(point => (
           <circle key={point.entry._id} cx={point.x} cy={point.y} r="4" fill="#FFFFFF" stroke="#F97316" strokeWidth="2">
-            <title>{`${point.value} kg on ${new Date(point.entry.recordedAt).toLocaleDateString('en-GB')}`}</title>
+            <title>{`${point.value} kg on ${new Date(point.entry.measuredAt).toLocaleDateString('en-GB')}`}</title>
           </circle>
         ))}
       </svg>
