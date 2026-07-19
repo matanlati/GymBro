@@ -5,7 +5,7 @@ import * as authApi from '../api/auth.api'
 interface AuthContextValue {
   user: User | null
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string, name: string) => Promise<void>
+  register: (email: string, password: string, name: string, role?: User['role']) => Promise<void>
   googleLogin: (credential: string) => Promise<void>
   logout: () => void
 }
@@ -15,7 +15,8 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 function loadUser(): User | null {
   try {
     const str = localStorage.getItem('user')
-    return str ? (JSON.parse(str) as User) : null
+    const user = str ? (JSON.parse(str) as User) : null
+    return user ? { ...user, role: user.role ?? 'trainee' } : null
   } catch {
     return null
   }
@@ -34,8 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     handleUser(data.user)
   }, [handleUser])
 
-  const register = useCallback(async (email: string, password: string, name: string) => {
-    const { data } = await authApi.register({ email, password, name })
+  const register = useCallback(async (email: string, password: string, name: string, role: User['role'] = 'trainee') => {
+    const { data } = await authApi.register({ email, password, name, role })
     handleUser(data.user)
   }, [handleUser])
 

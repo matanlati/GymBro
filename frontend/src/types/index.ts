@@ -2,6 +2,7 @@ export interface User {
   _id: string
   email: string
   name: string
+  role: 'trainee' | 'coach'
 }
 
 export interface LoginData {
@@ -13,6 +14,7 @@ export interface RegisterData {
   email: string
   password: string
   name: string
+  role?: 'trainee' | 'coach'
 }
 
 export interface AuthResponse {

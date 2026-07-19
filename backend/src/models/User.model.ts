@@ -5,6 +5,7 @@ export interface IUser extends Document {
   email: string
   passwordHash: string
   name: string
+  role: 'trainee' | 'coach'
   age?: number
   weightKg?: number
   heightCm?: number
@@ -21,6 +22,7 @@ const userSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     name: { type: String, required: true, trim: true },
+    role: { type: String, enum: ['trainee', 'coach'], required: true, default: 'trainee' },
     age: Number,
     weightKg: Number,
     heightCm: Number,
