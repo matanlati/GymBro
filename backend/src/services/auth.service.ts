@@ -38,8 +38,8 @@ function tokenPair(userId: string, email: string) {
   }
 }
 
-function authUser(user: { _id: unknown; email: string; name: string; role?: UserRole }) {
-  return { _id: user._id, email: user.email, name: user.name, role: user.role ?? 'trainee' }
+function authUser(user: { _id: unknown; email: string; name: string; role?: UserRole; coachId?: unknown }) {
+  return { _id: user._id, email: user.email, name: user.name, role: user.role ?? 'trainee', coachId: user.coachId }
 }
 
 export async function registerUser(email: string, password: string, name: string, role: UserRole = 'trainee') {
