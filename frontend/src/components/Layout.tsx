@@ -39,7 +39,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     ? [
         ...navItems.slice(0, 1),
         { id: '/coach/trainees', label: 'Trainees', icon: 'user' as IconName, path: '/coach/trainees' },
-        ...navItems.slice(1),
+        ...navItems.slice(1).filter(item => item.id !== '/ai-coach'),
       ]
     : navItems
 

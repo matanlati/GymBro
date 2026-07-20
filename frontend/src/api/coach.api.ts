@@ -8,6 +8,8 @@ export interface CoachUser {
   role: 'trainee' | 'coach'
   coachId?: string
   age?: number
+  weightKg?: number
+  heightCm?: number
   fitnessLevel?: string
   goals?: string
   createdAt?: string
@@ -37,6 +39,19 @@ export function listCoachTrainees() {
 
 export function removeCoachTrainee(traineeId: string) {
   return client.delete(`/coach/trainees/${traineeId}`)
+}
+
+export interface CoachTraineeNotes {
+  notes: string
+  updatedAt: string | null
+}
+
+export function getCoachTraineeNotes(traineeId: string) {
+  return client.get<CoachTraineeNotes>(`/coach/trainees/${traineeId}/notes`)
+}
+
+export function saveCoachTraineeNotes(traineeId: string, notes: string) {
+  return client.put<CoachTraineeNotes>(`/coach/trainees/${traineeId}/notes`, { notes })
 }
 
 export function listMyCoachInvites() {

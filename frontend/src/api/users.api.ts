@@ -5,7 +5,12 @@ export interface UserProfile {
   email: string
   name: string
   role: 'trainee' | 'coach'
-  coachId?: string
+  coachId?: string | {
+    _id: string
+    name: string
+    email: string
+    photo?: string
+  }
   age?: number
   weightKg?: number
   heightCm?: number

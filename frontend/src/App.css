@@ -3235,6 +3235,17 @@ button {
   border-bottom: 0;
 }
 
+.coach-trainee-row {
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.coach-trainee-row:hover,
+.coach-trainee-row:focus-visible {
+  background: #fff7ed;
+  outline: none;
+}
+
 .coach-trainees-table td:first-child {
   display: flex;
   align-items: center;
@@ -3350,6 +3361,93 @@ button {
   gap: 10px;
 }
 
+.coach-trainee-detail-modal {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 0;
+}
+
+.coach-trainee-detail-head {
+  padding: 22px 24px 18px;
+  margin: 0;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.coach-trainee-detail-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.coach-trainee-detail-identity .coach-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+.coach-trainee-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.coach-trainee-info-grid > div {
+  display: grid;
+  gap: 4px;
+  padding: 13px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.coach-trainee-info-grid span {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.coach-trainee-info-grid strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.coach-trainee-info-grid .coach-trainee-goal {
+  grid-column: 1 / -1;
+}
+
+.coach-notes-form {
+  display: grid;
+  gap: 14px;
+  padding: 20px 24px 24px;
+  border-top: 1px solid #eef0f3;
+}
+
+.coach-notes-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.coach-notes-heading h3 {
+  margin: 0 0 3px;
+  color: #111827;
+  font-size: 14px;
+}
+
+.coach-notes-heading p,
+.coach-notes-heading small {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
 @media (max-width: 900px) {
   .coach-trainees-page {
     width: min(100% - 40px, 720px);
@@ -3378,6 +3476,14 @@ button {
 
   .coach-delete-action span {
     display: none;
+  }
+
+  .coach-trainee-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .coach-trainee-info-grid .coach-trainee-goal {
+    grid-column: auto;
   }
 
   .progress-stats {

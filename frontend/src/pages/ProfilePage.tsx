@@ -11,7 +11,7 @@ import {
   ProgressSummary,
 } from '../api/progress.api'
 import { AxiosError } from 'axios'
-import { BarChart2, LogOut, Camera, Scale } from 'lucide-react'
+import { BarChart2, LogOut, Camera, Scale, UserRoundCheck } from 'lucide-react'
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 function IconEmail() {
@@ -193,6 +193,9 @@ export default function ProfilePage() {
     kg >= 1000 ? `${(kg / 1000).toFixed(1)}k kg` : `${Math.round(kg)} kg`
 
   const latestWeight = weightEntries.length > 0 ? weightEntries[weightEntries.length - 1].weightKg : profile?.weightKg
+  const coach = profile?.role === 'trainee' && profile.coachId && typeof profile.coachId !== 'string'
+    ? profile.coachId
+    : null
 
   const hasTrainingInfo = !!(
     profile?.age ||
@@ -323,6 +326,25 @@ export default function ProfilePage() {
           </form>
         )}
       </Card>
+
+      {coach ? (
+        <Card padding="none" style={{ ...styles.card, ...styles.coachCard }}>
+          <div style={styles.coachIcon}>
+            <UserRoundCheck size={20} strokeWidth={1.8} />
+          </div>
+          {coach.photo ? (
+            <img src={coach.photo} alt="" style={styles.coachAvatarImage} />
+          ) : (
+            <div style={styles.coachAvatar}>{getInitials(coach.name)}</div>
+          )}
+          <div style={styles.coachDetails}>
+            <span style={styles.coachEyebrow}>Your coach</span>
+            <strong style={styles.coachName}>Coached by {coach.name}</strong>
+            <span style={styles.coachEmail}>{coach.email}</span>
+          </div>
+          <span style={styles.coachStatus}>Active</span>
+        </Card>
+      ) : null}
 
       {/* Bottom row: Weight + Quick Stats */}
       <div style={styles.bottomRow}>
@@ -476,6 +498,55 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     overflow: 'hidden',
     marginBottom: 16,
+  },
+  coachCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '14px 16px',
+    borderColor: '#FED7AA',
+    background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7ED 100%)',
+  },
+  coachIcon: {
+    width: 38,
+    height: 38,
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
+    borderRadius: 10,
+    background: '#FFEDD5',
+    color: '#EA580C',
+  },
+  coachAvatar: {
+    width: 38,
+    height: 38,
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
+    borderRadius: '50%',
+    background: '#F97316',
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 750,
+  },
+  coachAvatarImage: {
+    width: 38,
+    height: 38,
+    flexShrink: 0,
+    borderRadius: '50%',
+    objectFit: 'cover',
+  },
+  coachDetails: { display: 'grid', gap: 1, minWidth: 0, flex: 1 },
+  coachEyebrow: { color: '#9A3412', fontSize: 10, fontWeight: 750, letterSpacing: '.06em', textTransform: 'uppercase' },
+  coachName: { color: '#111827', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  coachEmail: { color: '#6B7280', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  coachStatus: {
+    padding: '4px 8px',
+    borderRadius: 999,
+    background: '#DCFCE7',
+    color: '#15803D',
+    fontSize: 10,
+    fontWeight: 750,
   },
   banner: { height: 80, background: 'linear-gradient(to right, #F97316, #EF4444)' },
 

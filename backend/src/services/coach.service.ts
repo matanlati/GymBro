@@ -1,5 +1,6 @@
 import { Types } from 'mongoose'
 import { CoachInvite, ICoachInvite } from '../models/CoachInvite.model'
+import { CoachTraineeNote } from '../models/CoachTraineeNote.model'
 import { User } from '../models/User.model'
 
 const userSelect = 'name email photo role coachId'
@@ -63,9 +64,36 @@ export async function listCoachTrainees(coachUserId: string) {
   if (coach.role !== 'coach') throw new Error('COACH_ONLY')
 
   return User.find({ coachId: coach._id, role: 'trainee' })
-    .select('name email photo age fitnessLevel goals createdAt')
+    .select('name email photo age weightKg heightCm fitnessLevel goals createdAt')
     .sort({ name: 1 })
     .lean()
+}
+
+const requireCoachTrainee = async (coachUserId: string, traineeId: string) => {
+  if (!Types.ObjectId.isValid(traineeId)) throw new Error('INVALID_TRAINEE')
+  const coach = await requireUser(coachUserId)
+  if (coach.role !== 'coach') throw new Error('COACH_ONLY')
+
+  const trainee = await User.exists({ _id: traineeId, coachId: coach._id, role: 'trainee' })
+  if (!trainee) throw new Error('COACH_TRAINEE_NOT_FOUND')
+  return coach
+}
+
+export async function getTraineeNotes(coachUserId: string, traineeId: string) {
+  const coach = await requireCoachTrainee(coachUserId, traineeId)
+  const record = await CoachTraineeNote.findOne({ coachId: coach._id, traineeId }).lean()
+  return { notes: record?.notes ?? '', updatedAt: record?.updatedAt ?? null }
+}
+
+export async function saveTraineeNotes(coachUserId: string, traineeId: string, notes: unknown) {
+  if (typeof notes !== 'string' || notes.length > 5000) throw new Error('INVALID_NOTES')
+  const coach = await requireCoachTrainee(coachUserId, traineeId)
+  const record = await CoachTraineeNote.findOneAndUpdate(
+    { coachId: coach._id, traineeId },
+    { $set: { notes } },
+    { new: true, upsert: true, runValidators: true }
+  ).lean()
+  return { notes: record.notes, updatedAt: record.updatedAt }
 }
 
 export async function removeTrainee(coachUserId: string, traineeId: string) {

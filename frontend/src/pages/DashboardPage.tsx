@@ -397,13 +397,15 @@ function Dashboard() {
               </div>
             ) : null}
           </Card>
-          <Card as="section" variant="info" className="coach-panel">
-            <h2>AI Coach Available</h2>
-            <p>Upload your workout video for real-time form analysis and feedback</p>
-            <Button variant="inverse" size="sm" style={{ color: '#2563eb' }} onClick={() => navigate('/ai-coach')}>
-              Try AI Coach
-            </Button>
-          </Card>
+          {user?.role !== 'coach' ? (
+            <Card as="section" variant="info" className="coach-panel">
+              <h2>AI Coach Available</h2>
+              <p>Upload your workout video for real-time form analysis and feedback</p>
+              <Button variant="inverse" size="sm" style={{ color: '#2563eb' }} onClick={() => navigate('/ai-coach')}>
+                Try AI Coach
+              </Button>
+            </Card>
+          ) : null}
         </aside>
       </section>
       {calendarOpen ? (

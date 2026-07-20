@@ -15,6 +15,8 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invite id is invalid' })
     case 'INVALID_TRAINEE':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Trainee id is invalid' })
+    case 'INVALID_NOTES':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Notes must be 5,000 characters or fewer' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
     case 'COACH_TRAINEE_NOT_FOUND':
@@ -64,6 +66,24 @@ export async function removeCoachTrainee(req: AuthRequest, res: Response) {
   try {
     await coachService.removeTrainee(req.user!.userId, req.params.id)
     return res.status(204).send()
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getCoachTraineeNotes(req: AuthRequest, res: Response) {
+  try {
+    const notes = await coachService.getTraineeNotes(req.user!.userId, req.params.id)
+    return res.json(notes)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function saveCoachTraineeNotes(req: AuthRequest, res: Response) {
+  try {
+    const notes = await coachService.saveTraineeNotes(req.user!.userId, req.params.id, req.body?.notes)
+    return res.json(notes)
   } catch (err) {
     return handleCoachError(res, err)
   }

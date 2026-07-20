@@ -9,15 +9,18 @@ import {
   Input,
   LoadingState,
   PageHeader,
+  Textarea,
 } from "@gymbro/ui-kit";
 import { AxiosError } from "axios";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import {
   CoachInvite,
   CoachUser,
+  getCoachTraineeNotes,
   listCoachInvites,
   listCoachTrainees,
   removeCoachTrainee,
+  saveCoachTraineeNotes,
   sendCoachInvite,
 } from "../api/coach.api";
 import { useAuth } from "../context/AuthContext";
@@ -48,6 +51,11 @@ export default function CoachTraineesPage() {
   const [removingId, setRemovingId] = useState("");
   const [error, setError] = useState("");
   const [pageError, setPageError] = useState("");
+  const [selectedTrainee, setSelectedTrainee] = useState<CoachUser | null>(null);
+  const [notes, setNotes] = useState("");
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState("");
 
   const pendingInvites = useMemo(
     () => invites.filter((invite) => invite.status === "pending"),
@@ -120,6 +128,47 @@ export default function CoachTraineesPage() {
     }
   };
 
+  const openTrainee = async (trainee: CoachUser) => {
+    setSelectedTrainee(trainee);
+    setNotes("");
+    setNotesError("");
+    setNotesLoading(true);
+    try {
+      const { data } = await getCoachTraineeNotes(trainee._id);
+      setNotes(data.notes);
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message: string }>;
+      setNotesError(axiosErr.response?.data?.message || "Could not load coach notes");
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  const closeTrainee = () => {
+    if (notesSaving) return;
+    setSelectedTrainee(null);
+    setNotesError("");
+  };
+
+  const submitNotes = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedTrainee) return;
+    setNotesSaving(true);
+    setNotesError("");
+    try {
+      await saveCoachTraineeNotes(selectedTrainee._id, notes);
+      setSelectedTrainee(null);
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message: string }>;
+      setNotesError(axiosErr.response?.data?.message || "Could not save coach notes");
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
+  const displayValue = (value: string | number | undefined, suffix = "") =>
+    value === undefined || value === "" ? "Not provided" : `${value}${suffix}`;
+
   return (
     <main className="coach-trainees-page">
       <PageHeader
@@ -168,7 +217,15 @@ export default function CoachTraineesPage() {
                   </thead>
                   <tbody>
                     {trainees.map((trainee) => (
-                      <tr key={trainee._id}>
+                      <tr
+                        className="coach-trainee-row"
+                        key={trainee._id}
+                        tabIndex={0}
+                        onClick={() => openTrainee(trainee)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") openTrainee(trainee);
+                        }}
+                      >
                         <td>
                           <span className="coach-avatar">
                             {initials(trainee.name)}
@@ -183,7 +240,10 @@ export default function CoachTraineesPage() {
                             aria-label={`Remove ${trainee.name}`}
                             title="Remove trainee"
                             disabled={removingId === trainee._id}
-                            onClick={() => removeTrainee(trainee)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              removeTrainee(trainee);
+                            }}
                           >
                             <Trash2 size={16} />
                             <span>
@@ -282,6 +342,60 @@ export default function CoachTraineesPage() {
                 >
                   Send Invite
                 </Button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      {selectedTrainee ? (
+        <div className="coach-modal-backdrop" role="presentation" onClick={closeTrainee}>
+          <section
+            className="coach-modal coach-trainee-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="trainee-detail-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="coach-modal-head coach-trainee-detail-head">
+              <div className="coach-trainee-detail-identity">
+                <span className="coach-avatar">{initials(selectedTrainee.name)}</span>
+                <div>
+                  <h2 id="trainee-detail-title">{selectedTrainee.name}</h2>
+                  <p>{selectedTrainee.email}</p>
+                </div>
+              </div>
+              <button type="button" aria-label="Close trainee details" onClick={closeTrainee}><X size={17} /></button>
+            </div>
+
+            <div className="coach-trainee-info-grid">
+              <div><span>Age</span><strong>{displayValue(selectedTrainee.age, " years")}</strong></div>
+              <div><span>Height</span><strong>{displayValue(selectedTrainee.heightCm, " cm")}</strong></div>
+              <div><span>Weight</span><strong>{displayValue(selectedTrainee.weightKg, " kg")}</strong></div>
+              <div><span>Fitness level</span><strong>{displayValue(selectedTrainee.fitnessLevel)}</strong></div>
+              <div className="coach-trainee-goal"><span>Goal</span><strong>{displayValue(selectedTrainee.goals)}</strong></div>
+            </div>
+
+            <form className="coach-notes-form" onSubmit={submitNotes}>
+              <div className="coach-notes-heading">
+                <div><h3>Private coach notes</h3><p>Only you can see these notes.</p></div>
+                <small>{notes.length}/5000</small>
+              </div>
+              {notesLoading ? (
+                <LoadingState label="Loading notes..." />
+              ) : (
+                <Textarea
+                  value={notes}
+                  maxLength={5000}
+                  rows={6}
+                  placeholder="Add observations, reminders, or coaching context..."
+                  onChange={(event) => setNotes(event.target.value)}
+                />
+              )}
+              {notesError ? <Alert variant="error">{notesError}</Alert> : null}
+              <div className="coach-modal-actions">
+                <Button variant="secondary" onClick={closeTrainee}>Cancel</Button>
+                <Button type="submit" loading={notesSaving} loadingLabel="Saving..." disabled={notesLoading}>Save Notes</Button>
               </div>
             </form>
           </section>
