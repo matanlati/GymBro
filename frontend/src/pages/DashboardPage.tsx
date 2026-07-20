@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { getOrCreateToday, listSessions, scheduleSession, Session } from '../api/sessions.api'
 import { getSummary, ProgressSummary } from '../api/progress.api'
+import { acceptCoachInvite, CoachInvite, listMyCoachInvites } from '../api/coach.api'
 
 type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
   'calendar' | 'trend' | 'target' | 'weight' | 'trophy' | 'check' | 'chevronLeft' | 'chevronRight' | 'x'
@@ -118,6 +119,8 @@ function Dashboard() {
   const [customWorkoutName, setCustomWorkoutName] = useState('')
   const [scheduleError, setScheduleError] = useState('')
   const [scheduling, setScheduling] = useState(false)
+  const [coachInvites, setCoachInvites] = useState<CoachInvite[]>([])
+  const [acceptingInviteId, setAcceptingInviteId] = useState('')
 
   useEffect(() => {
     Promise.allSettled([getActivePlan(), getSummary(), listSessions()])
@@ -128,6 +131,13 @@ function Dashboard() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (user?.role !== 'trainee') return
+    listMyCoachInvites()
+      .then(({ data }) => setCoachInvites(data))
+      .catch(() => setCoachInvites([]))
+  }, [user?.role])
 
   const startWorkout = async () => {
     setStarting(true)
@@ -149,6 +159,10 @@ function Dashboard() {
   const todayDay = activePlan?.weeklyPlan?.[displayDayIndex]
   const todayTitle = todayDay?.focus ?? activePlan?.title ?? 'Your Workout'
   const todayExerciseCount = todayDay?.exercises?.length ?? 0
+  const welcomeName = user?.name ?? 'there'
+  const welcomeMessage = user?.role === 'coach'
+    ? `Welcome Coach ${welcomeName}`
+    : `Welcome Back, ${welcomeName}!`
 
   const statCards: { label: string; value: string; icon: IconName; tone: IconTileTone }[] = [
     {
@@ -257,17 +271,48 @@ function Dashboard() {
     }
   }
 
+  const acceptInvite = async (inviteId: string) => {
+    setAcceptingInviteId(inviteId)
+    try {
+      await acceptCoachInvite(inviteId)
+      setCoachInvites(current => current.filter(invite => invite._id !== inviteId))
+    } finally {
+      setAcceptingInviteId('')
+    }
+  }
+
   return (
     <main className="dashboard">
       <section className="dashboard-hero">
         <div>
-          <h1>Welcome Back, {user?.name ?? 'there'}!</h1>
+          <h1>{welcomeMessage}</h1>
           <p>Let's crush your fitness goals today</p>
         </div>
         <Button leadingIcon={<Icon name="share" />} onClick={() => navigate('/feed', { state: { openComposer: true } })}>
           Share Workout
         </Button>
       </section>
+
+      {user?.role === 'trainee' && coachInvites.length > 0 ? (
+        <section className="coach-invite-strip" aria-label="Coach invitations">
+          {coachInvites.map(invite => (
+            <Card className="coach-invite-card" key={invite._id}>
+              <div>
+                <strong>{invite.coachId?.name ?? 'A coach'} invited you</strong>
+                <p>Accept to connect this trainee account with your coach.</p>
+              </div>
+              <Button
+                size="sm"
+                loading={acceptingInviteId === invite._id}
+                loadingLabel="Accepting..."
+                onClick={() => acceptInvite(invite._id)}
+              >
+                Accept
+              </Button>
+            </Card>
+          ))}
+        </section>
+      ) : null}
 
       <section className="stats-grid" aria-label="Workout stats">
         {statCards.map(card => (

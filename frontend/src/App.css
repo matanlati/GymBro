@@ -294,6 +294,34 @@ button {
   font-weight: 650;
 }
 
+.coach-invite-strip {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.coach-invite-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+}
+
+.coach-invite-card strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #111827;
+  font-size: 15px;
+}
+
+.coach-invite-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
 .calendar-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -3062,6 +3090,160 @@ button {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 22px;
+}
+
+.coach-trainees-page {
+  display: grid;
+  gap: 20px;
+}
+
+.coach-trainees-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 18px;
+}
+
+.coach-panel {
+  min-height: 260px;
+}
+
+.coach-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.coach-panel-head h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
+}
+
+.coach-panel-head span {
+  display: inline-flex;
+  min-width: 32px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #fff7ed;
+  color: #f97316;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.coach-list {
+  display: grid;
+  gap: 10px;
+}
+
+.coach-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.coach-list-item > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.coach-list-item strong {
+  overflow: hidden;
+  color: #111827;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-list-item small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-avatar {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #f97316;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.coach-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.coach-modal {
+  width: min(440px, 100%);
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.coach-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.coach-modal-head h2 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 20px;
+}
+
+.coach-modal-head p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.coach-modal-head button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.coach-invite-form {
+  display: grid;
+  gap: 16px;
+}
+
+.coach-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 @media (max-width: 720px) {

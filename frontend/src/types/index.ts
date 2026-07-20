@@ -3,6 +3,7 @@ export interface User {
   email: string
   name: string
   role: 'trainee' | 'coach'
+  coachId?: string
 }
 
 export interface LoginData {
