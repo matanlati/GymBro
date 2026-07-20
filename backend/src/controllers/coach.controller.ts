@@ -13,8 +13,12 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Trainee email is required' })
     case 'INVALID_INVITE':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invite id is invalid' })
+    case 'INVALID_TRAINEE':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Trainee id is invalid' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
+    case 'COACH_TRAINEE_NOT_FOUND':
+      return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'This trainee is not assigned to you' })
     case 'TARGET_NOT_TRAINEE':
       return res.status(400).json({ error: 'TARGET_NOT_TRAINEE', message: 'That email does not belong to a trainee account' })
     case 'TRAINEE_ALREADY_HAS_COACH':
@@ -51,6 +55,15 @@ export async function listCoachTrainees(req: AuthRequest, res: Response) {
   try {
     const trainees = await coachService.listCoachTrainees(req.user!.userId)
     return res.json(trainees)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function removeCoachTrainee(req: AuthRequest, res: Response) {
+  try {
+    await coachService.removeTrainee(req.user!.userId, req.params.id)
+    return res.status(204).send()
   } catch (err) {
     return handleCoachError(res, err)
   }

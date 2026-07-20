@@ -68,6 +68,22 @@ export async function listCoachTrainees(coachUserId: string) {
     .lean()
 }
 
+export async function removeTrainee(coachUserId: string, traineeId: string) {
+  if (!Types.ObjectId.isValid(traineeId)) throw new Error('INVALID_TRAINEE')
+
+  const coach = await requireUser(coachUserId)
+  if (coach.role !== 'coach') throw new Error('COACH_ONLY')
+
+  const trainee = await User.findOneAndUpdate(
+    { _id: traineeId, coachId: coach._id, role: 'trainee' },
+    { $unset: { coachId: 1 } },
+    { new: true }
+  ).select('name email photo age fitnessLevel goals createdAt')
+
+  if (!trainee) throw new Error('COACH_TRAINEE_NOT_FOUND')
+  return trainee
+}
+
 export async function listMyInvites(traineeUserId: string) {
   const trainee = await requireUser(traineeUserId)
   if (trainee.role !== 'trainee') throw new Error('TRAINEE_ONLY')

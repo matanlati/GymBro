@@ -35,6 +35,10 @@ export function listCoachTrainees() {
   return client.get<CoachUser[]>('/coach/trainees')
 }
 
+export function removeCoachTrainee(traineeId: string) {
+  return client.delete(`/coach/trainees/${traineeId}`)
+}
+
 export function listMyCoachInvites() {
   return client.get<CoachInvite[]>('/coach/my-invites')
 }
