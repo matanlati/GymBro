@@ -1,6 +1,7 @@
 import { Response } from 'express'
 import { AuthRequest } from '../types'
 import * as coachService from '../services/coach.service'
+import { getCoachProgressOverview } from '../services/coachProgress.service'
 
 const handleCoachError = (res: Response, err: unknown) => {
   const message = err instanceof Error ? err.message : 'Coach request failed'
@@ -17,6 +18,8 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Trainee id is invalid' })
     case 'INVALID_NOTES':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Notes must be 5,000 characters or fewer' })
+    case 'INVALID_PERIOD':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Period must be week, month, quarter, or year' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
     case 'COACH_TRAINEE_NOT_FOUND':
@@ -32,6 +35,16 @@ const handleCoachError = (res: Response, err: unknown) => {
     default:
       console.error('Coach controller error:', err)
       return res.status(500).json({ error: 'INTERNAL_ERROR', message })
+  }
+}
+
+export async function getProgressOverview(req: AuthRequest, res: Response) {
+  try {
+    const period = typeof req.query.period === 'string' ? req.query.period : 'month'
+    const overview = await getCoachProgressOverview(req.user!.userId, period)
+    return res.json(overview)
+  } catch (err) {
+    return handleCoachError(res, err)
   }
 }
 

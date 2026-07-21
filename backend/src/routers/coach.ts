@@ -1,11 +1,12 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth'
-import { acceptInvite, getCoachTraineeNotes, listCoachInvites, listCoachTrainees, listMyInvites, removeCoachTrainee, saveCoachTraineeNotes, sendInvite } from '../controllers/coach.controller'
+import { acceptInvite, getCoachTraineeNotes, getProgressOverview, listCoachInvites, listCoachTrainees, listMyInvites, removeCoachTrainee, saveCoachTraineeNotes, sendInvite } from '../controllers/coach.controller'
 
 const router = Router()
 
 router.use(authMiddleware)
 
+router.get('/progress/overview', getProgressOverview)
 router.post('/invites', sendInvite)
 router.get('/invites', listCoachInvites)
 router.get('/trainees', listCoachTrainees)

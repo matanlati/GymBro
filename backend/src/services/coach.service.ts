@@ -3,11 +3,17 @@ import { CoachInvite, ICoachInvite } from '../models/CoachInvite.model'
 import { CoachTraineeNote } from '../models/CoachTraineeNote.model'
 import { User } from '../models/User.model'
 
-const userSelect = 'name email photo role coachId'
+const userSelect = 'name email photo role coachId timezone'
 
 const requireUser = async (userId: string) => {
   const user = await User.findById(userId).select(userSelect)
   if (!user) throw new Error('USER_NOT_FOUND')
+  return user
+}
+
+export const requireCoachUser = async (userId: string) => {
+  const user = await requireUser(userId)
+  if (user.role !== 'coach') throw new Error('COACH_ONLY')
   return user
 }
 
