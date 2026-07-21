@@ -13,11 +13,8 @@ import {
 import {
   BodyMeasurement,
   BodyMeasurementPayload,
-  createMeasurement,
-  deleteMeasurement,
-  listMeasurements,
-  updateMeasurement,
 } from '../../api/progress.api'
+import type { ProgressDataSource } from '../../api/progressDataSource'
 import LineChart from './LineChart'
 
 type MeasurementMetric = 'weightKg' | 'bodyFatPercent' | 'muscleMassKg'
@@ -34,7 +31,11 @@ const dateInputValue = (iso?: string) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10)
 }
 
-export default function BodyMeasurements() {
+interface BodyMeasurementsProps {
+  dataSource: ProgressDataSource
+}
+
+export default function BodyMeasurements({ dataSource }: BodyMeasurementsProps) {
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([])
   const [metric, setMetric] = useState<MeasurementMetric>('weightKg')
   const [loading, setLoading] = useState(true)
@@ -48,7 +49,7 @@ export default function BodyMeasurements() {
   const [muscleMassKg, setMuscleMassKg] = useState('')
 
   const loadMeasurements = async () => {
-    const { data } = await listMeasurements({ limit: 100 })
+    const { data } = await dataSource.measurements.list({ limit: 100 })
     setMeasurements(data)
   }
 
@@ -56,7 +57,7 @@ export default function BodyMeasurements() {
     loadMeasurements()
       .catch(() => setError('Could not load body measurements.'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [dataSource])
 
   const selectedMetric = METRICS.find(item => item.key === metric)!
   const points = useMemo(
@@ -109,8 +110,8 @@ export default function BodyMeasurements() {
     setSaving(true)
     setError('')
     try {
-      if (editing) await updateMeasurement(editing._id, payload)
-      else await createMeasurement(payload)
+      if (editing) await dataSource.measurements.update?.(editing._id, payload)
+      else await dataSource.measurements.create?.(payload)
       await loadMeasurements()
       window.dispatchEvent(new Event('progress-data-changed'))
       closeForm()
@@ -124,7 +125,7 @@ export default function BodyMeasurements() {
   const removeMeasurement = async (measurement: BodyMeasurement) => {
     if (!window.confirm('Delete this measurement entry?')) return
     try {
-      await deleteMeasurement(measurement._id)
+      await dataSource.measurements.remove?.(measurement._id)
       setMeasurements(current => current.filter(item => item._id !== measurement._id))
       window.dispatchEvent(new Event('progress-data-changed'))
     } catch {
