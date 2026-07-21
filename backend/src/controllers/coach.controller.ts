@@ -1,7 +1,16 @@
 import { Response } from 'express'
 import { AuthRequest } from '../types'
 import * as coachService from '../services/coach.service'
-import { getCoachProgressOverview } from '../services/coachProgress.service'
+import {
+  getCoachProgressOverview,
+  getTraineeExerciseSeries,
+  getTraineeProgressSummary,
+  listTraineeAchievements,
+  listTraineeGoals,
+  listTraineeMeasurements,
+} from '../services/coachProgress.service'
+import { AchievementCategory } from '../models/AchievementUnlock.model'
+import { ProgressGoalStatus } from '../models/ProgressGoal.model'
 
 const handleCoachError = (res: Response, err: unknown) => {
   const message = err instanceof Error ? err.message : 'Coach request failed'
@@ -20,6 +29,10 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Notes must be 5,000 characters or fewer' })
     case 'INVALID_PERIOD':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Period must be week, month, quarter, or year' })
+    case 'INVALID_GOAL_STATUS':
+    case 'INVALID_ACHIEVEMENT_FILTERS':
+    case 'INVALID_MEASUREMENT_FILTERS':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid progress filters' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
     case 'COACH_TRAINEE_NOT_FOUND':
@@ -43,6 +56,71 @@ export async function getProgressOverview(req: AuthRequest, res: Response) {
     const period = typeof req.query.period === 'string' ? req.query.period : 'month'
     const overview = await getCoachProgressOverview(req.user!.userId, period)
     return res.json(overview)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getTraineeProgress(req: AuthRequest, res: Response) {
+  try {
+    const summary = await getTraineeProgressSummary(req.user!.userId, req.params.id)
+    return res.json(summary)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getTraineeProgressExercise(req: AuthRequest, res: Response) {
+  const name = req.params.name?.trim()
+  if (!name) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'exercise name is required' })
+  }
+  try {
+    const series = await getTraineeExerciseSeries(req.user!.userId, req.params.id, name)
+    return res.json(series)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getTraineeProgressGoals(req: AuthRequest, res: Response) {
+  try {
+    const status = typeof req.query.status === 'string'
+      ? req.query.status as ProgressGoalStatus
+      : undefined
+    const goals = await listTraineeGoals(req.user!.userId, req.params.id, status)
+    return res.json(goals)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getTraineeProgressAchievements(req: AuthRequest, res: Response) {
+  try {
+    const category = typeof req.query.category === 'string'
+      ? req.query.category as AchievementCategory
+      : undefined
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined
+    const achievements = await listTraineeAchievements(
+      req.user!.userId,
+      req.params.id,
+      category,
+      limit
+    )
+    return res.json(achievements)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getTraineeProgressMeasurements(req: AuthRequest, res: Response) {
+  try {
+    const measurements = await listTraineeMeasurements(req.user!.userId, req.params.id, {
+      from: typeof req.query.from === 'string' ? req.query.from : undefined,
+      to: typeof req.query.to === 'string' ? req.query.to : undefined,
+      limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
+    })
+    return res.json(measurements)
   } catch (err) {
     return handleCoachError(res, err)
   }

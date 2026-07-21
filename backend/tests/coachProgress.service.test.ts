@@ -2,16 +2,35 @@ jest.mock('../src/models/AchievementUnlock.model')
 jest.mock('../src/models/ProgressGoal.model')
 jest.mock('../src/models/User.model')
 jest.mock('../src/models/WorkoutSession.model')
-jest.mock('../src/services/coach.service', () => ({ requireCoachUser: jest.fn() }))
+jest.mock('../src/services/coach.service', () => ({
+  requireCoachUser: jest.fn(),
+  requireAssignedTrainee: jest.fn(),
+}))
+jest.mock('../src/services/achievements.service')
+jest.mock('../src/services/bodyMeasurements.service')
+jest.mock('../src/services/progress.service')
+jest.mock('../src/services/progressGoals.service')
 
 import { AchievementUnlock } from '../src/models/AchievementUnlock.model'
 import { ProgressGoal } from '../src/models/ProgressGoal.model'
 import { User } from '../src/models/User.model'
 import { WorkoutSession } from '../src/models/WorkoutSession.model'
-import { requireCoachUser } from '../src/services/coach.service'
-import { getCoachProgressOverview } from '../src/services/coachProgress.service'
+import * as achievementsService from '../src/services/achievements.service'
+import * as bodyMeasurementsService from '../src/services/bodyMeasurements.service'
+import { requireAssignedTrainee, requireCoachUser } from '../src/services/coach.service'
+import {
+  getCoachProgressOverview,
+  getTraineeExerciseSeries,
+  getTraineeProgressSummary,
+  listTraineeAchievements,
+  listTraineeGoals,
+  listTraineeMeasurements,
+} from '../src/services/coachProgress.service'
+import * as progressService from '../src/services/progress.service'
+import * as progressGoalsService from '../src/services/progressGoals.service'
 
 const mockRequireCoach = requireCoachUser as jest.MockedFunction<typeof requireCoachUser>
+const mockRequireAssigned = requireAssignedTrainee as jest.MockedFunction<typeof requireAssignedTrainee>
 const MockUser = User as jest.Mocked<typeof User>
 const MockSession = WorkoutSession as jest.Mocked<typeof WorkoutSession>
 const MockAchievement = AchievementUnlock as jest.Mocked<typeof AchievementUnlock>
@@ -123,5 +142,79 @@ describe('coachProgress.service getCoachProgressOverview', () => {
   it('rejects unsupported periods before querying coach data', async () => {
     await expect(getCoachProgressOverview(COACH_ID, 'day')).rejects.toThrow('INVALID_PERIOD')
     expect(mockRequireCoach).not.toHaveBeenCalled()
+  })
+})
+
+describe('coachProgress.service assigned trainee reads', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockRequireAssigned.mockResolvedValue({} as Awaited<ReturnType<typeof requireAssignedTrainee>>)
+  })
+
+  it('authorizes before loading the progress summary', async () => {
+    const summary = { totalSessions: 4 }
+    ;(progressService.getSummary as jest.Mock).mockResolvedValue(summary)
+
+    await expect(getTraineeProgressSummary(COACH_ID, TRAINEE_IDS[0])).resolves.toBe(summary)
+
+    expect(mockRequireAssigned).toHaveBeenCalledWith(COACH_ID, TRAINEE_IDS[0])
+    expect(progressService.getSummary).toHaveBeenCalledWith(TRAINEE_IDS[0])
+    expect(mockRequireAssigned.mock.invocationCallOrder[0])
+      .toBeLessThan((progressService.getSummary as jest.Mock).mock.invocationCallOrder[0])
+  })
+
+  it('loads an exercise series for the assigned trainee', async () => {
+    const series = [{ date: '2026-07-01', estimatedOneRepMaxKg: 80 }]
+    ;(progressService.getExerciseSeries as jest.Mock).mockResolvedValue(series)
+
+    await expect(
+      getTraineeExerciseSeries(COACH_ID, TRAINEE_IDS[0], 'Bench Press')
+    ).resolves.toBe(series)
+
+    expect(progressService.getExerciseSeries).toHaveBeenCalledWith(
+      TRAINEE_IDS[0],
+      'Bench Press'
+    )
+  })
+
+  it('forwards goal status after assignment authorization', async () => {
+    ;(progressGoalsService.listGoals as jest.Mock).mockResolvedValue([])
+
+    await listTraineeGoals(COACH_ID, TRAINEE_IDS[0], 'active')
+
+    expect(progressGoalsService.listGoals).toHaveBeenCalledWith(TRAINEE_IDS[0], 'active')
+  })
+
+  it('forwards achievement filters after assignment authorization', async () => {
+    ;(achievementsService.listAchievements as jest.Mock).mockResolvedValue([])
+
+    await listTraineeAchievements(COACH_ID, TRAINEE_IDS[0], 'personal_record', 8)
+
+    expect(achievementsService.listAchievements).toHaveBeenCalledWith(
+      TRAINEE_IDS[0],
+      'personal_record',
+      8
+    )
+  })
+
+  it('forwards measurement filters after assignment authorization', async () => {
+    ;(bodyMeasurementsService.listMeasurements as jest.Mock).mockResolvedValue([])
+    const filters = { from: '2026-01-01', to: '2026-07-31', limit: 50 }
+
+    await listTraineeMeasurements(COACH_ID, TRAINEE_IDS[0], filters)
+
+    expect(bodyMeasurementsService.listMeasurements).toHaveBeenCalledWith(
+      TRAINEE_IDS[0],
+      filters
+    )
+  })
+
+  it('does not read trainee data when assignment authorization fails', async () => {
+    mockRequireAssigned.mockRejectedValue(new Error('COACH_TRAINEE_NOT_FOUND'))
+
+    await expect(getTraineeProgressSummary(COACH_ID, TRAINEE_IDS[0]))
+      .rejects.toThrow('COACH_TRAINEE_NOT_FOUND')
+
+    expect(progressService.getSummary).not.toHaveBeenCalled()
   })
 })

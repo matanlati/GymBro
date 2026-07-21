@@ -1,8 +1,14 @@
 import { AchievementUnlock } from '../models/AchievementUnlock.model'
+import { AchievementCategory } from '../models/AchievementUnlock.model'
 import { ProgressGoal } from '../models/ProgressGoal.model'
+import { ProgressGoalStatus } from '../models/ProgressGoal.model'
 import { User } from '../models/User.model'
 import { WorkoutSession } from '../models/WorkoutSession.model'
-import { requireCoachUser } from './coach.service'
+import * as achievementsService from './achievements.service'
+import * as bodyMeasurementsService from './bodyMeasurements.service'
+import * as progressService from './progress.service'
+import * as progressGoalsService from './progressGoals.service'
+import { requireAssignedTrainee, requireCoachUser } from './coach.service'
 
 export type CoachProgressPeriod = 'week' | 'month' | 'quarter' | 'year'
 
@@ -174,4 +180,46 @@ export const getCoachProgressOverview = async (
     personalRecords,
     goalsAchieved,
   }
+}
+
+export const getTraineeProgressSummary = async (coachUserId: string, traineeId: string) => {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  return progressService.getSummary(traineeId)
+}
+
+export const getTraineeExerciseSeries = async (
+  coachUserId: string,
+  traineeId: string,
+  exerciseName: string
+) => {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  return progressService.getExerciseSeries(traineeId, exerciseName)
+}
+
+export const listTraineeGoals = async (
+  coachUserId: string,
+  traineeId: string,
+  status?: ProgressGoalStatus
+) => {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  return progressGoalsService.listGoals(traineeId, status)
+}
+
+export const listTraineeAchievements = async (
+  coachUserId: string,
+  traineeId: string,
+  category?: AchievementCategory,
+  limit?: number
+) => {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  return achievementsService.listAchievements(traineeId, category, limit)
+}
+
+export const listTraineeMeasurements = async (
+  coachUserId: string,
+  traineeId: string,
+  filters: bodyMeasurementsService.MeasurementFilters
+) => {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  return bodyMeasurementsService.listMeasurements(traineeId, filters)
 }
