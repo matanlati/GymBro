@@ -69,25 +69,52 @@ export default function ProgressDashboard({
 
   // Load the summary once on mount.
   useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError('')
+    setSummary(null)
+    setSelectedExercise('')
+    setSeries([])
+
     dataSource.getSummary()
       .then(({ data }) => {
+        if (!active) return
         setSummary(data)
         if (data.strengthProgress.length > 0) {
           setSelectedExercise(data.strengthProgress[0].exerciseName)
         }
       })
-      .catch(() => setError('Could not load your progress. Please try again.'))
-      .finally(() => setLoading(false))
+      .catch(() => {
+        if (active) setError('Could not load progress. Please try again.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [dataSource])
 
   // Re-fetch the time-series whenever the selected exercise changes.
   useEffect(() => {
     if (!selectedExercise) return
+    let active = true
     setSeriesLoading(true)
     dataSource.getExerciseSeries(selectedExercise)
-      .then(({ data }) => setSeries(data))
-      .catch(() => setSeries([]))
-      .finally(() => setSeriesLoading(false))
+      .then(({ data }) => {
+        if (active) setSeries(data)
+      })
+      .catch(() => {
+        if (active) setSeries([])
+      })
+      .finally(() => {
+        if (active) setSeriesLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [dataSource, selectedExercise])
 
   const linePoints = useMemo(

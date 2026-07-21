@@ -79,19 +79,33 @@ export default function GoalsAchievements({
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError('')
+    setGoals([])
+    setAchievements([])
+
     const loadProgressPanels = () => Promise.all([
-      dataSource.goals.list('active'),
-      dataSource.achievements.list(undefined, 8),
-    ])
+        dataSource.goals.list('active'),
+        dataSource.achievements.list(undefined, 8),
+      ])
       .then(([goalResponse, achievementResponse]) => {
+        if (!active) return
         setGoals(goalResponse.data)
         setAchievements(achievementResponse.data)
       })
-      .catch(() => setError('Could not load goals and achievements.'))
+      .catch(() => {
+        if (active) setError('Could not load goals and achievements.')
+      })
 
-    loadProgressPanels().finally(() => setLoading(false))
+    loadProgressPanels().finally(() => {
+      if (active) setLoading(false)
+    })
     window.addEventListener('progress-data-changed', loadProgressPanels)
-    return () => window.removeEventListener('progress-data-changed', loadProgressPanels)
+    return () => {
+      active = false
+      window.removeEventListener('progress-data-changed', loadProgressPanels)
+    }
   }, [dataSource])
 
   const exerciseOptions: SelectOption[] = Array.from(

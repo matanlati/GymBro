@@ -1946,6 +1946,21 @@ button {
   gap: 16px;
 }
 
+.coach-selected-trainee-progress,
+.progress-dashboard {
+  display: grid;
+  gap: 20px;
+}
+
+.coach-trainee-progress-heading {
+  display: grid;
+  gap: 18px;
+}
+
+.coach-trainee-select {
+  min-width: 220px;
+}
+
 @media (max-width: 760px) {
   .coach-overall-stats {
     grid-template-columns: 1fr;
@@ -1953,6 +1968,11 @@ button {
 
   .coach-progress-period-select {
     min-width: 150px;
+  }
+
+  .coach-trainee-select {
+    min-width: 150px;
+    width: 100%;
   }
 }
 

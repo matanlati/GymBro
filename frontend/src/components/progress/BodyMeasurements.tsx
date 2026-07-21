@@ -59,9 +59,25 @@ export default function BodyMeasurements({
   }
 
   useEffect(() => {
-    loadMeasurements()
-      .catch(() => setError('Could not load body measurements.'))
-      .finally(() => setLoading(false))
+    let active = true
+    setLoading(true)
+    setError('')
+    setMeasurements([])
+
+    dataSource.measurements.list({ limit: 100 })
+      .then(({ data }) => {
+        if (active) setMeasurements(data)
+      })
+      .catch(() => {
+        if (active) setError('Could not load body measurements.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [dataSource])
 
   const selectedMetric = METRICS.find(item => item.key === metric)!
