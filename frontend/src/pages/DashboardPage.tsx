@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { getOrCreateToday, listSessions, scheduleSession, Session } from '../api/sessions.api'
 import { getSummary, ProgressSummary } from '../api/progress.api'
-import { acceptCoachInvite, CoachDashboardSummary, CoachDashboardTrainee, CoachInvite, CoachTodayWorkout, getCoachDashboardSummary, listCoachTodayWorkouts, listMyCoachInvites, reviewCoachWorkout } from '../api/coach.api'
+import { acceptCoachInvite, clearCoachProgressLookout, CoachDashboardSummary, CoachDashboardTrainee, CoachInvite, CoachProgressLookout, CoachTodayWorkout, getCoachDashboardSummary, getCoachProgressLookout, listCoachTodayWorkouts, listMyCoachInvites, reviewCoachWorkout } from '../api/coach.api'
 
 type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
   'calendar' | 'trend' | 'target' | 'weight' | 'trophy' | 'check' | 'chevronLeft' | 'chevronRight' | 'x'
@@ -138,6 +138,9 @@ function Dashboard() {
   const [coachWorkoutsLoading, setCoachWorkoutsLoading] = useState(false)
   const [selectedCoachWorkout, setSelectedCoachWorkout] = useState<CoachTodayWorkout | null>(null)
   const [reviewingWorkout, setReviewingWorkout] = useState(false)
+  const [progressLookout, setProgressLookout] = useState<CoachProgressLookout[]>([])
+  const [selectedLookout, setSelectedLookout] = useState<CoachProgressLookout | null>(null)
+  const [clearingLookoutKey, setClearingLookoutKey] = useState('')
 
   useEffect(() => {
     Promise.allSettled([getActivePlan(), getSummary(), listSessions()])
@@ -152,10 +155,11 @@ function Dashboard() {
   useEffect(() => {
     if (user?.role !== 'coach') return
     setCoachWorkoutsLoading(true)
-    Promise.allSettled([getCoachDashboardSummary(), listCoachTodayWorkouts()])
-      .then(([summaryResult, workoutsResult]) => {
+    Promise.allSettled([getCoachDashboardSummary(), listCoachTodayWorkouts(), getCoachProgressLookout()])
+      .then(([summaryResult, workoutsResult, lookoutResult]) => {
         setCoachSummary(summaryResult.status === 'fulfilled' ? summaryResult.value.data : null)
         setCoachTodayWorkouts(workoutsResult.status === 'fulfilled' ? workoutsResult.value.data : [])
+        setProgressLookout(lookoutResult.status === 'fulfilled' ? lookoutResult.value.data : [])
       })
       .finally(() => setCoachWorkoutsLoading(false))
   }, [user?.role])
@@ -175,6 +179,27 @@ function Dashboard() {
       setSelectedCoachWorkout(current => current ? update(current) : current)
     } finally {
       setReviewingWorkout(false)
+    }
+  }
+
+  const markLookoutHandled = async (workoutKey: string) => {
+    if (!selectedLookout) return
+    const traineeId = selectedLookout.trainee._id
+    setClearingLookoutKey(workoutKey)
+    try {
+      await clearCoachProgressLookout(traineeId, workoutKey)
+      setProgressLookout(current => current.flatMap(item => {
+        if (item.trainee._id !== traineeId) return [item]
+        const stalledWorkouts = item.stalledWorkouts.filter(workout => workout.workoutKey !== workoutKey)
+        return stalledWorkouts.length ? [{ ...item, stalledWorkouts }] : []
+      }))
+      setSelectedLookout(current => {
+        if (!current || current.trainee._id !== traineeId) return current
+        const stalledWorkouts = current.stalledWorkouts.filter(workout => workout.workoutKey !== workoutKey)
+        return stalledWorkouts.length ? { ...current, stalledWorkouts } : null
+      })
+    } finally {
+      setClearingLookoutKey('')
     }
   }
 
@@ -561,6 +586,25 @@ function Dashboard() {
         </Card>
 
         <aside className="side-column">
+          {user?.role === 'coach' ? (
+            <Card as="section" className="achievements-panel coach-lookout-panel">
+              <CardHeader title="Look Out" />
+              <p className="coach-lookout-subtitle">These trainees haven’t been progressing lately. It may be time to check in with them.</p>
+              {progressLookout.length === 0 ? (
+                <div className="coach-lookout-empty"><Icon name="check" /> No stalled progress detected.</div>
+              ) : (
+                <div className="coach-lookout-list">
+                  {progressLookout.map(item => (
+                    <button type="button" key={item.trainee._id} onClick={() => setSelectedLookout(item)}>
+                      <span className="dashboard-stat-avatar">{item.trainee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+                      <span><strong>{item.trainee.name}</strong><small>{item.stalledWorkouts.length} stalled {item.stalledWorkouts.length === 1 ? 'workout type' : 'workout types'}</small></span>
+                      <Icon name="chevronRight" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Card>
+          ) : (
           <Card as="section" className="achievements-panel">
             <CardHeader title="Recent Achievements" />
             {topRecord ? (
@@ -582,6 +626,7 @@ function Dashboard() {
               </div>
             ) : null}
           </Card>
+          )}
           {user?.role !== 'coach' ? (
             <Card as="section" variant="info" className="coach-panel">
               <h2>AI Coach Available</h2>
@@ -643,6 +688,63 @@ function Dashboard() {
                   Mark as Reviewed
                 </Button>
               )}
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {selectedLookout ? (
+        <div className="coach-workout-modal-backdrop" role="presentation" onClick={() => setSelectedLookout(null)}>
+          <section
+            className="coach-lookout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="coach-lookout-modal-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="coach-workout-review-head">
+              <div>
+                <span>Progress lookout</span>
+                <h2 id="coach-lookout-modal-title">{selectedLookout.trainee.name}</h2>
+                <p>{selectedLookout.trainee.email}</p>
+              </div>
+              <button type="button" aria-label="Close progress lookout" onClick={() => setSelectedLookout(null)}><Icon name="x" /></button>
+            </div>
+            <div className="coach-lookout-workouts">
+              {selectedLookout.stalledWorkouts.map(workout => (
+                <section className="coach-lookout-workout" key={workout.workoutKey}>
+                  <div className="coach-lookout-workout-head">
+                    <div><h3>{workout.workoutName}</h3><p>{workout.stagnantExerciseCount} of {workout.evaluatedExerciseCount} exercises have not progressed</p></div>
+                    <div className="coach-lookout-actions">
+                      <span>Last 3 workouts</span>
+                      <button
+                        type="button"
+                        disabled={clearingLookoutKey === workout.workoutKey}
+                        onClick={() => markLookoutHandled(workout.workoutKey)}
+                      >
+                        <Icon name="check" /> {clearingLookoutKey === workout.workoutKey ? 'Clearing...' : 'Mark handled'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="coach-lookout-exercises">
+                    {workout.exercises.map(exercise => (
+                      <div className={exercise.progressed ? 'coach-lookout-exercise progressed' : 'coach-lookout-exercise stalled'} key={exercise.exerciseKey}>
+                        <div>
+                          <strong>{exercise.exerciseName}</strong>
+                          <span>{exercise.progressed ? 'Progressing' : 'No increase'}</span>
+                        </div>
+                        <div className="coach-lookout-history">
+                          {exercise.history.map((entry, index) => (
+                            <span key={entry.completedAt}>
+                              <small>Workout {index + 1}</small>
+                              <b>{entry.maxWeightKg > 0 ? `${entry.maxWeightKg} kg` : 'Bodyweight'} · {entry.maxReps} reps</b>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           </section>
         </div>

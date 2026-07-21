@@ -628,6 +628,255 @@ button {
   font-weight: 750;
 }
 
+.coach-lookout-subtitle {
+  margin: -5px 0 14px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.coach-lookout-list {
+  display: grid;
+  gap: 7px;
+}
+
+.coach-lookout-list > button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  background: #fffafa;
+  text-align: left;
+}
+
+.coach-lookout-list > button:hover {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.coach-lookout-list > button > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.coach-lookout-list strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-lookout-list small {
+  color: #ef4444;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.coach-lookout-list svg {
+  width: 15px;
+  height: 15px;
+  color: #94a3b8;
+}
+
+.coach-lookout-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.coach-lookout-empty svg {
+  width: 15px;
+  height: 15px;
+}
+
+.coach-lookout-modal {
+  width: min(700px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
+}
+
+.coach-lookout-workouts {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.coach-lookout-workout {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.coach-lookout-workout-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  border-bottom: 1px solid #eef2f7;
+  background: #f8fafc;
+}
+
+.coach-lookout-workout-head h3 {
+  margin: 0 0 3px;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.coach-lookout-workout-head p {
+  margin: 0;
+  color: #ef4444;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.coach-lookout-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.coach-lookout-actions > span {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.coach-lookout-actions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 27px;
+  padding: 0 8px;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.coach-lookout-actions > button:hover:not(:disabled) {
+  background: #dcfce7;
+}
+
+.coach-lookout-actions > button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.coach-lookout-actions svg {
+  width: 12px;
+  height: 12px;
+}
+
+.coach-lookout-exercises {
+  display: grid;
+}
+
+.coach-lookout-exercise {
+  display: grid;
+  grid-template-columns: minmax(130px, .8fr) minmax(0, 2fr);
+  align-items: center;
+  gap: 14px;
+  padding: 11px 13px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.coach-lookout-exercise:first-child {
+  border-top: 0;
+}
+
+.coach-lookout-exercise.stalled {
+  box-shadow: inset 3px 0 #ef4444;
+  background: #fffafa;
+}
+
+.coach-lookout-exercise.progressed {
+  box-shadow: inset 3px 0 #22c55e;
+}
+
+.coach-lookout-exercise > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.coach-lookout-exercise strong {
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.coach-lookout-exercise > div:first-child span {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.coach-lookout-exercise.stalled > div:first-child span {
+  color: #dc2626;
+}
+
+.coach-lookout-history {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.coach-lookout-history > span {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.coach-lookout-history small {
+  color: #94a3b8;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.coach-lookout-history b {
+  color: #475569;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .coach-lookout-workout-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .coach-lookout-exercise {
+    grid-template-columns: 1fr;
+  }
+
+  .coach-lookout-history b {
+    white-space: normal;
+  }
+}
+
 .calendar-icon-button {
   display: inline-grid;
   place-items: center;

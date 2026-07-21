@@ -86,6 +86,34 @@ export function reviewCoachWorkout(sessionId: string) {
   return client.post<{ sessionId: string; reviewedAt: string }>(`/coach/workout-reviews/${sessionId}`)
 }
 
+export interface CoachProgressLookout {
+  trainee: { _id: string; name: string; email: string; photo?: string }
+  stalledWorkouts: Array<{
+    workoutKey: string
+    workoutName: string
+    latestWorkoutAt: string
+    stagnantExerciseCount: number
+    evaluatedExerciseCount: number
+    exercises: Array<{
+      exerciseKey: string
+      exerciseName: string
+      progressed: boolean
+      history: Array<{ completedAt: string; maxWeightKg: number; maxReps: number }>
+    }>
+  }>
+}
+
+export function getCoachProgressLookout() {
+  return client.get<CoachProgressLookout[]>('/coach/progress-lookout')
+}
+
+export function clearCoachProgressLookout(traineeId: string, workoutKey: string) {
+  return client.post<{ traineeId: string; workoutKey: string; clearedAt: string }>(
+    `/coach/progress-lookout/${traineeId}/clear`,
+    { workoutKey }
+  )
+}
+
 export function removeCoachTrainee(traineeId: string) {
   return client.delete(`/coach/trainees/${traineeId}`)
 }

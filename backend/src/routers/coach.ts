@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth'
-import { acceptInvite, getCoachDashboardSummary, getCoachTraineeNotes, listCoachInvites, listCoachTodayWorkouts, listCoachTrainees, listMyInvites, removeCoachTrainee, reviewCoachWorkout, saveCoachTraineeNotes, sendInvite } from '../controllers/coach.controller'
+import { acceptInvite, clearCoachProgressLookout, getCoachDashboardSummary, getCoachProgressLookout, getCoachTraineeNotes, listCoachInvites, listCoachTodayWorkouts, listCoachTrainees, listMyInvites, removeCoachTrainee, reviewCoachWorkout, saveCoachTraineeNotes, sendInvite } from '../controllers/coach.controller'
 
 const router = Router()
 
@@ -11,6 +11,8 @@ router.get('/invites', listCoachInvites)
 router.get('/trainees', listCoachTrainees)
 router.get('/dashboard-summary', getCoachDashboardSummary)
 router.get('/today-workouts', listCoachTodayWorkouts)
+router.get('/progress-lookout', getCoachProgressLookout)
+router.post('/progress-lookout/:traineeId/clear', clearCoachProgressLookout)
 router.post('/workout-reviews/:sessionId', reviewCoachWorkout)
 router.get('/trainees/:id/notes', getCoachTraineeNotes)
 router.put('/trainees/:id/notes', saveCoachTraineeNotes)

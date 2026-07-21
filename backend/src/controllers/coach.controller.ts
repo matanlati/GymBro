@@ -23,6 +23,8 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Session id is invalid' })
     case 'WORKOUT_NOT_FOUND':
       return res.status(404).json({ error: 'WORKOUT_NOT_FOUND', message: 'Completed trainee workout not found' })
+    case 'INVALID_WORKOUT_KEY':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A valid workout key is required' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
     case 'COACH_TRAINEE_NOT_FOUND':
@@ -93,6 +95,28 @@ export async function reviewCoachWorkout(req: AuthRequest, res: Response) {
   try {
     const review = await coachService.reviewWorkout(req.user!.userId, req.params.sessionId)
     return res.json(review)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getCoachProgressLookout(req: AuthRequest, res: Response) {
+  try {
+    const lookout = await coachService.getProgressLookout(req.user!.userId)
+    return res.json(lookout)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function clearCoachProgressLookout(req: AuthRequest, res: Response) {
+  try {
+    const cleared = await coachService.clearProgressLookout(
+      req.user!.userId,
+      req.params.traineeId,
+      req.body?.workoutKey
+    )
+    return res.json(cleared)
   } catch (err) {
     return handleCoachError(res, err)
   }

@@ -5,6 +5,7 @@ import { User } from '../models/User.model'
 import { IWorkoutSession, WorkoutSession } from '../models/WorkoutSession.model'
 import { AchievementUnlock } from '../models/AchievementUnlock.model'
 import { CoachWorkoutReview } from '../models/CoachWorkoutReview.model'
+import { CoachProgressAlertClear } from '../models/CoachProgressAlert.model'
 import { toExerciseKey } from '../utils/exerciseKey'
 
 const userSelect = 'name email photo role coachId timezone'
@@ -305,6 +306,151 @@ export async function reviewWorkout(coachUserId: string, sessionId: string) {
     { new: true, upsert: true }
   ).lean()
   return { sessionId: String(session._id), reviewedAt: review.reviewedAt }
+}
+
+export interface StalledExerciseHistory {
+  completedAt: Date
+  maxWeightKg: number
+  maxReps: number
+}
+
+export interface CoachProgressLookout {
+  trainee: { _id: string; name: string; email: string; photo?: string }
+  stalledWorkouts: Array<{
+    workoutKey: string
+    workoutName: string
+    latestWorkoutAt: Date
+    stagnantExerciseCount: number
+    evaluatedExerciseCount: number
+    exercises: Array<{
+      exerciseKey: string
+      exerciseName: string
+      progressed: boolean
+      history: StalledExerciseHistory[]
+    }>
+  }>
+}
+
+const normalizedWorkoutTitle = (title?: string) => (
+  title?.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'untitled'
+)
+
+export async function getProgressLookout(coachUserId: string): Promise<CoachProgressLookout[]> {
+  const coach = await requireUser(coachUserId)
+  if (coach.role !== 'coach') throw new Error('COACH_ONLY')
+  const trainees = await User.find({ coachId: coach._id, role: 'trainee' })
+    .select('name email photo')
+    .sort({ name: 1 })
+    .lean()
+  if (!trainees.length) return []
+
+  const clearedAlerts = await CoachProgressAlertClear.find({
+    coachId: coach._id,
+    traineeId: { $in: trainees.map(trainee => trainee._id) },
+  }).lean()
+  const clearedAtByAlert = new Map(clearedAlerts.map(alert => [
+    `${alert.traineeId}:${alert.workoutKey}`,
+    alert.clearedAt,
+  ]))
+
+  const sessions = await WorkoutSession.find({
+    userId: { $in: trainees.map(trainee => trainee._id) },
+    completedAt: { $ne: null },
+  }).sort({ completedAt: -1 }).lean()
+  const sessionsByTrainee = new Map<string, typeof sessions>()
+  sessions.forEach(session => {
+    const key = String(session.userId)
+    sessionsByTrainee.set(key, [...(sessionsByTrainee.get(key) ?? []), session])
+  })
+
+  return trainees.flatMap(trainee => {
+    const workoutGroups = new Map<string, typeof sessions>()
+    for (const session of sessionsByTrainee.get(String(trainee._id)) ?? []) {
+      const planSlot = session.dayIndex >= 0
+        ? `${session.planId}:${session.dayIndex}`
+        : `${session.planId}:custom:${normalizedWorkoutTitle(session.title)}`
+      workoutGroups.set(planSlot, [...(workoutGroups.get(planSlot) ?? []), session])
+    }
+
+    const stalledWorkouts: CoachProgressLookout['stalledWorkouts'] = []
+    workoutGroups.forEach((group, workoutKey) => {
+      if (group.length < 3) return
+      const latestThree = group.slice(0, 3).reverse()
+      const exerciseMaps = latestThree.map(session => new Map(
+        session.exercises
+          .filter(exercise => exercise.sets.length > 0)
+          .map(exercise => [exercise.exerciseKey || toExerciseKey(exercise.name), exercise])
+      ))
+      const comparableKeys = [...exerciseMaps[0].keys()].filter(key => (
+        exerciseMaps.slice(1).every(map => map.has(key))
+      ))
+      if (!comparableKeys.length) return
+
+      const exercises = comparableKeys.map(exerciseKey => {
+        const history = exerciseMaps.map((map, index) => {
+          const exercise = map.get(exerciseKey)!
+          return {
+            completedAt: latestThree[index].completedAt as Date,
+            maxWeightKg: Math.max(0, ...exercise.sets.map(set => set.weightUsedKg ?? 0)),
+            maxReps: Math.max(0, ...exercise.sets.map(set => set.repsCompleted ?? 0)),
+          }
+        })
+        const progressed = history.slice(1).some((entry, index) => (
+          entry.maxWeightKg > history[index].maxWeightKg || entry.maxReps > history[index].maxReps
+        ))
+        return {
+          exerciseKey,
+          exerciseName: exerciseMaps[2].get(exerciseKey)!.name,
+          progressed,
+          history,
+        }
+      })
+      const stagnantExerciseCount = exercises.filter(exercise => !exercise.progressed).length
+      if (stagnantExerciseCount < Math.ceil(exercises.length / 2)) return
+
+      const latest = latestThree[2]
+      const clearedAt = clearedAtByAlert.get(`${trainee._id}:${workoutKey}`)
+      if (clearedAt && (latest.completedAt as Date) <= clearedAt) return
+      stalledWorkouts.push({
+        workoutKey,
+        workoutName: latest.title || `Workout ${latest.dayIndex + 1}`,
+        latestWorkoutAt: latest.completedAt as Date,
+        stagnantExerciseCount,
+        evaluatedExerciseCount: exercises.length,
+        exercises,
+      })
+    })
+
+    return stalledWorkouts.length ? [{
+      trainee: {
+        _id: String(trainee._id),
+        name: trainee.name,
+        email: trainee.email,
+        photo: trainee.photo,
+      },
+      stalledWorkouts: stalledWorkouts.sort((left, right) => (
+        right.latestWorkoutAt.getTime() - left.latestWorkoutAt.getTime()
+      )),
+    }] : []
+  })
+}
+
+export async function clearProgressLookout(
+  coachUserId: string,
+  traineeId: string,
+  workoutKey: unknown
+) {
+  if (typeof workoutKey !== 'string' || !workoutKey.trim() || workoutKey.length > 300) {
+    throw new Error('INVALID_WORKOUT_KEY')
+  }
+  const coach = await requireCoachTrainee(coachUserId, traineeId)
+  const clearedAt = new Date()
+  await CoachProgressAlertClear.findOneAndUpdate(
+    { coachId: coach._id, traineeId, workoutKey },
+    { $set: { clearedAt } },
+    { upsert: true, new: true, runValidators: true }
+  )
+  return { traineeId, workoutKey, clearedAt }
 }
 
 const requireCoachTrainee = async (coachUserId: string, traineeId: string) => {
