@@ -69,7 +69,12 @@ export async function listCoachTrainees(coachUserId: string) {
     .lean()
 }
 
-const requireCoachTrainee = async (coachUserId: string, traineeId: string) => {
+/**
+ * Authorize access to a trainee that is currently assigned to the requesting coach.
+ * Keep this check at the service boundary so every coach-facing trainee feature
+ * uses the same role and ownership rules.
+ */
+export const requireAssignedTrainee = async (coachUserId: string, traineeId: string) => {
   if (!Types.ObjectId.isValid(traineeId)) throw new Error('INVALID_TRAINEE')
   const coach = await requireUser(coachUserId)
   if (coach.role !== 'coach') throw new Error('COACH_ONLY')
@@ -80,14 +85,14 @@ const requireCoachTrainee = async (coachUserId: string, traineeId: string) => {
 }
 
 export async function getTraineeNotes(coachUserId: string, traineeId: string) {
-  const coach = await requireCoachTrainee(coachUserId, traineeId)
+  const coach = await requireAssignedTrainee(coachUserId, traineeId)
   const record = await CoachTraineeNote.findOne({ coachId: coach._id, traineeId }).lean()
   return { notes: record?.notes ?? '', updatedAt: record?.updatedAt ?? null }
 }
 
 export async function saveTraineeNotes(coachUserId: string, traineeId: string, notes: unknown) {
   if (typeof notes !== 'string' || notes.length > 5000) throw new Error('INVALID_NOTES')
-  const coach = await requireCoachTrainee(coachUserId, traineeId)
+  const coach = await requireAssignedTrainee(coachUserId, traineeId)
   const record = await CoachTraineeNote.findOneAndUpdate(
     { coachId: coach._id, traineeId },
     { $set: { notes } },
