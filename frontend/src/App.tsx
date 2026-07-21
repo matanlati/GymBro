@@ -11,6 +11,7 @@ import AiCoachPage from './pages/AiCoachPage'
 import ProgressPage from './pages/ProgressPage'
 import ProfilePage from './pages/ProfilePage'
 import SocialFeedPage from './pages/SocialFeedPage'
+import CoachTraineesPage from './pages/CoachTraineesPage'
 import Layout from './components/Layout'
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/session/:id" element={<ProtectedRoute><Layout><ActiveSessionPage /></Layout></ProtectedRoute>} />
           <Route path="/ai-coach" element={<ProtectedRoute><Layout><AiCoachPage /></Layout></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute><Layout><SocialFeedPage /></Layout></ProtectedRoute>} />
+          <Route path="/coach/trainees" element={<ProtectedRoute><Layout><CoachTraineesPage /></Layout></ProtectedRoute>} />
           <Route path="/progress" element={<ProtectedRoute><Layout><ProgressPage /></Layout></ProtectedRoute>} />
           <Route path="/profile"  element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/home" replace />} />

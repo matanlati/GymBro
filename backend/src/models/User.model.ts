@@ -1,10 +1,12 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema, Document, Types } from 'mongoose'
 import { isValidTimeZone } from '../utils/calendarMetrics'
 
 export interface IUser extends Document {
   email: string
   passwordHash: string
   name: string
+  role: 'trainee' | 'coach'
+  coachId?: Types.ObjectId
   age?: number
   weightKg?: number
   heightCm?: number
@@ -21,6 +23,8 @@ const userSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     name: { type: String, required: true, trim: true },
+    role: { type: String, enum: ['trainee', 'coach'], required: true, default: 'trainee' },
+    coachId: { type: Schema.Types.ObjectId, ref: 'User', default: undefined },
     age: Number,
     weightKg: Number,
     heightCm: Number,

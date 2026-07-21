@@ -4,7 +4,9 @@ import { User } from '../models/User.model'
 import { createMeasurement } from './bodyMeasurements.service'
 
 export async function getMe(userId: string) {
-  const user = await User.findById(userId).select('-passwordHash')
+  const user = await User.findById(userId)
+    .select('-passwordHash')
+    .populate('coachId', 'name email photo')
   if (!user) throw new Error('USER_NOT_FOUND')
   return user
 }
@@ -37,7 +39,7 @@ export async function updateMe(userId: string, updates: {
     userId,
     { $set: sanitized },
     { new: true, runValidators: true }
-  ).select('-passwordHash')
+  ).select('-passwordHash').populate('coachId', 'name email photo')
 
   if (!user) throw new Error('USER_NOT_FOUND')
   return user
@@ -63,7 +65,7 @@ export async function updatePhoto(userId: string, file: Express.Multer.File) {
     userId,
     { $set: { photo: photoUrl } },
     { new: true }
-  ).select('-passwordHash')
+  ).select('-passwordHash').populate('coachId', 'name email photo')
 
   if (!user) throw new Error('USER_NOT_FOUND')
   return user

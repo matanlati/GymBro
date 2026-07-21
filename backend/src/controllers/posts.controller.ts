@@ -23,15 +23,23 @@ const handleError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'title is required' })
     case 'INVALID_POST_DATE':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'postDate must be a valid date' })
+    case 'INVALID_FEED_SCOPE':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'scope must be all or trainees' })
+    case 'COACH_ONLY':
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Only coaches can filter by trainees' })
+    case 'USER_NOT_FOUND':
+      return res.status(404).json({ error: 'USER_NOT_FOUND', message: 'User not found' })
     default:
       console.error('Posts controller error:', err)
       return res.status(500).json({ error: 'INTERNAL_ERROR', message })
   }
 }
 
-export const listPosts = async (_req: AuthRequest, res: Response) => {
+export const listPosts = async (req: AuthRequest, res: Response) => {
   try {
-    const posts = await postsService.listPosts()
+    const requestedScope = req.query.scope ?? 'all'
+    if (requestedScope !== 'all' && requestedScope !== 'trainees') throw new Error('INVALID_FEED_SCOPE')
+    const posts = await postsService.listPosts(req.user!.userId, requestedScope)
     return res.json(posts)
   } catch (err) {
     return handleError(res, err)

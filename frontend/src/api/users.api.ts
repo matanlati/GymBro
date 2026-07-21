@@ -4,6 +4,13 @@ export interface UserProfile {
   _id: string
   email: string
   name: string
+  role: 'trainee' | 'coach'
+  coachId?: string | {
+    _id: string
+    name: string
+    email: string
+    photo?: string
+  }
   age?: number
   weightKg?: number
   heightCm?: number
