@@ -8,6 +8,7 @@
     "dev": "ts-node src/server.ts",
     "build": "tsc",
     "seed:feed": "ts-node src/db/seedFeedDemo.ts",
+    "seed:coach-dashboard": "ts-node src/db/seedCoachDashboardDemo.ts",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },

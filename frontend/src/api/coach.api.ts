@@ -37,6 +37,30 @@ export function listCoachTrainees() {
   return client.get<CoachUser[]>('/coach/trainees')
 }
 
+export interface CoachDashboardSummary {
+  totalWorkoutsThisWeek: number
+  traineesNotStartedThisWeek: number
+  inactiveTrainees: number
+  traineesWithPbThisWeek: number
+  inactivityDays: number
+  traineesWorkedOutThisWeek: CoachDashboardTrainee[]
+  traineesNotStarted: CoachDashboardTrainee[]
+  inactiveTraineeDetails: CoachDashboardTrainee[]
+  traineesWithPb: CoachDashboardTrainee[]
+}
+
+export interface CoachDashboardTrainee {
+  _id: string
+  name: string
+  email: string
+  workoutCountThisWeek: number
+  lastActiveAt: string | null
+}
+
+export function getCoachDashboardSummary(inactiveDays = 7) {
+  return client.get<CoachDashboardSummary>('/coach/dashboard-summary', { params: { inactiveDays } })
+}
+
 export function removeCoachTrainee(traineeId: string) {
   return client.delete(`/coach/trainees/${traineeId}`)
 }

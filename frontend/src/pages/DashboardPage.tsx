@@ -6,10 +6,21 @@ import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { getOrCreateToday, listSessions, scheduleSession, Session } from '../api/sessions.api'
 import { getSummary, ProgressSummary } from '../api/progress.api'
-import { acceptCoachInvite, CoachInvite, listMyCoachInvites } from '../api/coach.api'
+import { acceptCoachInvite, CoachDashboardSummary, CoachDashboardTrainee, CoachInvite, getCoachDashboardSummary, listMyCoachInvites } from '../api/coach.api'
 
 type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
   'calendar' | 'trend' | 'target' | 'weight' | 'trophy' | 'check' | 'chevronLeft' | 'chevronRight' | 'x'
+
+interface DashboardStatCard {
+  label: string
+  value: string
+  icon: IconName
+  tone: IconTileTone
+  detailTitle?: string
+  detailDescription?: string
+  detailMode?: 'workouts' | 'not-started' | 'inactive' | 'pb'
+  trainees?: CoachDashboardTrainee[]
+}
 
 function Icon({ name }: { name: IconName }) {
   const common = {
@@ -121,6 +132,8 @@ function Dashboard() {
   const [scheduling, setScheduling] = useState(false)
   const [coachInvites, setCoachInvites] = useState<CoachInvite[]>([])
   const [acceptingInviteId, setAcceptingInviteId] = useState('')
+  const [coachSummary, setCoachSummary] = useState<CoachDashboardSummary | null>(null)
+  const [selectedCoachStat, setSelectedCoachStat] = useState<DashboardStatCard | null>(null)
 
   useEffect(() => {
     Promise.allSettled([getActivePlan(), getSummary(), listSessions()])
@@ -131,6 +144,13 @@ function Dashboard() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (user?.role !== 'coach') return
+    getCoachDashboardSummary()
+      .then(({ data }) => setCoachSummary(data))
+      .catch(() => setCoachSummary(null))
+  }, [user?.role])
 
   useEffect(() => {
     if (user?.role !== 'trainee') return
@@ -164,7 +184,7 @@ function Dashboard() {
     ? `Welcome Coach ${welcomeName}`
     : `Welcome Back, ${welcomeName}!`
 
-  const statCards: { label: string; value: string; icon: IconName; tone: IconTileTone }[] = [
+  const traineeStatCards: DashboardStatCard[] = [
     {
       label: 'Workouts This Week',
       value: weeklyGoal ? `${weeklyCompleted.length}/${weeklyGoal}` : `${weeklyCompleted.length}`,
@@ -190,6 +210,50 @@ function Dashboard() {
       tone: 'red',
     },
   ]
+
+  const coachStatCards: DashboardStatCard[] = [
+    {
+      label: 'Trainee Workouts This Week',
+      value: coachSummary ? `${coachSummary.totalWorkoutsThisWeek}` : '—',
+      icon: 'dumbbell',
+      tone: 'orange',
+      detailTitle: 'Worked Out This Week',
+      detailDescription: 'Trainees who completed at least one workout this week.',
+      detailMode: 'workouts',
+      trainees: coachSummary?.traineesWorkedOutThisWeek ?? [],
+    },
+    {
+      label: 'Not Started This Week',
+      value: coachSummary ? `${coachSummary.traineesNotStartedThisWeek}` : '—',
+      icon: 'user',
+      tone: 'blue',
+      detailTitle: 'Not Started This Week',
+      detailDescription: 'Trainees who have not completed a workout this week.',
+      detailMode: 'not-started',
+      trainees: coachSummary?.traineesNotStarted ?? [],
+    },
+    {
+      label: `Inactive ${coachSummary?.inactivityDays ?? 7}+ Days`,
+      value: coachSummary ? `${coachSummary.inactiveTrainees}` : '—',
+      icon: 'calendar',
+      tone: 'red',
+      detailTitle: `Inactive ${coachSummary?.inactivityDays ?? 7}+ Days`,
+      detailDescription: 'Trainees whose last completed workout was outside the activity window.',
+      detailMode: 'inactive',
+      trainees: coachSummary?.inactiveTraineeDetails ?? [],
+    },
+    {
+      label: 'Trainees With a PB This Week',
+      value: coachSummary ? `${coachSummary.traineesWithPbThisWeek}` : '—',
+      icon: 'trophy',
+      tone: 'green',
+      detailTitle: 'Personal Bests This Week',
+      detailDescription: 'Trainees who reached at least one new personal best this week.',
+      detailMode: 'pb',
+      trainees: coachSummary?.traineesWithPb ?? [],
+    },
+  ]
+  const statCards = user?.role === 'coach' ? coachStatCards : traineeStatCards
 
   const progressDays = dayLabels.map((day, index) => {
     const date = startOfWeek(new Date())
@@ -316,13 +380,70 @@ function Dashboard() {
 
       <section className="stats-grid" aria-label="Workout stats">
         {statCards.map(card => (
-          <Card as="article" padding="none" className="stat-card" key={card.label}>
+          <Card
+            as="article"
+            padding="none"
+            className={user?.role === 'coach' ? 'stat-card coach-stat-card' : 'stat-card'}
+            key={card.label}
+            role={user?.role === 'coach' ? 'button' : undefined}
+            tabIndex={user?.role === 'coach' ? 0 : undefined}
+            aria-label={user?.role === 'coach' ? `${card.label}: ${card.value}. View trainees.` : undefined}
+            onClick={user?.role === 'coach' ? () => setSelectedCoachStat(card) : undefined}
+            onKeyDown={user?.role === 'coach' ? event => {
+              if (event.key === 'Enter' || event.key === ' ') setSelectedCoachStat(card)
+            } : undefined}
+          >
             <IconTile tone={card.tone}><Icon name={card.icon} /></IconTile>
             <p>{card.label}</p>
             <strong>{card.value}</strong>
+            {user?.role === 'coach' ? <span className="coach-stat-hint">View trainees</span> : null}
           </Card>
         ))}
       </section>
+
+      {selectedCoachStat ? (
+        <div className="dashboard-stat-modal-backdrop" role="presentation" onClick={() => setSelectedCoachStat(null)}>
+          <section
+            className="dashboard-stat-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dashboard-stat-modal-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="dashboard-stat-modal-head">
+              <div>
+                <h2 id="dashboard-stat-modal-title">{selectedCoachStat.detailTitle}</h2>
+                <p>{selectedCoachStat.detailDescription}</p>
+              </div>
+              <button type="button" aria-label="Close trainee list" onClick={() => setSelectedCoachStat(null)}>
+                <Icon name="x" />
+              </button>
+            </div>
+            {(selectedCoachStat.trainees ?? []).length === 0 ? (
+              <div className="dashboard-stat-empty">No trainees in this category.</div>
+            ) : (
+              <div className="dashboard-stat-trainee-list">
+                {(selectedCoachStat.trainees ?? []).map(trainee => (
+                  <div className="dashboard-stat-trainee" key={trainee._id}>
+                    <span className="dashboard-stat-avatar">{trainee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+                    <div>
+                      <strong>{trainee.name}</strong>
+                      <small>{trainee.email}</small>
+                    </div>
+                    {selectedCoachStat.detailMode === 'workouts' ? (
+                      <span>{trainee.workoutCountThisWeek} {trainee.workoutCountThisWeek === 1 ? 'workout' : 'workouts'}</span>
+                    ) : selectedCoachStat.detailMode === 'inactive' ? (
+                      <span>{trainee.lastActiveAt ? `Last active ${new Date(trainee.lastActiveAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Never active'}</span>
+                    ) : selectedCoachStat.detailMode === 'pb' ? (
+                      <span className="dashboard-stat-pb">New PB</span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
 
       <section className="dashboard-grid">
         <Card as="article" className="workout-panel">

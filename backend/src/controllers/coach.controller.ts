@@ -17,6 +17,8 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Trainee id is invalid' })
     case 'INVALID_NOTES':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Notes must be 5,000 characters or fewer' })
+    case 'INVALID_INACTIVITY_DAYS':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'inactiveDays must be between 1 and 90' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
     case 'COACH_TRAINEE_NOT_FOUND':
@@ -57,6 +59,18 @@ export async function listCoachTrainees(req: AuthRequest, res: Response) {
   try {
     const trainees = await coachService.listCoachTrainees(req.user!.userId)
     return res.json(trainees)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getCoachDashboardSummary(req: AuthRequest, res: Response) {
+  try {
+    const inactiveDays = req.query.inactiveDays === undefined
+      ? 7
+      : Number(req.query.inactiveDays)
+    const summary = await coachService.getDashboardSummary(req.user!.userId, inactiveDays)
+    return res.json(summary)
   } catch (err) {
     return handleCoachError(res, err)
   }
