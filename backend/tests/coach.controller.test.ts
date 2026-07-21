@@ -1,6 +1,9 @@
 jest.mock('../src/services/coach.service')
 jest.mock('../src/services/coachProgress.service', () => ({
   getCoachProgressOverview: jest.fn(),
+  createTraineeGoal: jest.fn(),
+  updateTraineeGoal: jest.fn(),
+  deleteTraineeGoal: jest.fn(),
   getTraineeProgressSummary: jest.fn(),
   getTraineeExerciseSeries: jest.fn(),
   listTraineeGoals: jest.fn(),
@@ -10,21 +13,30 @@ jest.mock('../src/services/coachProgress.service', () => ({
 
 import { Response } from 'express'
 import {
+  createTraineeProgressGoal,
+  deleteTraineeProgressGoal,
   getProgressOverview,
   getTraineeProgress,
   getTraineeProgressExercise,
   getTraineeProgressMeasurements,
+  updateTraineeProgressGoal,
 } from '../src/controllers/coach.controller'
 import {
+  createTraineeGoal,
+  deleteTraineeGoal,
   getCoachProgressOverview,
   getTraineeProgressSummary,
   listTraineeMeasurements,
+  updateTraineeGoal,
 } from '../src/services/coachProgress.service'
 import { AuthRequest } from '../src/types'
 
 const mockGetOverview = getCoachProgressOverview as jest.MockedFunction<typeof getCoachProgressOverview>
 const mockGetSummary = getTraineeProgressSummary as jest.MockedFunction<typeof getTraineeProgressSummary>
 const mockListMeasurements = listTraineeMeasurements as jest.MockedFunction<typeof listTraineeMeasurements>
+const mockCreateGoal = createTraineeGoal as jest.MockedFunction<typeof createTraineeGoal>
+const mockUpdateGoal = updateTraineeGoal as jest.MockedFunction<typeof updateTraineeGoal>
+const mockDeleteGoal = deleteTraineeGoal as jest.MockedFunction<typeof deleteTraineeGoal>
 
 const makeReq = (period?: unknown) => ({
   user: { userId: 'coach1', email: 'coach@example.com' },
@@ -35,6 +47,7 @@ const makeReq = (period?: unknown) => ({
 const makeRes = () => ({
   status: jest.fn().mockReturnThis(),
   json: jest.fn().mockReturnThis(),
+  send: jest.fn().mockReturnThis(),
 } as unknown as Response)
 
 describe('coach.controller getProgressOverview', () => {
@@ -72,6 +85,67 @@ describe('coach.controller getProgressOverview', () => {
     expect(res.json).toHaveBeenCalledWith({
       error: 'VALIDATION_ERROR',
       message: 'Period must be week, month, quarter, or year',
+    })
+  })
+})
+
+describe('coach.controller assigned trainee goal writes', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  it('creates a goal and responds with 201', async () => {
+    const req = makeReq()
+    req.body = { type: 'weekly_workouts', targetValue: 4 }
+    const goal = { _id: 'goal1' }
+    mockCreateGoal.mockResolvedValue(
+      goal as unknown as Awaited<ReturnType<typeof createTraineeGoal>>
+    )
+    const res = makeRes()
+
+    await createTraineeProgressGoal(req, res)
+
+    expect(mockCreateGoal).toHaveBeenCalledWith('coach1', 'trainee1', req.body)
+    expect(res.status).toHaveBeenCalledWith(201)
+    expect(res.json).toHaveBeenCalledWith(goal)
+  })
+
+  it('updates a trainee goal', async () => {
+    const req = makeReq()
+    req.params.goalId = 'goal1'
+    req.body = { targetValue: 5 }
+    mockUpdateGoal.mockResolvedValue(
+      { _id: 'goal1' } as unknown as Awaited<ReturnType<typeof updateTraineeGoal>>
+    )
+    const res = makeRes()
+
+    await updateTraineeProgressGoal(req, res)
+
+    expect(mockUpdateGoal).toHaveBeenCalledWith('coach1', 'trainee1', 'goal1', req.body)
+  })
+
+  it('deletes a trainee goal and responds with 204', async () => {
+    const req = makeReq()
+    req.params.goalId = 'goal1'
+    mockDeleteGoal.mockResolvedValue(undefined)
+    const res = makeRes()
+
+    await deleteTraineeProgressGoal(req, res)
+
+    expect(mockDeleteGoal).toHaveBeenCalledWith('coach1', 'trainee1', 'goal1')
+    expect(res.status).toHaveBeenCalledWith(204)
+    expect(res.send).toHaveBeenCalled()
+  })
+
+  it('maps invalid goal input to a validation response', async () => {
+    const req = makeReq()
+    mockCreateGoal.mockRejectedValue(new Error('INVALID_GOAL_PAYLOAD'))
+    const res = makeRes()
+
+    await createTraineeProgressGoal(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'VALIDATION_ERROR',
+      message: 'Invalid goal data',
     })
   })
 })

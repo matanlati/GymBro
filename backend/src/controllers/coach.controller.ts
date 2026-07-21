@@ -2,12 +2,15 @@ import { Response } from 'express'
 import { AuthRequest } from '../types'
 import * as coachService from '../services/coach.service'
 import {
+  createTraineeGoal,
+  deleteTraineeGoal,
   getCoachProgressOverview,
   getTraineeExerciseSeries,
   getTraineeProgressSummary,
   listTraineeAchievements,
   listTraineeGoals,
   listTraineeMeasurements,
+  updateTraineeGoal,
 } from '../services/coachProgress.service'
 import { AchievementCategory } from '../models/AchievementUnlock.model'
 import { ProgressGoalStatus } from '../models/ProgressGoal.model'
@@ -30,9 +33,13 @@ const handleCoachError = (res: Response, err: unknown) => {
     case 'INVALID_PERIOD':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Period must be week, month, quarter, or year' })
     case 'INVALID_GOAL_STATUS':
+    case 'INVALID_GOAL_PAYLOAD':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid goal data' })
     case 'INVALID_ACHIEVEMENT_FILTERS':
     case 'INVALID_MEASUREMENT_FILTERS':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid progress filters' })
+    case 'GOAL_NOT_FOUND':
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Goal not found' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
     case 'COACH_TRAINEE_NOT_FOUND':
@@ -90,6 +97,38 @@ export async function getTraineeProgressGoals(req: AuthRequest, res: Response) {
       : undefined
     const goals = await listTraineeGoals(req.user!.userId, req.params.id, status)
     return res.json(goals)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function createTraineeProgressGoal(req: AuthRequest, res: Response) {
+  try {
+    const goal = await createTraineeGoal(req.user!.userId, req.params.id, req.body)
+    return res.status(201).json(goal)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function updateTraineeProgressGoal(req: AuthRequest, res: Response) {
+  try {
+    const goal = await updateTraineeGoal(
+      req.user!.userId,
+      req.params.id,
+      req.params.goalId,
+      req.body
+    )
+    return res.json(goal)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function deleteTraineeProgressGoal(req: AuthRequest, res: Response) {
+  try {
+    await deleteTraineeGoal(req.user!.userId, req.params.id, req.params.goalId)
+    return res.status(204).send()
   } catch (err) {
     return handleCoachError(res, err)
   }

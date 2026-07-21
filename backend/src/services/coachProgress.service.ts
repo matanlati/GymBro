@@ -205,6 +205,34 @@ export const listTraineeGoals = async (
   return progressGoalsService.listGoals(traineeId, status)
 }
 
+export const createTraineeGoal = async (
+  coachUserId: string,
+  traineeId: string,
+  payload: progressGoalsService.CreateProgressGoalPayload
+) => {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  return progressGoalsService.createGoal(traineeId, payload)
+}
+
+export const updateTraineeGoal = async (
+  coachUserId: string,
+  traineeId: string,
+  goalId: string,
+  payload: progressGoalsService.UpdateProgressGoalPayload
+) => {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  return progressGoalsService.updateGoal(traineeId, goalId, payload)
+}
+
+export const deleteTraineeGoal = async (
+  coachUserId: string,
+  traineeId: string,
+  goalId: string
+) => {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  return progressGoalsService.deleteGoal(traineeId, goalId)
+}
+
 export const listTraineeAchievements = async (
   coachUserId: string,
   traineeId: string,

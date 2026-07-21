@@ -19,12 +19,15 @@ import * as achievementsService from '../src/services/achievements.service'
 import * as bodyMeasurementsService from '../src/services/bodyMeasurements.service'
 import { requireAssignedTrainee, requireCoachUser } from '../src/services/coach.service'
 import {
+  createTraineeGoal,
+  deleteTraineeGoal,
   getCoachProgressOverview,
   getTraineeExerciseSeries,
   getTraineeProgressSummary,
   listTraineeAchievements,
   listTraineeGoals,
   listTraineeMeasurements,
+  updateTraineeGoal,
 } from '../src/services/coachProgress.service'
 import * as progressService from '../src/services/progress.service'
 import * as progressGoalsService from '../src/services/progressGoals.service'
@@ -216,5 +219,50 @@ describe('coachProgress.service assigned trainee reads', () => {
       .rejects.toThrow('COACH_TRAINEE_NOT_FOUND')
 
     expect(progressService.getSummary).not.toHaveBeenCalled()
+  })
+
+  it('creates a goal for the assigned trainee', async () => {
+    const payload = { type: 'weekly_workouts' as const, targetValue: 4 }
+    const goal = { _id: 'goal1', ...payload }
+    ;(progressGoalsService.createGoal as jest.Mock).mockResolvedValue(goal)
+
+    await expect(createTraineeGoal(COACH_ID, TRAINEE_IDS[0], payload)).resolves.toBe(goal)
+
+    expect(mockRequireAssigned).toHaveBeenCalledWith(COACH_ID, TRAINEE_IDS[0])
+    expect(progressGoalsService.createGoal).toHaveBeenCalledWith(TRAINEE_IDS[0], payload)
+  })
+
+  it('updates a goal through the trainee-scoped goal service', async () => {
+    const payload = { targetValue: 5, status: 'active' as const }
+    ;(progressGoalsService.updateGoal as jest.Mock).mockResolvedValue({ _id: 'goal1' })
+
+    await updateTraineeGoal(COACH_ID, TRAINEE_IDS[0], 'goal1', payload)
+
+    expect(progressGoalsService.updateGoal).toHaveBeenCalledWith(
+      TRAINEE_IDS[0],
+      'goal1',
+      payload
+    )
+  })
+
+  it('deletes only a goal belonging to the assigned trainee', async () => {
+    ;(progressGoalsService.deleteGoal as jest.Mock).mockResolvedValue(undefined)
+
+    await deleteTraineeGoal(COACH_ID, TRAINEE_IDS[0], 'goal1')
+
+    expect(progressGoalsService.deleteGoal).toHaveBeenCalledWith(TRAINEE_IDS[0], 'goal1')
+  })
+
+  it('does not mutate goals when assignment authorization fails', async () => {
+    mockRequireAssigned.mockRejectedValue(new Error('COACH_TRAINEE_NOT_FOUND'))
+
+    await expect(createTraineeGoal(COACH_ID, TRAINEE_IDS[0], {
+      type: 'weekly_workouts',
+      targetValue: 4,
+    })).rejects.toThrow('COACH_TRAINEE_NOT_FOUND')
+
+    expect(progressGoalsService.createGoal).not.toHaveBeenCalled()
+    expect(progressGoalsService.updateGoal).not.toHaveBeenCalled()
+    expect(progressGoalsService.deleteGoal).not.toHaveBeenCalled()
   })
 })
