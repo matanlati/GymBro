@@ -6,6 +6,7 @@ import { IWorkoutSession, WorkoutSession } from '../models/WorkoutSession.model'
 import { AchievementUnlock } from '../models/AchievementUnlock.model'
 import { CoachWorkoutReview } from '../models/CoachWorkoutReview.model'
 import { CoachProgressAlertClear } from '../models/CoachProgressAlert.model'
+import { CoachSettings } from '../models/CoachSettings.model'
 import { toExerciseKey } from '../utils/exerciseKey'
 
 const userSelect = 'name email photo role coachId timezone'
@@ -74,6 +75,39 @@ export async function listCoachTrainees(coachUserId: string) {
     .lean()
 }
 
+const DEFAULT_COACH_SETTINGS = { inactivityDays: 7, stagnantWorkoutCount: 3 }
+
+export async function getCoachSettings(coachUserId: string) {
+  const coach = await requireUser(coachUserId)
+  if (coach.role !== 'coach') throw new Error('COACH_ONLY')
+  const settings = await CoachSettings.findOne({ coachId: coach._id }).lean()
+  return settings
+    ? { inactivityDays: settings.inactivityDays, stagnantWorkoutCount: settings.stagnantWorkoutCount }
+    : DEFAULT_COACH_SETTINGS
+}
+
+export async function updateCoachSettings(
+  coachUserId: string,
+  updates: { inactivityDays?: unknown; stagnantWorkoutCount?: unknown }
+) {
+  const coach = await requireUser(coachUserId)
+  if (coach.role !== 'coach') throw new Error('COACH_ONLY')
+  const inactivityDays = Number(updates.inactivityDays)
+  const stagnantWorkoutCount = Number(updates.stagnantWorkoutCount)
+  if (!Number.isInteger(inactivityDays) || inactivityDays < 1 || inactivityDays > 90) {
+    throw new Error('INVALID_INACTIVITY_DAYS')
+  }
+  if (!Number.isInteger(stagnantWorkoutCount) || stagnantWorkoutCount < 2 || stagnantWorkoutCount > 10) {
+    throw new Error('INVALID_STAGNANT_WORKOUTS')
+  }
+  const settings = await CoachSettings.findOneAndUpdate(
+    { coachId: coach._id },
+    { $set: { inactivityDays, stagnantWorkoutCount } },
+    { new: true, upsert: true, runValidators: true }
+  ).lean()
+  return { inactivityDays: settings.inactivityDays, stagnantWorkoutCount: settings.stagnantWorkoutCount }
+}
+
 export interface CoachDashboardSummary {
   totalWorkoutsThisWeek: number
   traineesNotStartedThisWeek: number
@@ -96,14 +130,11 @@ export interface CoachDashboardTrainee {
 }
 
 export async function getDashboardSummary(
-  coachUserId: string,
-  inactivityDays = 7
+  coachUserId: string
 ): Promise<CoachDashboardSummary> {
   const coach = await requireUser(coachUserId)
   if (coach.role !== 'coach') throw new Error('COACH_ONLY')
-  if (!Number.isInteger(inactivityDays) || inactivityDays < 1 || inactivityDays > 90) {
-    throw new Error('INVALID_INACTIVITY_DAYS')
-  }
+  const { inactivityDays } = await getCoachSettings(coachUserId)
 
   const traineeIds = await User.find({ coachId: coach._id, role: 'trainee' }).distinct('_id')
   if (traineeIds.length === 0) {
@@ -354,6 +385,7 @@ export async function getProgressLookout(coachUserId: string): Promise<CoachProg
     .sort({ name: 1 })
     .lean()
   if (!trainees.length) return []
+  const { stagnantWorkoutCount } = await getCoachSettings(coachUserId)
 
   const clearedAlerts = await CoachProgressAlertClear.find({
     coachId: coach._id,
@@ -385,9 +417,9 @@ export async function getProgressLookout(coachUserId: string): Promise<CoachProg
 
     const stalledWorkouts: CoachProgressLookout['stalledWorkouts'] = []
     workoutGroups.forEach((group, workoutKey) => {
-      if (group.length < 3) return
-      const latestThree = group.slice(0, 3).reverse()
-      const exerciseMaps = latestThree.map(session => new Map(
+      if (group.length < stagnantWorkoutCount) return
+      const latestWorkouts = group.slice(0, stagnantWorkoutCount).reverse()
+      const exerciseMaps = latestWorkouts.map(session => new Map(
         session.exercises
           .filter(exercise => exercise.sets.length > 0)
           .map(exercise => [exercise.exerciseKey || toExerciseKey(exercise.name), exercise])
@@ -401,7 +433,7 @@ export async function getProgressLookout(coachUserId: string): Promise<CoachProg
         const history = exerciseMaps.map((map, index) => {
           const exercise = map.get(exerciseKey)!
           return {
-            completedAt: latestThree[index].completedAt as Date,
+            completedAt: latestWorkouts[index].completedAt as Date,
             maxWeightKg: Math.max(0, ...exercise.sets.map(set => set.weightUsedKg ?? 0)),
             maxReps: Math.max(0, ...exercise.sets.map(set => set.repsCompleted ?? 0)),
           }
@@ -419,7 +451,7 @@ export async function getProgressLookout(coachUserId: string): Promise<CoachProg
       const stagnantExerciseCount = exercises.filter(exercise => !exercise.progressed).length
       if (stagnantExerciseCount < Math.ceil(exercises.length / 2)) return
 
-      const latest = latestThree[2]
+      const latest = latestWorkouts[latestWorkouts.length - 1]
       const clearedAt = clearedAtByAlert.get(`${trainee._id}:${workoutKey}`)
       if (clearedAt && (latest.completedAt as Date) <= clearedAt) return
       stalledWorkouts.push({

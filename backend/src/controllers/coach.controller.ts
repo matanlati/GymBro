@@ -19,6 +19,8 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Notes must be 5,000 characters or fewer' })
     case 'INVALID_INACTIVITY_DAYS':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'inactiveDays must be between 1 and 90' })
+    case 'INVALID_STAGNANT_WORKOUTS':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Stagnant workouts must be between 2 and 10' })
     case 'INVALID_SESSION':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Session id is invalid' })
     case 'WORKOUT_NOT_FOUND':
@@ -72,11 +74,24 @@ export async function listCoachTrainees(req: AuthRequest, res: Response) {
 
 export async function getCoachDashboardSummary(req: AuthRequest, res: Response) {
   try {
-    const inactiveDays = req.query.inactiveDays === undefined
-      ? 7
-      : Number(req.query.inactiveDays)
-    const summary = await coachService.getDashboardSummary(req.user!.userId, inactiveDays)
+    const summary = await coachService.getDashboardSummary(req.user!.userId)
     return res.json(summary)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getCoachAlertSettings(req: AuthRequest, res: Response) {
+  try {
+    return res.json(await coachService.getCoachSettings(req.user!.userId))
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function updateCoachAlertSettings(req: AuthRequest, res: Response) {
+  try {
+    return res.json(await coachService.updateCoachSettings(req.user!.userId, req.body ?? {}))
   } catch (err) {
     return handleCoachError(res, err)
   }

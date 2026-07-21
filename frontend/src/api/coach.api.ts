@@ -58,8 +58,21 @@ export interface CoachDashboardTrainee {
   personalBests: Array<{ exerciseName: string; value: number; metric: 'weight' | 'reps' }>
 }
 
-export function getCoachDashboardSummary(inactiveDays = 7) {
-  return client.get<CoachDashboardSummary>('/coach/dashboard-summary', { params: { inactiveDays } })
+export function getCoachDashboardSummary() {
+  return client.get<CoachDashboardSummary>('/coach/dashboard-summary')
+}
+
+export interface CoachAlertSettings {
+  inactivityDays: number
+  stagnantWorkoutCount: number
+}
+
+export function getCoachAlertSettings() {
+  return client.get<CoachAlertSettings>('/coach/settings')
+}
+
+export function updateCoachAlertSettings(settings: CoachAlertSettings) {
+  return client.put<CoachAlertSettings>('/coach/settings', settings)
 }
 
 export interface CoachWorkoutSetSummary {

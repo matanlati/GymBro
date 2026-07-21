@@ -741,7 +741,7 @@ function Dashboard() {
                   <div className="coach-lookout-workout-head">
                     <div><h3>{workout.workoutName}</h3><p>{workout.stagnantExerciseCount} of {workout.evaluatedExerciseCount} exercises have not progressed</p></div>
                     <div className="coach-lookout-actions">
-                      <span>Last 3 workouts</span>
+                      <span>Last {workout.exercises[0]?.history.length ?? 0} workouts</span>
                       <button
                         type="button"
                         disabled={clearingLookoutKey === workout.workoutKey}

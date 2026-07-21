@@ -11,7 +11,8 @@ import {
   ProgressSummary,
 } from '../api/progress.api'
 import { AxiosError } from 'axios'
-import { BarChart2, LogOut, Camera, Scale, UserRoundCheck } from 'lucide-react'
+import { BarChart2, LogOut, Camera, Scale, UserRoundCheck, BellRing } from 'lucide-react'
+import { CoachAlertSettings, getCoachAlertSettings, updateCoachAlertSettings } from '../api/coach.api'
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 function IconEmail() {
@@ -89,6 +90,10 @@ export default function ProfilePage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [error, setError] = useState('')
   const [weightError, setWeightError] = useState('')
+  const [coachSettings, setCoachSettings] = useState<CoachAlertSettings>({ inactivityDays: 7, stagnantWorkoutCount: 3 })
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [settingsError, setSettingsError] = useState('')
+  const [settingsSaved, setSettingsSaved] = useState(false)
 
   useEffect(() => {
     getMe().then(({ data }) => {
@@ -98,6 +103,11 @@ export default function ProfilePage() {
         heightCm: data.heightCm, fitnessLevel: data.fitnessLevel,
         goals: data.goals, limitations: data.limitations,
       })
+      if (data.role === 'coach') {
+        getCoachAlertSettings()
+          .then(({ data: settings }) => setCoachSettings(settings))
+          .catch(() => setSettingsError('Failed to load coaching alert settings'))
+      }
     }).catch(() => setError('Failed to load profile'))
     getSummary()
       .then(({ data }) => setSummary(data))
@@ -169,6 +179,23 @@ export default function ProfilePage() {
       setWeightError(axiosErr.response?.data?.message || 'Failed to save weigh-in')
     } finally {
       setSavingWeight(false)
+    }
+  }
+
+  async function handleCoachSettingsSave(e: FormEvent) {
+    e.preventDefault()
+    setSettingsSaving(true)
+    setSettingsError('')
+    setSettingsSaved(false)
+    try {
+      const { data } = await updateCoachAlertSettings(coachSettings)
+      setCoachSettings(data)
+      setSettingsSaved(true)
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message: string }>
+      setSettingsError(axiosErr.response?.data?.message || 'Failed to save coaching alert settings')
+    } finally {
+      setSettingsSaving(false)
     }
   }
 
@@ -346,8 +373,56 @@ export default function ProfilePage() {
         </Card>
       ) : null}
 
-      {/* Bottom row: Weight + Quick Stats */}
+      {/* Bottom row: coach alert settings (coach) or weight progress (trainee) + Quick Stats */}
       <div style={styles.bottomRow}>
+        {profile.role === 'coach' ? (
+          <Card padding="none" style={styles.card}>
+            <div style={styles.cardHeader}>
+              <BellRing size={16} color="#6B7280" strokeWidth={1.8} />
+              <span style={styles.cardTitle}>Coaching Alerts</span>
+            </div>
+            <form onSubmit={handleCoachSettingsSave} style={styles.settingsForm}>
+              <p style={styles.settingsIntro}>Choose when trainees should be surfaced on your dashboard.</p>
+              <FormField label="Inactive after">
+                <div style={styles.settingInputRow}>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="90"
+                    value={coachSettings.inactivityDays}
+                    onChange={(e) => {
+                      setSettingsSaved(false)
+                      setCoachSettings(prev => ({ ...prev, inactivityDays: Number(e.target.value) }))
+                    }}
+                  />
+                  <span style={styles.settingUnit}>days</span>
+                </div>
+              </FormField>
+              <span style={styles.settingHint}>Alert when a trainee has not completed a workout for this many days.</span>
+              <FormField label="Stagnation review window">
+                <div style={styles.settingInputRow}>
+                  <Input
+                    type="number"
+                    min="2"
+                    max="10"
+                    value={coachSettings.stagnantWorkoutCount}
+                    onChange={(e) => {
+                      setSettingsSaved(false)
+                      setCoachSettings(prev => ({ ...prev, stagnantWorkoutCount: Number(e.target.value) }))
+                    }}
+                  />
+                  <span style={styles.settingUnit}>workouts</span>
+                </div>
+              </FormField>
+              <span style={styles.settingHint}>Compare this many recent workouts of the same type before raising a Look Out alert.</span>
+              {settingsError && <Alert variant="error">{settingsError}</Alert>}
+              {settingsSaved && <span style={styles.settingsSuccess}>Settings saved. Dashboard alerts now use these values.</span>}
+              <div style={styles.settingsActions}>
+                <Button type="submit" size="sm" loading={settingsSaving} loadingLabel="Saving...">Save Settings</Button>
+              </div>
+            </form>
+          </Card>
+        ) : (
         <Card padding="none" style={styles.card}>
           <div style={styles.cardHeader}>
             <Scale size={16} color="#6B7280" strokeWidth={1.8} />
@@ -374,6 +449,7 @@ export default function ProfilePage() {
             <strong>{latestWeight ? `${latestWeight} kg` : '-'}</strong>
           </div>
         </Card>
+        )}
 
         <Card padding="none" style={styles.card}>
           <div style={styles.cardHeader}>
@@ -622,6 +698,14 @@ const styles: Record<string, React.CSSProperties> = {
   bottomRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 8, padding: '16px 20px', borderBottom: '1px solid #F3F4F6' },
   cardTitle: { fontSize: 14, fontWeight: 700, color: '#111827' },
+
+  settingsForm: { padding: '16px 20px', display: 'grid', gap: 10 },
+  settingsIntro: { margin: '0 0 2px', color: '#6B7280', fontSize: 12, lineHeight: 1.5 },
+  settingInputRow: { display: 'grid', gridTemplateColumns: '110px auto', gap: 10, alignItems: 'center' },
+  settingUnit: { color: '#6B7280', fontSize: 13 },
+  settingHint: { color: '#9CA3AF', fontSize: 11, lineHeight: 1.45, marginTop: -4 },
+  settingsSuccess: { color: '#15803D', fontSize: 12 },
+  settingsActions: { display: 'flex', justifyContent: 'flex-end', marginTop: 2 },
 
   weighInForm: { padding: '14px 20px 8px', display: 'grid', gap: 8 },
   weighInInputRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center' },
