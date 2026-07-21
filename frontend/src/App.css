@@ -1931,6 +1931,31 @@ button {
   padding: 24px;
 }
 
+.coach-overall-progress {
+  display: grid;
+  gap: 22px;
+}
+
+.coach-progress-period-select {
+  min-width: 168px;
+}
+
+.coach-overall-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .coach-overall-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .coach-progress-period-select {
+    min-width: 150px;
+  }
+}
+
 /* .progress-empty is still referenced inside BarChart/LineChart — remove once
    those move to the ui-kit and use EmptyState. */
 .progress-empty {
