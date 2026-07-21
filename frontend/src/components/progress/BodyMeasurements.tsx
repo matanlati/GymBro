@@ -15,6 +15,7 @@ import {
   BodyMeasurementPayload,
 } from '../../api/progress.api'
 import type { ProgressDataSource } from '../../api/progressDataSource'
+import type { ProgressDashboardPermissions } from './ProgressDashboard'
 import LineChart from './LineChart'
 
 type MeasurementMetric = 'weightKg' | 'bodyFatPercent' | 'muscleMassKg'
@@ -33,9 +34,13 @@ const dateInputValue = (iso?: string) => {
 
 interface BodyMeasurementsProps {
   dataSource: ProgressDataSource
+  permissions: ProgressDashboardPermissions
 }
 
-export default function BodyMeasurements({ dataSource }: BodyMeasurementsProps) {
+export default function BodyMeasurements({
+  dataSource,
+  permissions,
+}: BodyMeasurementsProps) {
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([])
   const [metric, setMetric] = useState<MeasurementMetric>('weightKg')
   const [loading, setLoading] = useState(true)
@@ -85,6 +90,7 @@ export default function BodyMeasurements({ dataSource }: BodyMeasurementsProps) 
   }
 
   const startEdit = (measurement: BodyMeasurement) => {
+    if (!permissions.canEditMeasurements) return
     setEditing(measurement)
     setMeasuredAt(dateInputValue(measurement.measuredAt))
     setWeightKg(measurement.weightKg?.toString() ?? '')
@@ -95,6 +101,7 @@ export default function BodyMeasurements({ dataSource }: BodyMeasurementsProps) 
 
   const submitMeasurement = async (event: FormEvent) => {
     event.preventDefault()
+    if (editing ? !permissions.canEditMeasurements : !permissions.canAddMeasurements) return
     if (!weightKg && !bodyFatPercent && !muscleMassKg) {
       setError('Enter at least one measurement.')
       return
@@ -123,6 +130,7 @@ export default function BodyMeasurements({ dataSource }: BodyMeasurementsProps) 
   }
 
   const removeMeasurement = async (measurement: BodyMeasurement) => {
+    if (!permissions.canDeleteMeasurements) return
     if (!window.confirm('Delete this measurement entry?')) return
     try {
       await dataSource.measurements.remove?.(measurement._id)
@@ -139,7 +147,7 @@ export default function BodyMeasurements({ dataSource }: BodyMeasurementsProps) 
     <Card as="section" className="progress-card measurements-card">
       <CardHeader
         title="Body Measurements"
-        trailing={
+        trailing={permissions.canAddMeasurements ? (
           <Button
             variant="ghost"
             size="sm"
@@ -148,12 +156,12 @@ export default function BodyMeasurements({ dataSource }: BodyMeasurementsProps) 
           >
             {showForm ? 'Cancel' : 'Add measurement'}
           </Button>
-        }
+        ) : undefined}
       />
 
       {error && <Alert variant="error">{error}</Alert>}
 
-      {showForm && (
+      {showForm && (editing ? permissions.canEditMeasurements : permissions.canAddMeasurements) && (
         <form className="measurement-form" onSubmit={submitMeasurement}>
           <FormField label="Date">
             <Input
@@ -224,14 +232,20 @@ export default function BodyMeasurements({ dataSource }: BodyMeasurementsProps) 
                       ].filter(Boolean).join(', ')}
                     </span>
                   </div>
-                  <div className="measurement-entry-actions">
-                    <button type="button" onClick={() => startEdit(measurement)} aria-label="Edit measurement" title="Edit measurement">
-                      <Pencil size={15} />
-                    </button>
-                    <button type="button" onClick={() => removeMeasurement(measurement)} aria-label="Delete measurement" title="Delete measurement">
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
+                  {(permissions.canEditMeasurements || permissions.canDeleteMeasurements) && (
+                    <div className="measurement-entry-actions">
+                      {permissions.canEditMeasurements && (
+                        <button type="button" onClick={() => startEdit(measurement)} aria-label="Edit measurement" title="Edit measurement">
+                          <Pencil size={15} />
+                        </button>
+                      )}
+                      {permissions.canDeleteMeasurements && (
+                        <button type="button" onClick={() => removeMeasurement(measurement)} aria-label="Delete measurement" title="Delete measurement">
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

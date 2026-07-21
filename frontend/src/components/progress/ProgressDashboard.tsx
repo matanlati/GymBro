@@ -22,6 +22,34 @@ interface ProgressDashboardProps {
   embedded?: boolean
   title?: string
   subtitle?: string
+  permissions?: ProgressDashboardPermissions
+}
+
+export interface ProgressDashboardPermissions {
+  canAddGoals: boolean
+  canEditGoals: boolean
+  canArchiveGoals: boolean
+  canAddMeasurements: boolean
+  canEditMeasurements: boolean
+  canDeleteMeasurements: boolean
+}
+
+export const FULL_PROGRESS_PERMISSIONS: ProgressDashboardPermissions = {
+  canAddGoals: true,
+  canEditGoals: true,
+  canArchiveGoals: true,
+  canAddMeasurements: true,
+  canEditMeasurements: true,
+  canDeleteMeasurements: true,
+}
+
+export const COACH_PROGRESS_PERMISSIONS: ProgressDashboardPermissions = {
+  canAddGoals: true,
+  canEditGoals: true,
+  canArchiveGoals: true,
+  canAddMeasurements: false,
+  canEditMeasurements: false,
+  canDeleteMeasurements: false,
 }
 
 export default function ProgressDashboard({
@@ -29,6 +57,7 @@ export default function ProgressDashboard({
   embedded = false,
   title = 'Your Progress',
   subtitle = 'Track your fitness journey and celebrate achievements',
+  permissions = FULL_PROGRESS_PERMISSIONS,
 }: ProgressDashboardProps) {
   const [summary, setSummary] = useState<ProgressSummary | null>(null)
   const [loading, setLoading] = useState(true)
@@ -237,8 +266,9 @@ export default function ProgressDashboard({
           <GoalsAchievements
             exercises={summary.strengthProgress.map(item => item.exerciseName)}
             dataSource={dataSource}
+            permissions={permissions}
           />
-          <BodyMeasurements dataSource={dataSource} />
+          <BodyMeasurements dataSource={dataSource} permissions={permissions} />
         </>
       )}
     </Root>

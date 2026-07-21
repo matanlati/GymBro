@@ -17,6 +17,7 @@ import {
   ProgressGoalType,
 } from '../../api/progress.api'
 import type { ProgressDataSource } from '../../api/progressDataSource'
+import type { ProgressDashboardPermissions } from './ProgressDashboard'
 import ProgressSelect from './ProgressSelect'
 
 const GOAL_TYPES: SelectOption<ProgressGoalType>[] = [
@@ -58,9 +59,14 @@ const achievementLabel = (achievement: AchievementUnlock) => {
 interface GoalsAchievementsProps {
   exercises: string[]
   dataSource: ProgressDataSource
+  permissions: ProgressDashboardPermissions
 }
 
-export default function GoalsAchievements({ exercises, dataSource }: GoalsAchievementsProps) {
+export default function GoalsAchievements({
+  exercises,
+  dataSource,
+  permissions,
+}: GoalsAchievementsProps) {
   const [goals, setGoals] = useState<ProgressGoal[]>([])
   const [achievements, setAchievements] = useState<AchievementUnlock[]>([])
   const [loading, setLoading] = useState(true)
@@ -106,6 +112,7 @@ export default function GoalsAchievements({ exercises, dataSource }: GoalsAchiev
 
   const submitGoal = async (event: FormEvent) => {
     event.preventDefault()
+    if (!permissions.canAddGoals) return
     const target = Number(targetValue)
     if (!Number.isFinite(target) || target <= 0) {
       setError('Enter a target greater than zero.')
@@ -140,6 +147,7 @@ export default function GoalsAchievements({ exercises, dataSource }: GoalsAchiev
   }
 
   const archiveGoal = async (goal: ProgressGoal) => {
+    if (!permissions.canArchiveGoals) return
     try {
       await dataSource.goals.update(goal._id, { status: 'archived' })
       setGoals(current => current.filter(item => item._id !== goal._id))
@@ -155,7 +163,7 @@ export default function GoalsAchievements({ exercises, dataSource }: GoalsAchiev
       <Card as="section" className="progress-card">
         <CardHeader
           title="Goals"
-          trailing={
+          trailing={permissions.canAddGoals ? (
             <Button
               variant="ghost"
               size="sm"
@@ -164,12 +172,12 @@ export default function GoalsAchievements({ exercises, dataSource }: GoalsAchiev
             >
               {showForm ? 'Cancel' : 'Add goal'}
             </Button>
-          }
+          ) : undefined}
         />
 
         {error && <Alert variant="error">{error}</Alert>}
 
-        {showForm && (
+        {permissions.canAddGoals && showForm && (
           <form className="goal-form" onSubmit={submitGoal}>
             <FormField label="Goal type">
               <ProgressSelect
@@ -237,15 +245,17 @@ export default function GoalsAchievements({ exercises, dataSource }: GoalsAchiev
                       <span style={{ width: `${percent}%` }} />
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="goal-archive-button"
-                    onClick={() => archiveGoal(goal)}
-                    aria-label={`Archive ${goalLabel(goal)}`}
-                    title="Archive goal"
-                  >
-                    <Archive size={16} />
-                  </button>
+                  {permissions.canArchiveGoals && (
+                    <button
+                      type="button"
+                      className="goal-archive-button"
+                      onClick={() => archiveGoal(goal)}
+                      aria-label={`Archive ${goalLabel(goal)}`}
+                      title="Archive goal"
+                    >
+                      <Archive size={16} />
+                    </button>
+                  )}
                 </li>
               )
             })}
