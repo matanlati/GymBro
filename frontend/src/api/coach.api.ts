@@ -61,6 +61,31 @@ export function getCoachDashboardSummary(inactiveDays = 7) {
   return client.get<CoachDashboardSummary>('/coach/dashboard-summary', { params: { inactiveDays } })
 }
 
+export interface CoachWorkoutSetSummary {
+  setNumber: number
+  repsCompleted: number
+  weightUsedKg?: number
+  isPb: boolean
+}
+
+export interface CoachTodayWorkout {
+  sessionId: string
+  trainee: { _id: string; name: string; email: string; photo?: string }
+  title: string
+  completedAt: string
+  durationMinutes: number
+  reviewedAt: string | null
+  exercises: Array<{ name: string; sets: CoachWorkoutSetSummary[] }>
+}
+
+export function listCoachTodayWorkouts() {
+  return client.get<CoachTodayWorkout[]>('/coach/today-workouts')
+}
+
+export function reviewCoachWorkout(sessionId: string) {
+  return client.post<{ sessionId: string; reviewedAt: string }>(`/coach/workout-reviews/${sessionId}`)
+}
+
 export function removeCoachTrainee(traineeId: string) {
   return client.delete(`/coach/trainees/${traineeId}`)
 }

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { getOrCreateToday, listSessions, scheduleSession, Session } from '../api/sessions.api'
 import { getSummary, ProgressSummary } from '../api/progress.api'
-import { acceptCoachInvite, CoachDashboardSummary, CoachDashboardTrainee, CoachInvite, getCoachDashboardSummary, listMyCoachInvites } from '../api/coach.api'
+import { acceptCoachInvite, CoachDashboardSummary, CoachDashboardTrainee, CoachInvite, CoachTodayWorkout, getCoachDashboardSummary, listCoachTodayWorkouts, listMyCoachInvites, reviewCoachWorkout } from '../api/coach.api'
 
 type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
   'calendar' | 'trend' | 'target' | 'weight' | 'trophy' | 'check' | 'chevronLeft' | 'chevronRight' | 'x'
@@ -134,6 +134,10 @@ function Dashboard() {
   const [acceptingInviteId, setAcceptingInviteId] = useState('')
   const [coachSummary, setCoachSummary] = useState<CoachDashboardSummary | null>(null)
   const [selectedCoachStat, setSelectedCoachStat] = useState<DashboardStatCard | null>(null)
+  const [coachTodayWorkouts, setCoachTodayWorkouts] = useState<CoachTodayWorkout[]>([])
+  const [coachWorkoutsLoading, setCoachWorkoutsLoading] = useState(false)
+  const [selectedCoachWorkout, setSelectedCoachWorkout] = useState<CoachTodayWorkout | null>(null)
+  const [reviewingWorkout, setReviewingWorkout] = useState(false)
 
   useEffect(() => {
     Promise.allSettled([getActivePlan(), getSummary(), listSessions()])
@@ -147,10 +151,32 @@ function Dashboard() {
 
   useEffect(() => {
     if (user?.role !== 'coach') return
-    getCoachDashboardSummary()
-      .then(({ data }) => setCoachSummary(data))
-      .catch(() => setCoachSummary(null))
+    setCoachWorkoutsLoading(true)
+    Promise.allSettled([getCoachDashboardSummary(), listCoachTodayWorkouts()])
+      .then(([summaryResult, workoutsResult]) => {
+        setCoachSummary(summaryResult.status === 'fulfilled' ? summaryResult.value.data : null)
+        setCoachTodayWorkouts(workoutsResult.status === 'fulfilled' ? workoutsResult.value.data : [])
+      })
+      .finally(() => setCoachWorkoutsLoading(false))
   }, [user?.role])
+
+  const markWorkoutReviewed = async () => {
+    if (!selectedCoachWorkout) return
+    setReviewingWorkout(true)
+    try {
+      const { data } = await reviewCoachWorkout(selectedCoachWorkout.sessionId)
+      const update = (workout: CoachTodayWorkout) => workout.sessionId === data.sessionId
+        ? { ...workout, reviewedAt: data.reviewedAt }
+        : workout
+      setCoachTodayWorkouts(current => current.map(update).sort((left, right) => {
+        if (!!left.reviewedAt !== !!right.reviewedAt) return left.reviewedAt ? 1 : -1
+        return +new Date(right.completedAt) - +new Date(left.completedAt)
+      }))
+      setSelectedCoachWorkout(current => current ? update(current) : current)
+    } finally {
+      setReviewingWorkout(false)
+    }
+  }
 
   useEffect(() => {
     if (user?.role !== 'trainee') return
@@ -447,6 +473,42 @@ function Dashboard() {
 
       <section className="dashboard-grid">
         <Card as="article" className="workout-panel">
+          {user?.role === 'coach' ? (
+            <>
+              <CardHeader title="Workouts Completed Today" />
+              {coachWorkoutsLoading ? (
+                <div className="coach-workout-queue-empty">Loading completed workouts...</div>
+              ) : coachTodayWorkouts.length === 0 ? (
+                <div className="coach-workout-queue-empty">No trainees have completed a workout today yet.</div>
+              ) : (
+                <div className="coach-workout-queue">
+                  {coachTodayWorkouts.map(workout => (
+                    <div className={workout.reviewedAt ? 'coach-workout-row reviewed' : 'coach-workout-row'} key={workout.sessionId}>
+                      <span className="coach-workout-avatar">
+                        {workout.trainee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}
+                      </span>
+                      <div>
+                        <strong>{workout.trainee.name}</strong>
+                        <span>{workout.title}</span>
+                        <small>
+                          {new Date(workout.completedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                          {' · '}{workout.durationMinutes} min
+                        </small>
+                      </div>
+                      {workout.reviewedAt ? (
+                        <button className="coach-workout-reviewed-button" type="button" onClick={() => setSelectedCoachWorkout(workout)}>
+                          <Icon name="check" /> Reviewed
+                        </button>
+                      ) : (
+                        <Button size="sm" onClick={() => setSelectedCoachWorkout(workout)}>Review</Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+          <>
           <CardHeader
             title="Today's Workout"
             trailing={
@@ -494,6 +556,8 @@ function Dashboard() {
               ))}
             </div>
           </div>
+          </>
+          )}
         </Card>
 
         <aside className="side-column">
@@ -529,6 +593,60 @@ function Dashboard() {
           ) : null}
         </aside>
       </section>
+      {selectedCoachWorkout ? (
+        <div className="coach-workout-modal-backdrop" role="presentation" onClick={() => setSelectedCoachWorkout(null)}>
+          <section
+            className="coach-workout-review-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="coach-workout-review-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="coach-workout-review-head">
+              <div>
+                <span>{selectedCoachWorkout.trainee.name}</span>
+                <h2 id="coach-workout-review-title">{selectedCoachWorkout.title}</h2>
+                <p>
+                  Completed {new Date(selectedCoachWorkout.completedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  {' · '}{selectedCoachWorkout.durationMinutes} minutes
+                </p>
+              </div>
+              <button type="button" aria-label="Close workout review" onClick={() => setSelectedCoachWorkout(null)}>
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="coach-workout-exercises">
+              {selectedCoachWorkout.exercises.length === 0 ? (
+                <div className="coach-workout-queue-empty">No exercise details were logged.</div>
+              ) : selectedCoachWorkout.exercises.map((exercise, exerciseIndex) => (
+                <div className="coach-workout-exercise" key={`${exercise.name}-${exerciseIndex}`}>
+                  <h3>{exercise.name}</h3>
+                  <div className="coach-workout-set-head"><span>Set</span><span>Reps</span><span>Weight</span></div>
+                  {exercise.sets.map((set, setIndex) => (
+                    <div className={set.isPb ? 'coach-workout-set pb' : 'coach-workout-set'} key={`${set.setNumber}-${setIndex}`}>
+                      <span>{set.setNumber}</span>
+                      <span>{set.repsCompleted}</span>
+                      <span>
+                        {set.weightUsedKg !== undefined ? `${set.weightUsedKg} kg` : 'Bodyweight'}
+                        {set.isPb ? <b><Icon name="trophy" /> PB!</b> : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="coach-workout-review-actions">
+              {selectedCoachWorkout.reviewedAt ? (
+                <span><Icon name="check" /> Reviewed {new Date(selectedCoachWorkout.reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              ) : (
+                <Button loading={reviewingWorkout} loadingLabel="Marking reviewed..." onClick={markWorkoutReviewed}>
+                  Mark as Reviewed
+                </Button>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
       {calendarOpen ? (
         <div className="calendar-modal-backdrop" role="presentation" onClick={() => setCalendarOpen(false)}>
           <section

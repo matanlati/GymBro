@@ -2,10 +2,12 @@ import { Types } from 'mongoose'
 import { CoachInvite, ICoachInvite } from '../models/CoachInvite.model'
 import { CoachTraineeNote } from '../models/CoachTraineeNote.model'
 import { User } from '../models/User.model'
-import { WorkoutSession } from '../models/WorkoutSession.model'
+import { IWorkoutSession, WorkoutSession } from '../models/WorkoutSession.model'
 import { AchievementUnlock } from '../models/AchievementUnlock.model'
+import { CoachWorkoutReview } from '../models/CoachWorkoutReview.model'
+import { toExerciseKey } from '../utils/exerciseKey'
 
-const userSelect = 'name email photo role coachId'
+const userSelect = 'name email photo role coachId timezone'
 
 const requireUser = async (userId: string) => {
   const user = await User.findById(userId).select(userSelect)
@@ -177,6 +179,132 @@ export async function getDashboardSummary(
     )),
     traineesWithPb: details.filter(trainee => pbIds.has(trainee._id)),
   }
+}
+
+const localDateKey = (date: Date, timeZone: string) => new Intl.DateTimeFormat('en-CA', {
+  timeZone,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}).format(date)
+
+export interface CoachWorkoutSetSummary {
+  setNumber: number
+  repsCompleted: number
+  weightUsedKg?: number
+  isPb: boolean
+}
+
+export interface CoachTodayWorkout {
+  sessionId: string
+  trainee: { _id: string; name: string; email: string; photo?: string }
+  title: string
+  completedAt: Date
+  durationMinutes: number
+  reviewedAt: Date | null
+  exercises: Array<{ name: string; sets: CoachWorkoutSetSummary[] }>
+}
+
+const summarizeWorkout = async (
+  session: IWorkoutSession,
+  trainee: { _id: unknown; name: string; email: string; photo?: string },
+  reviewedAt: Date | null
+): Promise<CoachTodayWorkout> => {
+  const previousSessions = await WorkoutSession.find({
+    userId: session.userId,
+    completedAt: { $ne: null, $lt: session.completedAt },
+  }).select('exercises').lean()
+  const previousBest = new Map<string, { weight: number; reps: number }>()
+  previousSessions.forEach(previous => previous.exercises.forEach(exercise => {
+    const key = exercise.exerciseKey || toExerciseKey(exercise.name)
+    const best = previousBest.get(key) ?? { weight: 0, reps: 0 }
+    exercise.sets.forEach(set => {
+      best.weight = Math.max(best.weight, set.weightUsedKg ?? 0)
+      best.reps = Math.max(best.reps, set.repsCompleted ?? 0)
+    })
+    previousBest.set(key, best)
+  }))
+
+  const exercises = session.exercises.map(exercise => {
+    const key = exercise.exerciseKey || toExerciseKey(exercise.name)
+    const previous = previousBest.get(key) ?? { weight: 0, reps: 0 }
+    return {
+      name: exercise.name,
+      sets: exercise.sets.map(set => ({
+        setNumber: set.setNumber,
+        repsCompleted: set.repsCompleted,
+        weightUsedKg: set.weightUsedKg,
+        isPb: (set.weightUsedKg ?? 0) > previous.weight || set.repsCompleted > previous.reps,
+      })),
+    }
+  })
+
+  return {
+    sessionId: String(session._id),
+    trainee: { _id: String(trainee._id), name: trainee.name, email: trainee.email, photo: trainee.photo },
+    title: session.title || session.exercises[0]?.name || 'Completed Workout',
+    completedAt: session.completedAt as Date,
+    durationMinutes: Math.max(0, Math.round(
+      ((session.completedAt as Date).getTime() - session.startedAt.getTime()) / 60_000
+    )),
+    reviewedAt,
+    exercises,
+  }
+}
+
+export async function listTodayWorkouts(coachUserId: string): Promise<CoachTodayWorkout[]> {
+  const coach = await requireUser(coachUserId)
+  if (coach.role !== 'coach') throw new Error('COACH_ONLY')
+  const trainees = await User.find({ coachId: coach._id, role: 'trainee' })
+    .select('name email photo')
+    .lean()
+  if (!trainees.length) return []
+
+  const now = new Date()
+  const todayKey = localDateKey(now, coach.timezone ?? 'UTC')
+  const recent = await WorkoutSession.find({
+    userId: { $in: trainees.map(trainee => trainee._id) },
+    completedAt: { $ne: null, $gte: new Date(now.getTime() - 36 * 60 * 60 * 1000) },
+  }).sort({ completedAt: -1 })
+  const sessions = recent.filter(session => (
+    localDateKey(session.completedAt as Date, coach.timezone ?? 'UTC') === todayKey
+  ))
+  const reviews = await CoachWorkoutReview.find({
+    coachId: coach._id,
+    sessionId: { $in: sessions.map(session => session._id) },
+  }).lean()
+  const reviewBySession = new Map(reviews.map(review => [String(review.sessionId), review.reviewedAt]))
+  const traineeById = new Map(trainees.map(trainee => [String(trainee._id), trainee]))
+
+  const summaries = await Promise.all(sessions.map(session => summarizeWorkout(
+    session,
+    traineeById.get(String(session.userId))!,
+    reviewBySession.get(String(session._id)) ?? null
+  )))
+  return summaries.sort((left, right) => {
+    if (!!left.reviewedAt !== !!right.reviewedAt) return left.reviewedAt ? 1 : -1
+    return right.completedAt.getTime() - left.completedAt.getTime()
+  })
+}
+
+export async function reviewWorkout(coachUserId: string, sessionId: string) {
+  if (!Types.ObjectId.isValid(sessionId)) throw new Error('INVALID_SESSION')
+  const coach = await requireUser(coachUserId)
+  if (coach.role !== 'coach') throw new Error('COACH_ONLY')
+  const traineeIds = await User.find({ coachId: coach._id, role: 'trainee' }).distinct('_id')
+  const session = await WorkoutSession.findOne({
+    _id: sessionId,
+    userId: { $in: traineeIds },
+    completedAt: { $ne: null },
+  })
+  if (!session) throw new Error('WORKOUT_NOT_FOUND')
+
+  const review = await CoachWorkoutReview.findOneAndUpdate(
+    { coachId: coach._id, sessionId: session._id },
+    { $setOnInsert: { traineeId: session.userId, reviewedAt: new Date() } },
+    { new: true, upsert: true }
+  ).lean()
+  return { sessionId: String(session._id), reviewedAt: review.reviewedAt }
 }
 
 const requireCoachTrainee = async (coachUserId: string, traineeId: string) => {

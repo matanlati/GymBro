@@ -19,6 +19,10 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Notes must be 5,000 characters or fewer' })
     case 'INVALID_INACTIVITY_DAYS':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'inactiveDays must be between 1 and 90' })
+    case 'INVALID_SESSION':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Session id is invalid' })
+    case 'WORKOUT_NOT_FOUND':
+      return res.status(404).json({ error: 'WORKOUT_NOT_FOUND', message: 'Completed trainee workout not found' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
     case 'COACH_TRAINEE_NOT_FOUND':
@@ -71,6 +75,24 @@ export async function getCoachDashboardSummary(req: AuthRequest, res: Response) 
       : Number(req.query.inactiveDays)
     const summary = await coachService.getDashboardSummary(req.user!.userId, inactiveDays)
     return res.json(summary)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function listCoachTodayWorkouts(req: AuthRequest, res: Response) {
+  try {
+    const workouts = await coachService.listTodayWorkouts(req.user!.userId)
+    return res.json(workouts)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function reviewCoachWorkout(req: AuthRequest, res: Response) {
+  try {
+    const review = await coachService.reviewWorkout(req.user!.userId, req.params.sessionId)
+    return res.json(review)
   } catch (err) {
     return handleCoachError(res, err)
   }
