@@ -1936,6 +1936,15 @@ button {
   gap: 22px;
 }
 
+.coach-progress-page {
+  display: grid;
+  gap: 28px;
+}
+
+.coach-progress-page > .gb-page-header {
+  margin-bottom: 0;
+}
+
 .coach-progress-period-select {
   min-width: 168px;
 }
