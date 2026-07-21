@@ -92,6 +92,7 @@ export interface CoachDashboardTrainee {
   email: string
   workoutCountThisWeek: number
   lastActiveAt: Date | null
+  personalBests: Array<{ exerciseName: string; value: number; metric: 'weight' | 'reps' }>
 }
 
 export async function getDashboardSummary(
@@ -134,11 +135,11 @@ export async function getDashboardSummary(
       { $match: { userId: { $in: traineeIds }, completedAt: { $ne: null } } },
       { $group: { _id: '$userId', lastCompletedAt: { $max: '$completedAt' } } },
     ]),
-    AchievementUnlock.distinct('userId', {
+    AchievementUnlock.find({
       userId: { $in: traineeIds },
       category: 'personal_record',
       unlockedAt: { $gte: weekStart, $lte: now },
-    }),
+    }).select('userId exerciseName value achievementKey').lean(),
   ])
 
   const activeThisWeek = new Set(weeklySessions.map(session => String(session.userId)))
@@ -158,20 +159,30 @@ export async function getDashboardSummary(
     .select('name email')
     .sort({ name: 1 })
     .lean()
+  const pbByTrainee = new Map<string, CoachDashboardTrainee['personalBests']>()
+  pbTraineeIds.forEach(achievement => {
+    const traineeId = String(achievement.userId)
+    pbByTrainee.set(traineeId, [...(pbByTrainee.get(traineeId) ?? []), {
+      exerciseName: achievement.exerciseName ?? 'Exercise',
+      value: achievement.value,
+      metric: achievement.achievementKey.includes('_reps_') ? 'reps' : 'weight',
+    }])
+  })
   const details = traineeProfiles.map(trainee => ({
     _id: String(trainee._id),
     name: trainee.name,
     email: trainee.email,
     workoutCountThisWeek: weeklyWorkoutCounts.get(String(trainee._id)) ?? 0,
     lastActiveAt: lastActivityByTrainee.get(String(trainee._id)) ?? null,
+    personalBests: pbByTrainee.get(String(trainee._id)) ?? [],
   }))
-  const pbIds = new Set(pbTraineeIds.map(id => String(id)))
+  const pbIds = new Set(pbTraineeIds.map(achievement => String(achievement.userId)))
 
   return {
     totalWorkoutsThisWeek: weeklySessions.length,
     traineesNotStartedThisWeek: traineeIds.length - activeThisWeek.size,
     inactiveTrainees,
-    traineesWithPbThisWeek: pbTraineeIds.length,
+    traineesWithPbThisWeek: pbIds.size,
     inactivityDays,
     traineesWorkedOutThisWeek: details.filter(trainee => trainee.workoutCountThisWeek > 0),
     traineesNotStarted: details.filter(trainee => trainee.workoutCountThisWeek === 0),

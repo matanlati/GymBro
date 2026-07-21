@@ -55,6 +55,7 @@ export interface CoachDashboardTrainee {
   email: string
   workoutCountThisWeek: number
   lastActiveAt: string | null
+  personalBests: Array<{ exerciseName: string; value: number; metric: 'weight' | 'reps' }>
 }
 
 export function getCoachDashboardSummary(inactiveDays = 7) {

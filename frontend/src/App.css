@@ -323,6 +323,36 @@ button {
   color: #15803d;
 }
 
+.dashboard-pb-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  flex-direction: column;
+}
+
+.dashboard-pb-actions .dashboard-stat-pb {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.dashboard-pb-actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ea580c;
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.dashboard-pb-actions button:hover {
+  text-decoration: underline;
+}
+
 .dashboard-stat-empty {
   padding: 40px 20px;
   color: #94a3b8;

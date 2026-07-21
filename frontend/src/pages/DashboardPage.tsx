@@ -203,6 +203,21 @@ function Dashboard() {
     }
   }
 
+  const openPbShoutout = (trainee: CoachDashboardTrainee) => {
+    const pb = trainee.personalBests?.[0]
+    const achievement = pb
+      ? `${pb.exerciseName}: ${pb.value}${pb.metric === 'weight' ? ' kg' : ' reps'}`
+      : 'a new personal best'
+    setSelectedCoachStat(null)
+    navigate('/feed', { state: {
+      openComposer: true,
+      shoutoutTraineeId: trainee._id,
+      workoutName: 'Trainee Achievement',
+      postTitle: `${trainee.name} hit a new PB!`,
+      caption: `Huge congratulations to ${trainee.name} for achieving ${achievement} this week! Amazing work—keep it going!`,
+    } })
+  }
+
   useEffect(() => {
     if (user?.role !== 'trainee') return
     listMyCoachInvites()
@@ -234,6 +249,9 @@ function Dashboard() {
   const welcomeMessage = user?.role === 'coach'
     ? `Welcome Coach ${welcomeName}`
     : `Welcome Back, ${welcomeName}!`
+  const welcomeSubtitle = user?.role === 'coach'
+    ? 'Keep your trainees moving forward and celebrate their progress.'
+    : "Let's crush your fitness goals today"
 
   const traineeStatCards: DashboardStatCard[] = [
     {
@@ -299,7 +317,7 @@ function Dashboard() {
       icon: 'trophy',
       tone: 'green',
       detailTitle: 'Personal Bests This Week',
-      detailDescription: 'Trainees who reached at least one new personal best this week.',
+      detailDescription: 'Your trainees achieved a PB this week! Want to shout it out?',
       detailMode: 'pb',
       trainees: coachSummary?.traineesWithPb ?? [],
     },
@@ -401,11 +419,13 @@ function Dashboard() {
       <section className="dashboard-hero">
         <div>
           <h1>{welcomeMessage}</h1>
-          <p>Let's crush your fitness goals today</p>
+          <p>{welcomeSubtitle}</p>
         </div>
-        <Button leadingIcon={<Icon name="share" />} onClick={() => navigate('/feed', { state: { openComposer: true } })}>
-          Share Workout
-        </Button>
+        {user?.role !== 'coach' ? (
+          <Button leadingIcon={<Icon name="share" />} onClick={() => navigate('/feed', { state: { openComposer: true } })}>
+            Share Workout
+          </Button>
+        ) : null}
       </section>
 
       {user?.role === 'trainee' && coachInvites.length > 0 ? (
@@ -486,7 +506,13 @@ function Dashboard() {
                     ) : selectedCoachStat.detailMode === 'inactive' ? (
                       <span>{trainee.lastActiveAt ? `Last active ${new Date(trainee.lastActiveAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Never active'}</span>
                     ) : selectedCoachStat.detailMode === 'pb' ? (
-                      <span className="dashboard-stat-pb">New PB</span>
+                      <div className="dashboard-pb-actions">
+                        <span className="dashboard-stat-pb">New PB</span>
+                        <button
+                          type="button"
+                          onClick={() => openPbShoutout(trainee)}
+                        >Share achievement</button>
+                      </div>
                     ) : null}
                   </div>
                 ))}
