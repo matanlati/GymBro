@@ -1,6 +1,7 @@
 import { Types } from 'mongoose'
 import { WorkoutPost } from '../models/WorkoutPost.model'
 import { WorkoutSession } from '../models/WorkoutSession.model'
+import { User } from '../models/User.model'
 
 export interface CreatePostPayload {
   sessionId: string
@@ -11,8 +12,18 @@ export interface CreatePostPayload {
   photoUrl?: string
 }
 
-export const listPosts = async () => {
-  return WorkoutPost.find()
+export const listPosts = async (userId: string, scope: 'all' | 'trainees' = 'all') => {
+  let filter = {}
+
+  if (scope === 'trainees') {
+    const coach = await User.findById(userId).select('role')
+    if (!coach) throw new Error('USER_NOT_FOUND')
+    if (coach.role !== 'coach') throw new Error('COACH_ONLY')
+    const traineeIds = await User.find({ coachId: coach._id, role: 'trainee' }).distinct('_id')
+    filter = { userId: { $in: traineeIds } }
+  }
+
+  return WorkoutPost.find(filter)
     .sort({ postDate: -1, createdAt: -1 })
     .populate('userId', 'name photo')
     .populate('comments.userId', 'name photo')

@@ -36,7 +36,10 @@ export interface CreateWorkoutPostPayload {
   photo?: File
 }
 
-export const listPosts = () => client.get<WorkoutPost[]>('/posts')
+export type FeedScope = 'all' | 'trainees'
+
+export const listPosts = (scope: FeedScope = 'all') =>
+  client.get<WorkoutPost[]>('/posts', { params: scope === 'all' ? undefined : { scope } })
 
 export const createPost = (payload: CreateWorkoutPostPayload) => {
   const form = new FormData()

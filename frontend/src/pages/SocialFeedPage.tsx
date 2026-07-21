@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Alert, Button, Card, EmptyState, LoadingState, PageHeader } from '@gymbro/ui-kit'
-import { addComment, createPost, listPosts, toggleLike, WorkoutPost } from '../api/posts.api'
+import { addComment, createPost, FeedScope, listPosts, toggleLike, WorkoutPost } from '../api/posts.api'
 import { listSessions, Session } from '../api/sessions.api'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { useAuth } from '../context/AuthContext'
@@ -46,16 +46,29 @@ const SocialFeedPage = () => {
   const [caption, setCaption] = useState(state?.caption ?? '')
   const [photo, setPhoto] = useState<File | undefined>()
   const [error, setError] = useState('')
+  const [feedError, setFeedError] = useState('')
   const [posting, setPosting] = useState(false)
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
+  const [feedScope, setFeedScope] = useState<FeedScope>('all')
 
   useEffect(() => {
     Promise.all([
-      listPosts().then(({ data }) => setPosts(data)),
       listSessions().then(({ data }) => setSessions(data.filter(session => !!session.completedAt))),
       getActivePlan().then(({ data }) => setPlan(data)).catch(() => setPlan(null)),
-    ]).finally(() => setLoading(false))
+    ])
   }, [])
+
+  useEffect(() => {
+    setLoading(true)
+    setFeedError('')
+    listPosts(feedScope)
+      .then(({ data }) => setPosts(data))
+      .catch(() => {
+        setPosts([])
+        setFeedError('Could not load the feed. Please try again.')
+      })
+      .finally(() => setLoading(false))
+  }, [feedScope])
 
   useEffect(() => {
     if (composerOpen && !sessionId && sessions[0]) {
@@ -139,10 +152,37 @@ const SocialFeedPage = () => {
         actions={<Button onClick={openComposer}>Add Post</Button>}
       />
 
+      {user?.role === 'coach' ? (
+        <div className="feed-scope-filter" role="group" aria-label="Filter feed posts">
+          <button
+            type="button"
+            className={feedScope === 'all' ? 'active' : ''}
+            aria-pressed={feedScope === 'all'}
+            onClick={() => setFeedScope('all')}
+          >
+            All posts
+          </button>
+          <button
+            type="button"
+            className={feedScope === 'trainees' ? 'active' : ''}
+            aria-pressed={feedScope === 'trainees'}
+            onClick={() => setFeedScope('trainees')}
+          >
+            My trainees
+          </button>
+        </div>
+      ) : null}
+
+      {feedError ? <Alert variant="error">{feedError}</Alert> : null}
+
       {loading ? (
         <LoadingState label="Loading feed..." />
       ) : posts.length === 0 ? (
-        <EmptyState>No posts yet. Share a completed workout to start the feed.</EmptyState>
+        <EmptyState>
+          {feedScope === 'trainees'
+            ? 'Your trainees have not shared any posts yet.'
+            : 'No posts yet. Share a completed workout to start the feed.'}
+        </EmptyState>
       ) : (
         <section className="feed-gallery" aria-label="Workout posts">
           {posts.map(post => {
