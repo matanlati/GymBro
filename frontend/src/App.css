@@ -3254,20 +3254,42 @@ button {
   background: #fefce8;
 }
 
-.achievement-row strong,
-.achievement-row span {
+.achievement-row > div > strong,
+.achievement-row > div > span {
   display: block;
 }
 
-.achievement-row strong {
+.achievement-row > div > strong {
   color: #111827;
   font-size: 13px;
 }
 
-.achievement-row span {
+.achievement-row > div > span {
   margin-top: 3px;
   color: #6b7280;
   font-size: 11px;
+}
+
+/* Icon wrappers must retain centering even inside rows with text span rules. */
+.gb-icon-tile,
+.goal-icon,
+.achievement-icon,
+.bodyweight-record-icon,
+.measurement-entry-icon,
+.progress-stat-icon {
+  align-items: center;
+  justify-items: center;
+  line-height: 1;
+}
+
+.gb-icon-tile > svg,
+.goal-icon > svg,
+.achievement-icon > svg,
+.bodyweight-record-icon > svg,
+.measurement-entry-icon > svg,
+.progress-stat-icon > svg {
+  display: block;
+  margin: auto;
 }
 
 .measurements-card {
