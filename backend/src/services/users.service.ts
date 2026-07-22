@@ -20,13 +20,27 @@ export async function updateMe(userId: string, updates: {
   goals?: string
   limitations?: string
   timezone?: string
+  coachExperienceYears?: number
+  coachingSpecialties?: string[]
+  certifications?: string
+  coachingBio?: string
+  preferredTraineeLevels?: string[]
+  coachingAvailability?: string
+  maxTrainees?: number
+  acceptingNewTrainees?: boolean
+  contactPreference?: string
 }) {
-  const allowed = ['name', 'age', 'weightKg', 'heightCm', 'fitnessLevel', 'goals', 'limitations', 'timezone']
+  const allowed = [
+    'name', 'age', 'weightKg', 'heightCm', 'fitnessLevel', 'goals', 'limitations', 'timezone',
+    'coachExperienceYears', 'coachingSpecialties', 'certifications', 'coachingBio',
+    'preferredTraineeLevels', 'coachingAvailability', 'maxTrainees',
+    'acceptingNewTrainees', 'contactPreference',
+  ]
   const sanitized = Object.fromEntries(
     Object.entries(updates).filter(([k, v]) => allowed.includes(k) && v !== undefined && v !== '')
   )
 
-  const currentUser = await User.findById(userId).select('weightKg')
+  const currentUser = await User.findById(userId).select('weightKg role')
   if (!currentUser) throw new Error('USER_NOT_FOUND')
 
   const nextWeight = sanitized.weightKg
@@ -34,6 +48,14 @@ export async function updateMe(userId: string, updates: {
     await createMeasurement(userId, { weightKg: nextWeight })
   }
   delete sanitized.weightKg
+
+  const traineeOnly = ['age', 'heightCm', 'fitnessLevel', 'goals', 'limitations']
+  const coachOnly = [
+    'coachExperienceYears', 'coachingSpecialties', 'certifications', 'coachingBio',
+    'preferredTraineeLevels', 'coachingAvailability', 'maxTrainees',
+    'acceptingNewTrainees', 'contactPreference',
+  ]
+  ;(currentUser.role === 'coach' ? traineeOnly : coachOnly).forEach(key => delete sanitized[key])
 
   const user = await User.findByIdAndUpdate(
     userId,

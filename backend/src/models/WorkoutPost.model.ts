@@ -8,7 +8,8 @@ export interface IWorkoutComment {
 
 export interface IWorkoutPost extends Document {
   userId: Types.ObjectId
-  sessionId: Types.ObjectId
+  sessionId?: Types.ObjectId
+  shoutoutTraineeId?: Types.ObjectId
   workoutName: string
   title: string
   caption: string
@@ -31,7 +32,8 @@ const workoutCommentSchema = new Schema<IWorkoutComment>(
 const workoutPostSchema = new Schema<IWorkoutPost>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    sessionId: { type: Schema.Types.ObjectId, ref: 'WorkoutSession', required: true, index: true },
+    sessionId: { type: Schema.Types.ObjectId, ref: 'WorkoutSession', index: true },
+    shoutoutTraineeId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
     workoutName: { type: String, required: true, trim: true },
     title: { type: String, required: true, trim: true },
     caption: { type: String, default: '', trim: true },

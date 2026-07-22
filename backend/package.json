@@ -9,6 +9,7 @@
     "build": "tsc",
     "seed:feed": "ts-node src/db/seedFeedDemo.ts",
     "seed:coach-progress": "ts-node src/db/seedCoachProgressDemo.ts",
+    "seed:coach-dashboard": "ts-node src/db/seedCoachDashboardDemo.ts",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },

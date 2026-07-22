@@ -40,6 +40,16 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid progress filters' })
     case 'GOAL_NOT_FOUND':
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Goal not found' })
+    case 'INVALID_INACTIVITY_DAYS':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'inactiveDays must be between 1 and 90' })
+    case 'INVALID_STAGNANT_WORKOUTS':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Stagnant workouts must be between 2 and 10' })
+    case 'INVALID_SESSION':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Session id is invalid' })
+    case 'WORKOUT_NOT_FOUND':
+      return res.status(404).json({ error: 'WORKOUT_NOT_FOUND', message: 'Completed trainee workout not found' })
+    case 'INVALID_WORKOUT_KEY':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A valid workout key is required' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
     case 'COACH_TRAINEE_NOT_FOUND':
@@ -48,6 +58,8 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'TARGET_NOT_TRAINEE', message: 'That email does not belong to a trainee account' })
     case 'TRAINEE_ALREADY_HAS_COACH':
       return res.status(400).json({ error: 'TRAINEE_ALREADY_HAS_COACH', message: 'This trainee already has a coach' })
+    case 'COACH_CAPACITY_REACHED':
+      return res.status(409).json({ error: 'COACH_CAPACITY_REACHED', message: 'You have reached your trainee capacity. Increase it in your profile before inviting another trainee.' })
     case 'INVITE_NOT_FOUND':
       return res.status(404).json({ error: 'INVITE_NOT_FOUND', message: 'Invite not found' })
     case 'USER_NOT_FOUND':
@@ -187,6 +199,71 @@ export async function listCoachTrainees(req: AuthRequest, res: Response) {
   try {
     const trainees = await coachService.listCoachTrainees(req.user!.userId)
     return res.json(trainees)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getCoachDashboardSummary(req: AuthRequest, res: Response) {
+  try {
+    const summary = await coachService.getDashboardSummary(req.user!.userId)
+    return res.json(summary)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getCoachAlertSettings(req: AuthRequest, res: Response) {
+  try {
+    return res.json(await coachService.getCoachSettings(req.user!.userId))
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function updateCoachAlertSettings(req: AuthRequest, res: Response) {
+  try {
+    return res.json(await coachService.updateCoachSettings(req.user!.userId, req.body ?? {}))
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function listCoachTodayWorkouts(req: AuthRequest, res: Response) {
+  try {
+    const workouts = await coachService.listTodayWorkouts(req.user!.userId)
+    return res.json(workouts)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function reviewCoachWorkout(req: AuthRequest, res: Response) {
+  try {
+    const review = await coachService.reviewWorkout(req.user!.userId, req.params.sessionId)
+    return res.json(review)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getCoachProgressLookout(req: AuthRequest, res: Response) {
+  try {
+    const lookout = await coachService.getProgressLookout(req.user!.userId)
+    return res.json(lookout)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function clearCoachProgressLookout(req: AuthRequest, res: Response) {
+  try {
+    const cleared = await coachService.clearProgressLookout(
+      req.user!.userId,
+      req.params.traineeId,
+      req.body?.workoutKey
+    )
+    return res.json(cleared)
   } catch (err) {
     return handleCoachError(res, err)
   }
