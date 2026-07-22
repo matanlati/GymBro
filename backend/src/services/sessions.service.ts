@@ -45,7 +45,7 @@ const startOfWeek = (d: Date): Date => {
 const firstIncompleteDay = async (
   userId: string,
   planId: Types.ObjectId,
-  dayCount: number
+  dayIndexes: number[]
 ): Promise<number> => {
   const weekStart = startOfWeek(new Date())
   const completed = await WorkoutSession.find({
@@ -56,10 +56,10 @@ const firstIncompleteDay = async (
   }).select('dayIndex')
 
   const done = new Set(completed.map(s => s.dayIndex))
-  for (let i = 0; i < dayCount; i++) {
-    if (!done.has(i)) return i
+  for (const index of dayIndexes) {
+    if (!done.has(index)) return index
   }
-  return 0
+  return dayIndexes[0]
 }
 
 const loadOwned = async (userId: string, id: string): Promise<IWorkoutSession> => {
@@ -123,14 +123,14 @@ export const getOrCreateTodaySession = async (
   const plan = await WorkoutPlan.findOne({ userId, isActive: true })
   if (!plan) throw new Error('NO_ACTIVE_PLAN')
 
-  const dayCount = plan.weeklyPlan.length
-  if (dayCount === 0) throw new Error('NO_ACTIVE_PLAN')
+  const activeDayIndexes = plan.weeklyPlan.flatMap((day, index) => day.isArchived ? [] : [index])
+  if (activeDayIndexes.length === 0) throw new Error('NO_ACTIVE_PLAN')
 
   let index = dayIndex
   if (index === undefined || index === null) {
-    index = await firstIncompleteDay(userId, plan._id as Types.ObjectId, dayCount)
+    index = await firstIncompleteDay(userId, plan._id as Types.ObjectId, activeDayIndexes)
   }
-  if (!Number.isInteger(index) || index < 0 || index >= dayCount) {
+  if (!Number.isInteger(index) || !activeDayIndexes.includes(index)) {
     throw new Error('INVALID_DAY_INDEX')
   }
 
@@ -175,10 +175,11 @@ export const getTodaySession = async (
   const plan = await WorkoutPlan.findOne({ userId, isActive: true })
   if (!plan) throw new Error('NO_ACTIVE_PLAN')
 
-  const dayCount = plan.weeklyPlan.length
+  const activeDayIndexes = plan.weeklyPlan.flatMap((day, dayIndex) => day.isArchived ? [] : [dayIndex])
+  if (!activeDayIndexes.length) throw new Error('NO_ACTIVE_PLAN')
   let index = dayIndex
   if (index === undefined || index === null) {
-    index = await firstIncompleteDay(userId, plan._id as Types.ObjectId, dayCount)
+    index = await firstIncompleteDay(userId, plan._id as Types.ObjectId, activeDayIndexes)
   }
 
   const dayStart = startOfDay(new Date())
@@ -229,7 +230,7 @@ export const scheduleSession = async (
 
   if (hasPlanDay) {
     const index = Number(payload.dayIndex)
-    if (!Number.isInteger(index) || index < 0 || index >= plan.weeklyPlan.length) {
+    if (!Number.isInteger(index) || index < 0 || index >= plan.weeklyPlan.length || plan.weeklyPlan[index]?.isArchived) {
       throw new Error('INVALID_DAY_INDEX')
     }
 

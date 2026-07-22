@@ -238,6 +238,14 @@ export async function updateCoachTraineeWorkoutType(req: AuthRequest, res: Respo
   }
 }
 
+export async function removeCoachTraineeWorkoutType(req: AuthRequest, res: Response) {
+  try {
+    return res.json(await coachService.removeTraineeWorkoutType(req.user!.userId, req.params.id, req.params.dayIndex))
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
 export async function getCoachDashboardSummary(req: AuthRequest, res: Response) {
   try {
     const summary = await coachService.getDashboardSummary(req.user!.userId)

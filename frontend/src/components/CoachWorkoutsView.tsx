@@ -10,6 +10,7 @@ import {
   createCoachTraineeWorkoutType,
   getCoachTraineeWorkouts,
   listCoachTrainees,
+  removeCoachTraineeWorkoutType,
   updateCoachTraineeWorkoutType,
 } from '../api/coach.api'
 
@@ -39,6 +40,8 @@ export default function CoachWorkoutsView() {
   const [editor, setEditor] = useState<WorkoutEditor | null>(null)
   const [editorError, setEditorError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [workoutToRemove, setWorkoutToRemove] = useState<{ dayIndex: number; name: string } | null>(null)
+  const [removing, setRemoving] = useState(false)
 
   useEffect(() => {
     listCoachTrainees()
@@ -72,6 +75,9 @@ export default function CoachWorkoutsView() {
     data?.sessions.forEach(session => grouped.set(session.dayIndex, [...(grouped.get(session.dayIndex) ?? []), session]))
     return grouped
   }, [data])
+  const workoutTypes = useMemo(() => data?.plan?.weeklyPlan
+    .map((workout, dayIndex) => ({ workout, dayIndex }))
+    .filter(item => !item.workout.isArchived) ?? [], [data])
 
   const openCreate = () => {
     setEditorError('')
@@ -117,6 +123,28 @@ export default function CoachWorkoutsView() {
     }
   }
 
+  const removeWorkout = async () => {
+    if (!workoutToRemove || !selectedId) return
+    setRemoving(true)
+    setError('')
+    try {
+      const { data: plan } = await removeCoachTraineeWorkoutType(selectedId, workoutToRemove.dayIndex)
+      setData(current => current ? { ...current, plan } : current)
+      const nextWorkout = plan.weeklyPlan
+        .map((workout, dayIndex) => ({ workout, dayIndex }))
+        .find(item => !item.workout.isArchived)
+      setSelectedWorkoutIndex(nextWorkout?.dayIndex ?? 0)
+      setViewMode('overview')
+      setWorkoutToRemove(null)
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message?: string }>
+      setError(axiosError.response?.data?.message ?? 'Could not remove this workout type.')
+      setWorkoutToRemove(null)
+    } finally {
+      setRemoving(false)
+    }
+  }
+
   return (
     <main className="coach-workouts-page">
       <PageHeader title="Trainee Workouts" subtitle="Review and manage each trainee’s workout program" />
@@ -148,14 +176,14 @@ export default function CoachWorkoutsView() {
             <Button leadingIcon={<Plus size={16} />} onClick={openCreate}>Create Workout Type</Button>
           </div>
 
-          {!data?.plan?.weeklyPlan.length ? (
+          {!workoutTypes.length ? (
             <Card><EmptyState>No workout types yet. Create one to build this trainee’s program.</EmptyState></Card>
           ) : (
             <div className="coach-workout-browser">
               <Card className="coach-workout-type-nav" padding="none">
-                <div className="coach-workout-type-nav-head"><span>Workout Types</span><Badge>{data.plan.weeklyPlan.length}</Badge></div>
+                <div className="coach-workout-type-nav-head"><span>Workout Types</span><Badge>{workoutTypes.length}</Badge></div>
                 <div className="coach-workout-type-nav-list">
-                  {data.plan.weeklyPlan.map((workout, dayIndex) => (
+                  {workoutTypes.map(({ workout, dayIndex }) => (
                     <button
                       type="button"
                       className={selectedWorkoutIndex === dayIndex ? 'active' : ''}
@@ -170,14 +198,17 @@ export default function CoachWorkoutsView() {
               </Card>
 
               {(() => {
-                const workout = data.plan!.weeklyPlan[selectedWorkoutIndex] ?? data.plan!.weeklyPlan[0]
-                const dayIndex = data.plan!.weeklyPlan.indexOf(workout)
+                const selected = workoutTypes.find(item => item.dayIndex === selectedWorkoutIndex) ?? workoutTypes[0]
+                const { workout, dayIndex } = selected
                 const sessions = sessionsByDay.get(dayIndex) ?? []
                 return (
                   <Card className="coach-workout-type-card" padding="none">
                     <div className="coach-workout-type-head">
                       <div><span>Workout type {dayIndex + 1}</span><h3>{workout.focus}</h3><small>{workout.exercises.length} prescribed exercises</small></div>
-                      <Button variant="ghost" size="sm" leadingIcon={<Pencil size={14} />} onClick={() => openEdit(dayIndex)}>Edit Workout</Button>
+                      <div className="coach-workout-type-actions">
+                        <Button variant="ghost" size="sm" leadingIcon={<Pencil size={14} />} onClick={() => openEdit(dayIndex)}>Edit Workout</Button>
+                        <Button variant="ghost" size="sm" leadingIcon={<Trash2 size={14} />} onClick={() => setWorkoutToRemove({ dayIndex, name: workout.focus })}>Remove</Button>
+                      </div>
                     </div>
                     <div className="coach-workout-view-tabs">
                       <button className={viewMode === 'overview' ? 'active' : ''} onClick={() => setViewMode('overview')}><Dumbbell size={14} /> General Overview</button>
@@ -271,6 +302,20 @@ export default function CoachWorkoutsView() {
                 <Button type="submit" loading={saving} loadingLabel="Saving...">{editor.dayIndex === null ? 'Create Workout' : 'Save Changes'}</Button>
               </div>
             </form>
+          </section>
+        </div>
+      ) : null}
+
+      {workoutToRemove ? (
+        <div className="coach-modal-backdrop" role="presentation" onClick={() => !removing && setWorkoutToRemove(null)}>
+          <section className="coach-modal coach-remove-workout-modal" role="alertdialog" aria-modal="true" aria-labelledby="remove-workout-title" onClick={event => event.stopPropagation()}>
+            <div className="coach-remove-workout-icon"><Trash2 size={22} /></div>
+            <h2 id="remove-workout-title">Remove {workoutToRemove.name}?</h2>
+            <p>This workout will no longer appear in the trainee’s active plan. Previously recorded sessions and progress history will be kept.</p>
+            <div className="coach-modal-actions">
+              <Button variant="secondary" disabled={removing} onClick={() => setWorkoutToRemove(null)}>Cancel</Button>
+              <Button loading={removing} loadingLabel="Removing..." onClick={removeWorkout}>Remove Workout</Button>
+            </div>
           </section>
         </div>
       ) : null}

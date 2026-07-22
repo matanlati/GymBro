@@ -574,7 +574,8 @@ export async function createTraineeWorkoutType(
       isActive: true,
     })
   }
-  plan.weeklyPlan.push({ day: `Workout ${plan.weeklyPlan.length + 1}`, focus: workout.name, exercises: workout.exercises })
+  const activeWorkoutCount = plan.weeklyPlan.filter(day => !day.isArchived).length
+  plan.weeklyPlan.push({ day: `Workout ${activeWorkoutCount + 1}`, focus: workout.name, exercises: workout.exercises, isArchived: false })
   await plan.save()
   return plan
 }
@@ -592,9 +593,23 @@ export async function updateTraineeWorkoutType(
   const plan = await WorkoutPlan.findOne({ userId: traineeId, isActive: true })
   if (!plan) throw new Error('PLAN_NOT_FOUND')
   const current = plan.weeklyPlan[dayIndex]
-  if (!current) throw new Error('WORKOUT_TYPE_NOT_FOUND')
+  if (!current || current.isArchived) throw new Error('WORKOUT_TYPE_NOT_FOUND')
   current.focus = workout.name
   current.exercises = workout.exercises
+  plan.markModified('weeklyPlan')
+  await plan.save()
+  return plan
+}
+
+export async function removeTraineeWorkoutType(coachUserId: string, traineeId: string, dayIndexValue: string) {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  const dayIndex = Number(dayIndexValue)
+  if (!Number.isInteger(dayIndex) || dayIndex < 0) throw new Error('INVALID_WORKOUT_TYPE_INDEX')
+  const plan = await WorkoutPlan.findOne({ userId: traineeId, isActive: true })
+  if (!plan) throw new Error('PLAN_NOT_FOUND')
+  const workout = plan.weeklyPlan[dayIndex]
+  if (!workout || workout.isArchived) throw new Error('WORKOUT_TYPE_NOT_FOUND')
+  workout.isArchived = true
   plan.markModified('weeklyPlan')
   await plan.save()
   return plan

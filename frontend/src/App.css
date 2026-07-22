@@ -42,6 +42,9 @@
 .coach-workout-type-card { overflow: hidden; }
 .coach-workout-type-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px 14px; }
 .coach-workout-type-head > div { display: grid; gap: 3px; }
+.coach-workout-type-actions { display: flex; align-items: center; gap: 4px; }
+.coach-workout-type-actions button:last-child { color: #dc2626; }
+.coach-workout-type-actions button:last-child:hover { background: #fef2f2; }
 .coach-workout-type-head span { color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
 .coach-workout-type-head h3 { margin: 0; font-size: 18px; }
 .coach-workout-type-head > div > small { color: #94a3b8; font-size: 11px; }
@@ -92,6 +95,12 @@
 .coach-workout-editor-remove { align-self: start; display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #ef4444; cursor: pointer; }
 .coach-workout-editor-remove:hover { background: #fee2e2; }
 .coach-workout-editor-remove:disabled { color: #cbd5e1; cursor: not-allowed; background: transparent; }
+.coach-remove-workout-modal { width: min(460px, 100%); text-align: center; }
+.coach-remove-workout-modal h2 { margin: 12px 0 8px; font-size: 20px; }
+.coach-remove-workout-modal p { margin: 0 0 22px; color: #64748b; font-size: 13px; line-height: 1.55; }
+.coach-remove-workout-modal .coach-modal-actions { justify-content: center; }
+.coach-remove-workout-modal .coach-modal-actions button:last-child { background: #dc2626; border-color: #dc2626; }
+.coach-remove-workout-icon { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto; border-radius: 50%; background: #fee2e2; color: #dc2626; }
 .coach-workout-editor-form > [role="alert"] { margin: 0 28px 16px; }
 .coach-workout-editor-form > .coach-modal-actions { flex: 0 0 auto; padding: 16px 28px; border-top: 1px solid #e5e7eb; background: #fff; }
 @media (max-width: 850px) {

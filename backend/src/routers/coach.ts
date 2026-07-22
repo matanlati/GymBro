@@ -22,6 +22,7 @@ import {
   listCoachTrainees,
   listMyInvites,
   removeCoachTrainee,
+  removeCoachTraineeWorkoutType,
   reviewCoachWorkout,
   saveCoachTraineeNotes,
   sendInvite,
@@ -49,6 +50,7 @@ router.get('/trainees', listCoachTrainees)
 router.get('/trainees/:id/workouts', getCoachTraineeWorkouts)
 router.post('/trainees/:id/workout-types', createCoachTraineeWorkoutType)
 router.put('/trainees/:id/workout-types/:dayIndex', updateCoachTraineeWorkoutType)
+router.delete('/trainees/:id/workout-types/:dayIndex', removeCoachTraineeWorkoutType)
 router.get('/dashboard-summary', getCoachDashboardSummary)
 router.get('/settings', getCoachAlertSettings)
 router.put('/settings', updateCoachAlertSettings)

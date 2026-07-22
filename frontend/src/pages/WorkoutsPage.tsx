@@ -44,7 +44,7 @@ const WorkoutsPage = () => {
   const completedThisWeek = sessions.filter(
     s => s.completedAt && new Date(s.scheduledDate) >= weekStart
   ).length
-  const scheduledTotal = plan?.weeklyPlan?.length ?? 0
+  const scheduledTotal = plan?.weeklyPlan?.filter(day => !day.isArchived).length ?? 0
 
   const titleFor = (session: Session) =>
     session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`

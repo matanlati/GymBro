@@ -24,6 +24,7 @@ export interface PlanDay {
   day: string
   focus: string
   exercises: PlanExercise[]
+  isArchived?: boolean
 }
 
 export interface WorkoutPlan {

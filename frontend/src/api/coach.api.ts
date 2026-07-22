@@ -90,6 +90,10 @@ export function updateCoachTraineeWorkoutType(traineeId: string, dayIndex: numbe
   return client.put<WorkoutPlan>(`/coach/trainees/${traineeId}/workout-types/${dayIndex}`, workout)
 }
 
+export function removeCoachTraineeWorkoutType(traineeId: string, dayIndex: number) {
+  return client.delete<WorkoutPlan>(`/coach/trainees/${traineeId}/workout-types/${dayIndex}`)
+}
+
 export interface CoachDashboardSummary {
   totalWorkoutsThisWeek: number
   traineesNotStartedThisWeek: number
