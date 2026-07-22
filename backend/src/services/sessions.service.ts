@@ -88,6 +88,32 @@ const requireSet = (session: IWorkoutSession, exerciseIndex: number, setIndex: n
   return exercise
 }
 
+// Backfill coach notes for sessions created before notes were snapshotted.
+// Completed sessions stay immutable; unfinished sessions receive each note once.
+const hydrateMissingCoachNotes = async (session: IWorkoutSession): Promise<IWorkoutSession> => {
+  if (session.completedAt || session.dayIndex < 0) return session
+  const missingNotes = session.exercises.some(exercise => exercise.coachNotes === undefined)
+  if (!missingNotes) return session
+
+  const plan = await WorkoutPlan.findById(session.planId).select('weeklyPlan')
+  const planDay = plan?.weeklyPlan[session.dayIndex]
+  if (!planDay) return session
+
+  let changed = false
+  session.exercises.forEach((exercise, index) => {
+    if (exercise.coachNotes !== undefined) return
+    const planExercise = planDay.exercises.find(candidate => (
+      (candidate.exerciseKey || toExerciseKey(candidate.name)) === (exercise.exerciseKey || toExerciseKey(exercise.name))
+    )) ?? planDay.exercises[index]
+    if (planExercise?.notes) {
+      exercise.coachNotes = planExercise.notes
+      changed = true
+    }
+  })
+  if (changed) await session.save()
+  return session
+}
+
 // Find-or-create today's session for the active plan. Default dayIndex is the
 // first incomplete day this week. Upsert semantics avoid duplicate sessions on reload.
 export const getOrCreateTodaySession = async (
@@ -118,7 +144,7 @@ export const getOrCreateTodaySession = async (
     dayIndex: index,
     scheduledDate: { $gte: dayStart, $lt: nextDay },
   })
-  if (existing) return existing
+  if (existing) return hydrateMissingCoachNotes(existing)
 
   const planDay = plan.weeklyPlan[index]
   const exercises = (planDay?.exercises ?? []).map((ex, i) => ({
@@ -233,8 +259,8 @@ export const scheduleSession = async (
   })
 }
 
-export const getSession = (userId: string, id: string): Promise<IWorkoutSession> =>
-  loadOwned(userId, id)
+export const getSession = async (userId: string, id: string): Promise<IWorkoutSession> =>
+  hydrateMissingCoachNotes(await loadOwned(userId, id))
 
 const detectPersonalBests = async (
   userId: string,
