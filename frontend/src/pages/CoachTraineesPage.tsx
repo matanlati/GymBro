@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import {
   Alert,
   Button,
@@ -24,6 +24,7 @@ import {
   sendCoachInvite,
 } from "../api/coach.api";
 import { useAuth } from "../context/AuthContext";
+import { getMe } from "../api/users.api";
 
 const initials = (name: string) =>
   name
@@ -42,10 +43,13 @@ const formatDate = (iso: string) =>
 
 export default function CoachTraineesPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [trainees, setTrainees] = useState<CoachUser[]>([]);
   const [invites, setInvites] = useState<CoachInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [capacityModalOpen, setCapacityModalOpen] = useState(false);
+  const [traineeCapacity, setTraineeCapacity] = useState(20);
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [removingId, setRemovingId] = useState("");
@@ -66,12 +70,17 @@ export default function CoachTraineesPage() {
     Promise.all([
       listCoachTrainees().then(({ data }) => setTrainees(data)),
       listCoachInvites().then(({ data }) => setInvites(data)),
+      getMe().then(({ data }) => setTraineeCapacity(data.maxTrainees ?? 20)),
     ]).finally(() => setLoading(false));
   }, []);
 
   if (user?.role !== "coach") return <Navigate to="/home" replace />;
 
   const openModal = () => {
+    if (trainees.length >= traineeCapacity) {
+      setCapacityModalOpen(true);
+      return;
+    }
     setEmail("");
     setError("");
     setModalOpen(true);
@@ -96,7 +105,12 @@ export default function CoachTraineesPage() {
       setModalOpen(false);
       setEmail("");
     } catch (err) {
-      const axiosErr = err as AxiosError<{ message: string }>;
+      const axiosErr = err as AxiosError<{ error?: string; message: string }>;
+      if (axiosErr.response?.data?.error === "COACH_CAPACITY_REACHED") {
+        setModalOpen(false);
+        setCapacityModalOpen(true);
+        return;
+      }
       setError(axiosErr.response?.data?.message || "Could not send invite");
     } finally {
       setSaving(false);
@@ -344,6 +358,27 @@ export default function CoachTraineesPage() {
                 </Button>
               </div>
             </form>
+          </section>
+        </div>
+      ) : null}
+
+      {capacityModalOpen ? (
+        <div className="coach-modal-backdrop" role="presentation" onClick={() => setCapacityModalOpen(false)}>
+          <section className="coach-modal" role="alertdialog" aria-modal="true" aria-labelledby="capacity-alert-title" onClick={(event) => event.stopPropagation()}>
+            <div className="coach-modal-head">
+              <div>
+                <h2 id="capacity-alert-title">Trainee capacity reached</h2>
+                <p>You currently coach {trainees.length} of {traineeCapacity} allowed trainees.</p>
+              </div>
+              <button type="button" aria-label="Close capacity alert" onClick={() => setCapacityModalOpen(false)}><X size={17} /></button>
+            </div>
+            <div className="coach-invite-form">
+              <Alert variant="info">Increase your maximum trainee capacity before sending another invitation.</Alert>
+              <div className="coach-modal-actions">
+                <Button variant="secondary" onClick={() => setCapacityModalOpen(false)}>Close</Button>
+                <Button onClick={() => navigate('/profile')}>Open Profile Settings</Button>
+              </div>
+            </div>
           </section>
         </div>
       ) : null}
