@@ -22,6 +22,11 @@ const formatDate = (value: string) => new Date(value).toLocaleDateString('en-GB'
   day: 'numeric', month: 'short', year: 'numeric',
 })
 
+const sessionDuration = (session: CoachManagedWorkoutSession) => Math.max(
+  0,
+  Math.round((new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime()) / 60_000),
+)
+
 export default function CoachWorkoutsView() {
   const [trainees, setTrainees] = useState<CoachUser[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -50,6 +55,8 @@ export default function CoachWorkoutsView() {
       return
     }
     setLoadingWorkouts(true)
+    setData(null)
+    setViews({})
     setError('')
     getCoachTraineeWorkouts(selectedId)
       .then(({ data: result }) => setData(result))
@@ -169,12 +176,16 @@ export default function CoachWorkoutsView() {
                       <div className="coach-workout-session-list">
                         {!sessions.length ? <EmptyState>No completed sessions recorded for this workout type.</EmptyState> : sessions.map(session => (
                           <details key={session._id}>
-                            <summary><div><strong>{formatDate(session.completedAt)}</strong><span>{session.exercises.length} exercises</span></div><span>View session</span></summary>
+                            <summary><div><strong>{formatDate(session.completedAt)}</strong><span>{session.exercises.length} exercises · {sessionDuration(session)} min</span></div><span>View session</span></summary>
                             <div className="coach-workout-session-detail">
                               {session.exercises.map(exercise => (
                                 <div key={exercise.exerciseKey ?? exercise.name}>
-                                  <strong>{exercise.name}</strong>
-                                  <span>{exercise.sets.length ? exercise.sets.map(set => `${set.weightUsedKg ?? 0} kg × ${set.repsCompleted}`).join(' · ') : 'No sets logged'}</span>
+                                  <div><strong>{exercise.name}</strong><small>Prescribed {exercise.prescribedSets} × {exercise.prescribedReps}</small></div>
+                                  <span className="coach-workout-recorded-sets">
+                                    {exercise.sets.length ? exercise.sets.map(set => (
+                                      <small key={`${set.setNumber}-${set.loggedAt}`}>Set {set.setNumber}: {set.weightUsedKg ? `${set.weightUsedKg} kg × ` : ''}{set.repsCompleted} reps</small>
+                                    )) : <small>No sets logged</small>}
+                                  </span>
                                 </div>
                               ))}
                               {session.notes && <p><strong>Trainee notes:</strong> {session.notes}</p>}
