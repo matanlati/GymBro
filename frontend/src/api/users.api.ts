@@ -17,6 +17,15 @@ export interface UserProfile {
   fitnessLevel?: 'beginner' | 'intermediate' | 'advanced'
   goals?: string
   limitations?: string
+  coachExperienceYears?: number
+  coachingSpecialties?: string[]
+  certifications?: string
+  coachingBio?: string
+  preferredTraineeLevels?: Array<'beginner' | 'intermediate' | 'advanced'>
+  coachingAvailability?: string
+  maxTrainees?: number
+  acceptingNewTrainees?: boolean
+  contactPreference?: 'in_app' | 'email'
   photo?: string
   createdAt: string
 }
@@ -29,6 +38,15 @@ export interface UpdateProfileData {
   fitnessLevel?: 'beginner' | 'intermediate' | 'advanced'
   goals?: string
   limitations?: string
+  coachExperienceYears?: number
+  coachingSpecialties?: string[]
+  certifications?: string
+  coachingBio?: string
+  preferredTraineeLevels?: Array<'beginner' | 'intermediate' | 'advanced'>
+  coachingAvailability?: string
+  maxTrainees?: number
+  acceptingNewTrainees?: boolean
+  contactPreference?: 'in_app' | 'email'
 }
 
 export function getMe() {

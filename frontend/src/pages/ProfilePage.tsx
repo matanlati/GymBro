@@ -12,7 +12,7 @@ import {
 } from '../api/progress.api'
 import { AxiosError } from 'axios'
 import { BarChart2, LogOut, Camera, Scale, UserRoundCheck, BellRing } from 'lucide-react'
-import { CoachAlertSettings, getCoachAlertSettings, updateCoachAlertSettings } from '../api/coach.api'
+import { CoachAlertSettings, getCoachAlertSettings, listCoachTodayWorkouts, listCoachTrainees, updateCoachAlertSettings } from '../api/coach.api'
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 function IconEmail() {
@@ -94,6 +94,7 @@ export default function ProfilePage() {
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [settingsError, setSettingsError] = useState('')
   const [settingsSaved, setSettingsSaved] = useState(false)
+  const [coachOverview, setCoachOverview] = useState({ trainees: 0, pendingReviews: 0 })
 
   useEffect(() => {
     getMe().then(({ data }) => {
@@ -102,11 +103,26 @@ export default function ProfilePage() {
         name: data.name, age: data.age, weightKg: data.weightKg,
         heightCm: data.heightCm, fitnessLevel: data.fitnessLevel,
         goals: data.goals, limitations: data.limitations,
+        coachExperienceYears: data.coachExperienceYears,
+        coachingSpecialties: data.coachingSpecialties,
+        certifications: data.certifications,
+        coachingBio: data.coachingBio,
+        preferredTraineeLevels: data.preferredTraineeLevels,
+        coachingAvailability: data.coachingAvailability,
+        maxTrainees: data.maxTrainees,
+        acceptingNewTrainees: data.acceptingNewTrainees,
+        contactPreference: data.contactPreference,
       })
       if (data.role === 'coach') {
         getCoachAlertSettings()
           .then(({ data: settings }) => setCoachSettings(settings))
           .catch(() => setSettingsError('Failed to load coaching alert settings'))
+        Promise.all([listCoachTrainees(), listCoachTodayWorkouts()])
+          .then(([trainees, workouts]) => setCoachOverview({
+            trainees: trainees.data.length,
+            pendingReviews: workouts.data.filter(workout => !workout.reviewedAt).length,
+          }))
+          .catch(() => setCoachOverview({ trainees: 0, pendingReviews: 0 }))
       }
     }).catch(() => setError('Failed to load profile'))
     getSummary()
@@ -121,7 +137,7 @@ export default function ProfilePage() {
     const { name, value } = e.target
     setForm(prev => ({
       ...prev,
-      [name]: ['age', 'weightKg', 'heightCm'].includes(name) ? (value ? Number(value) : undefined) : value,
+      [name]: ['age', 'weightKg', 'heightCm', 'coachExperienceYears', 'maxTrainees'].includes(name) ? (value ? Number(value) : undefined) : value,
     }))
   }
 
@@ -220,11 +236,21 @@ export default function ProfilePage() {
     kg >= 1000 ? `${(kg / 1000).toFixed(1)}k kg` : `${Math.round(kg)} kg`
 
   const latestWeight = weightEntries.length > 0 ? weightEntries[weightEntries.length - 1].weightKg : profile?.weightKg
+  const coachCapacity = profile?.maxTrainees ?? 20
+  const availableCoachSpots = Math.max(0, coachCapacity - coachOverview.trainees)
+  const newTraineeStatus = availableCoachSpots === 0
+    ? 'At capacity'
+    : profile?.acceptingNewTrainees === false ? 'Closed' : 'Open'
   const coach = profile?.role === 'trainee' && profile.coachId && typeof profile.coachId !== 'string'
     ? profile.coachId
     : null
 
-  const hasTrainingInfo = !!(
+  const hasTrainingInfo = profile?.role === 'coach' ? !!(
+    profile.coachExperienceYears !== undefined ||
+    profile.coachingSpecialties?.length ||
+    profile.coachingBio ||
+    profile.certifications
+  ) : !!(
     profile?.age ||
     profile?.weightKg ||
     profile?.heightCm ||
@@ -277,7 +303,7 @@ export default function ProfilePage() {
 
         {!editing ? (
           <>
-            {!hasTrainingInfo && (
+            {!hasTrainingInfo && profile.role === 'trainee' && (
               <div style={styles.profilePrompt}>
                 <strong>Add your info to receive the best results.</strong>
                 <span>Create a workout plan or edit your profile so GymBro can personalize your training.</span>
@@ -287,6 +313,26 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+            {profile.role === 'coach' ? (
+              <div style={styles.sections}>
+                <div style={styles.section}>
+                  <h3 style={styles.sectionTitle}>Coach Information</h3>
+                  <InfoRow icon={<IconEmail />} label="Email" value={profile.email} />
+                  <InfoRow icon={<IconCalendar />} label="Experience" value={profile.coachExperienceYears !== undefined ? `${profile.coachExperienceYears} years` : '-'} />
+                  <InfoRow icon={<IconLevel />} label="Preferred Levels" value={profile.preferredTraineeLevels?.map(formatLevel).join(', ') || '-'} />
+                  <InfoRow icon={<IconCalendar />} label="Availability" value={profile.coachingAvailability || '-'} />
+                  <InfoRow icon={<IconEmail />} label="Contact" value={profile.contactPreference === 'email' ? 'Email' : 'In-app'} />
+                </div>
+                <div style={{ ...styles.section, borderRight: 'none' }}>
+                  <h3 style={styles.sectionTitle}>Coaching Profile</h3>
+                  <InfoRow icon={<IconGoal />} label="Specialties" value={profile.coachingSpecialties?.join(', ') || '-'} />
+                  <InfoRow icon={<IconLevel />} label="Certifications" value={profile.certifications || '-'} />
+                  <InfoRow icon={<IconGoal />} label="Coaching Approach" value={profile.coachingBio || '-'} />
+                  <InfoRow icon={<IconCalendar />} label="Capacity" value={`${coachOverview.trainees} / ${profile.maxTrainees ?? 20} trainees`} />
+                  <InfoRow icon={<UserRoundCheck size={15} />} label="New Trainees" value={newTraineeStatus} />
+                </div>
+              </div>
+            ) : (
             <div style={styles.sections}>
               <div style={styles.section}>
                 <h3 style={styles.sectionTitle}>Personal Information</h3>
@@ -302,6 +348,7 @@ export default function ProfilePage() {
                 <InfoRow icon={<IconCalendar />} label="Member Since" value={new Date(profile.createdAt).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} />
               </div>
             </div>
+            )}
             <div style={styles.cardFooter}>
               <Button size="sm" onClick={() => setEditing(true)}>Edit Profile</Button>
             </div>
@@ -312,6 +359,50 @@ export default function ProfilePage() {
               <FormField label="Full name">
                 <Input name="name" type="text" value={form.name || ''} onChange={handleChange} />
               </FormField>
+              {profile.role === 'coach' ? (
+                <>
+                  <FormField label="Years of coaching experience">
+                    <Input name="coachExperienceYears" type="number" min="0" max="70" value={form.coachExperienceYears ?? ''} onChange={handleChange} />
+                  </FormField>
+                  <FormField label="Specialties (comma separated)" style={styles.fieldFull}>
+                    <Input
+                      value={form.coachingSpecialties?.join(', ') || ''}
+                      placeholder="Strength, hypertrophy, weight loss"
+                      onChange={(e) => setForm(prev => ({ ...prev, coachingSpecialties: e.target.value.split(',').map(value => value.trim()).filter(Boolean) }))}
+                    />
+                  </FormField>
+                  <FormField label="Certifications" style={styles.fieldFull}>
+                    <Textarea name="certifications" value={form.certifications || ''} onChange={handleChange} style={{ minHeight: 64 }} />
+                  </FormField>
+                  <FormField label="Coaching approach" style={styles.fieldFull}>
+                    <Textarea name="coachingBio" value={form.coachingBio || ''} onChange={handleChange} placeholder="Describe your coaching philosophy and how you support trainees." style={{ minHeight: 90 }} />
+                  </FormField>
+                  <FormField label="Preferred trainee levels" style={styles.fieldFull}>
+                    <div style={styles.checkOptions}>
+                      {(['beginner', 'intermediate', 'advanced'] as const).map(level => (
+                        <label key={level} style={styles.checkLabel}>
+                          <input type="checkbox" checked={form.preferredTraineeLevels?.includes(level) ?? false} onChange={(e) => setForm(prev => ({ ...prev, preferredTraineeLevels: e.target.checked ? [...(prev.preferredTraineeLevels ?? []), level] : (prev.preferredTraineeLevels ?? []).filter(item => item !== level) }))} />
+                          {formatLevel(level)}
+                        </label>
+                      ))}
+                    </div>
+                  </FormField>
+                  <FormField label="Availability" style={styles.fieldFull}>
+                    <Input name="coachingAvailability" value={form.coachingAvailability || ''} onChange={handleChange} placeholder="Weekdays, 08:00–18:00" />
+                  </FormField>
+                  <FormField label="Maximum trainee capacity">
+                    <Input name="maxTrainees" type="number" min="1" max="500" value={form.maxTrainees ?? 20} onChange={handleChange} />
+                  </FormField>
+                  <FormField label="Contact preference">
+                    <Select options={[{ value: 'in_app', label: 'In-app' }, { value: 'email', label: 'Email' }]} value={form.contactPreference || 'in_app'} onValueChange={(value) => setForm(prev => ({ ...prev, contactPreference: value as 'in_app' | 'email' }))} />
+                  </FormField>
+                  <label style={{ ...styles.checkLabel, ...styles.fieldFull }}>
+                    <input type="checkbox" checked={form.acceptingNewTrainees ?? true} onChange={(e) => setForm(prev => ({ ...prev, acceptingNewTrainees: e.target.checked }))} />
+                    Accepting new trainees
+                  </label>
+                </>
+              ) : (
+                <>
               <FormField label="Age">
                 <Input name="age" type="number" value={form.age ?? ''} onChange={handleChange} />
               </FormField>
@@ -340,6 +431,8 @@ export default function ProfilePage() {
               <FormField label="Injuries / Limitations" style={styles.fieldFull}>
                 <Textarea name="limitations" value={form.limitations || ''} onChange={handleChange} style={{ minHeight: 72 }} />
               </FormField>
+                </>
+              )}
             </div>
             {error && (
               <Alert variant="error" style={{ marginTop: 12 }}>
@@ -454,12 +547,23 @@ export default function ProfilePage() {
         <Card padding="none" style={styles.card}>
           <div style={styles.cardHeader}>
             <BarChart2 size={16} color="#6B7280" strokeWidth={1.8} />
-            <span style={styles.cardTitle}>Quick Stats</span>
+            <span style={styles.cardTitle}>{profile.role === 'coach' ? 'Coach Overview' : 'Quick Stats'}</span>
           </div>
-          <StatRow label="Total Workouts" value={String(summary?.totalSessions ?? 0)} color="#F97316" bg="#FFF7ED" />
-          <StatRow label="Current Streak" value={`${summary?.currentStreakDays ?? 0} days`} color="#22C55E" bg="#F0FDF4" />
-          <StatRow label="Total Volume" value={formatVolume(summary?.totalVolumeKg ?? 0)} color="#EF4444" bg="#FEF2F2" />
-          <StatRow label="Personal Records" value={String(summary?.personalRecords.length ?? 0)} color="#3B82F6" bg="#EFF6FF" />
+          {profile.role === 'coach' ? (
+            <>
+              <StatRow label="Active Trainees" value={String(coachOverview.trainees)} color="#F97316" bg="#FFF7ED" />
+              <StatRow label="Available Spots" value={String(availableCoachSpots)} color="#22C55E" bg="#F0FDF4" />
+              <StatRow label="Awaiting Review Today" value={String(coachOverview.pendingReviews)} color="#EF4444" bg="#FEF2F2" />
+              <StatRow label="New Trainees" value={newTraineeStatus} color={newTraineeStatus === 'Open' ? '#3B82F6' : '#EF4444'} bg={newTraineeStatus === 'Open' ? '#EFF6FF' : '#FEF2F2'} />
+            </>
+          ) : (
+            <>
+              <StatRow label="Total Workouts" value={String(summary?.totalSessions ?? 0)} color="#F97316" bg="#FFF7ED" />
+              <StatRow label="Current Streak" value={`${summary?.currentStreakDays ?? 0} days`} color="#22C55E" bg="#F0FDF4" />
+              <StatRow label="Total Volume" value={formatVolume(summary?.totalVolumeKg ?? 0)} color="#EF4444" bg="#FEF2F2" />
+              <StatRow label="Personal Records" value={String(summary?.personalRecords.length ?? 0)} color="#3B82F6" bg="#EFF6FF" />
+            </>
+          )}
         </Card>
       </div>
 
@@ -693,6 +797,8 @@ const styles: Record<string, React.CSSProperties> = {
   form: { padding: '20px 24px' },
   formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' },
   fieldFull: { gridColumn: '1 / -1' },
+  checkOptions: { display: 'flex', gap: 18, flexWrap: 'wrap' },
+  checkLabel: { display: 'flex', alignItems: 'center', gap: 8, color: '#374151', fontSize: 13, cursor: 'pointer' },
   formActions: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 },
 
   bottomRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },

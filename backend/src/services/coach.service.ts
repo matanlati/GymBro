@@ -29,6 +29,10 @@ export async function sendInvite(coachUserId: string, traineeEmail: string) {
   const coach = await requireUser(coachUserId)
   if (coach.role !== 'coach') throw new Error('COACH_ONLY')
 
+  const activeTraineeCount = await User.countDocuments({ coachId: coach._id, role: 'trainee' })
+  const coachProfile = await User.findById(coach._id).select('maxTrainees')
+  if (activeTraineeCount >= (coachProfile?.maxTrainees ?? 20)) throw new Error('COACH_CAPACITY_REACHED')
+
   const normalizedEmail = traineeEmail?.trim().toLowerCase()
   if (!normalizedEmail) throw new Error('INVALID_EMAIL')
 
@@ -563,6 +567,11 @@ export async function acceptInvite(traineeUserId: string, inviteId: string) {
     status: 'pending',
   })
   if (!invite) throw new Error('INVITE_NOT_FOUND')
+
+  const coach = await User.findById(invite.coachId).select('maxTrainees role')
+  if (!coach || coach.role !== 'coach') throw new Error('USER_NOT_FOUND')
+  const activeTraineeCount = await User.countDocuments({ coachId: coach._id, role: 'trainee' })
+  if (activeTraineeCount >= (coach.maxTrainees ?? 20)) throw new Error('COACH_CAPACITY_REACHED')
 
   trainee.coachId = invite.coachId
   await trainee.save()

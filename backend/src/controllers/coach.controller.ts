@@ -35,6 +35,8 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'TARGET_NOT_TRAINEE', message: 'That email does not belong to a trainee account' })
     case 'TRAINEE_ALREADY_HAS_COACH':
       return res.status(400).json({ error: 'TRAINEE_ALREADY_HAS_COACH', message: 'This trainee already has a coach' })
+    case 'COACH_CAPACITY_REACHED':
+      return res.status(409).json({ error: 'COACH_CAPACITY_REACHED', message: 'You have reached your trainee capacity. Increase it in your profile before inviting another trainee.' })
     case 'INVITE_NOT_FOUND':
       return res.status(404).json({ error: 'INVITE_NOT_FOUND', message: 'Invite not found' })
     case 'USER_NOT_FOUND':
