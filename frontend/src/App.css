@@ -20,12 +20,25 @@
 .coach-workout-program-head h2, .coach-workout-program-head p { margin: 0; }
 .coach-workout-program-head h2 { font-size: 23px; }
 .coach-workout-program-head p { color: #6b7280; font-size: 14px; }
-.coach-workout-type-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.coach-workout-browser { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
+.coach-workout-type-nav { overflow: hidden; position: sticky; top: 88px; }
+.coach-workout-type-nav-head { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; border-bottom: 1px solid #e5e7eb; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
+.coach-workout-type-nav-list { display: grid; padding: 7px; gap: 4px; }
+.coach-workout-type-nav-list button { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: center; width: 100%; padding: 11px 10px; border: 1px solid transparent; border-radius: 9px; background: transparent; text-align: left; cursor: pointer; }
+.coach-workout-type-nav-list button:hover { background: #f8fafc; }
+.coach-workout-type-nav-list button.active { border-color: #fed7aa; background: #fff7ed; }
+.coach-workout-type-nav-list button > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: #f1f5f9; color: #64748b; font-size: 12px; font-weight: 800; }
+.coach-workout-type-nav-list button.active > span { background: #f97316; color: #fff; }
+.coach-workout-type-nav-list button > div { display: grid; gap: 3px; min-width: 0; }
+.coach-workout-type-nav-list strong, .coach-workout-type-nav-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coach-workout-type-nav-list strong { color: #111827; font-size: 13px; }
+.coach-workout-type-nav-list small { color: #94a3b8; font-size: 11px; }
 .coach-workout-type-card { overflow: hidden; }
 .coach-workout-type-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px 14px; }
 .coach-workout-type-head > div { display: grid; gap: 3px; }
 .coach-workout-type-head span { color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
 .coach-workout-type-head h3 { margin: 0; font-size: 18px; }
+.coach-workout-type-head > div > small { color: #94a3b8; font-size: 11px; }
 .coach-workout-view-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 0 20px; border-bottom: 1px solid #e5e7eb; }
 .coach-workout-view-tabs button { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #6b7280; font-weight: 700; cursor: pointer; }
 .coach-workout-view-tabs button.active { color: #ea580c; border-bottom-color: #f97316; }
@@ -62,7 +75,10 @@
 .coach-workout-editor-remove:hover { background: #fee2e2; }
 .coach-workout-editor-remove:disabled { color: #cbd5e1; cursor: not-allowed; background: transparent; }
 @media (max-width: 850px) {
-  .coach-workout-type-grid { grid-template-columns: 1fr; }
+  .coach-workout-browser { grid-template-columns: 1fr; }
+  .coach-workout-type-nav { position: static; }
+  .coach-workout-type-nav-list { display: flex; overflow-x: auto; }
+  .coach-workout-type-nav-list button { min-width: 210px; }
   .coach-workout-trainee-picker, .coach-workout-program-head { align-items: stretch; flex-direction: column; }
   .coach-workout-trainee-picker select { min-width: 0; width: 100%; }
   .coach-workout-editor-fields { grid-template-columns: 1fr 1fr; }

@@ -31,7 +31,8 @@ export default function CoachWorkoutsView() {
   const [trainees, setTrainees] = useState<CoachUser[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [data, setData] = useState<CoachTraineeWorkouts | null>(null)
-  const [views, setViews] = useState<Record<number, ViewMode>>({})
+  const [selectedWorkoutIndex, setSelectedWorkoutIndex] = useState(0)
+  const [viewMode, setViewMode] = useState<ViewMode>('overview')
   const [loadingTrainees, setLoadingTrainees] = useState(true)
   const [loadingWorkouts, setLoadingWorkouts] = useState(false)
   const [error, setError] = useState('')
@@ -56,7 +57,8 @@ export default function CoachWorkoutsView() {
     }
     setLoadingWorkouts(true)
     setData(null)
-    setViews({})
+    setSelectedWorkoutIndex(0)
+    setViewMode('overview')
     setError('')
     getCoachTraineeWorkouts(selectedId)
       .then(({ data: result }) => setData(result))
@@ -105,6 +107,7 @@ export default function CoachWorkoutsView() {
         ? await createCoachTraineeWorkoutType(selectedId, payload)
         : await updateCoachTraineeWorkoutType(selectedId, editor.dayIndex, payload)
       setData(current => current ? { ...current, plan: response.data } : { plan: response.data, sessions: [] })
+      if (editor.dayIndex === null) setSelectedWorkoutIndex(response.data.weeklyPlan.length - 1)
       setEditor(null)
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>
@@ -148,21 +151,39 @@ export default function CoachWorkoutsView() {
           {!data?.plan?.weeklyPlan.length ? (
             <Card><EmptyState>No workout types yet. Create one to build this trainee’s program.</EmptyState></Card>
           ) : (
-            <div className="coach-workout-type-grid">
-              {data.plan.weeklyPlan.map((workout, dayIndex) => {
-                const mode = views[dayIndex] ?? 'overview'
+            <div className="coach-workout-browser">
+              <Card className="coach-workout-type-nav" padding="none">
+                <div className="coach-workout-type-nav-head"><span>Workout Types</span><Badge>{data.plan.weeklyPlan.length}</Badge></div>
+                <div className="coach-workout-type-nav-list">
+                  {data.plan.weeklyPlan.map((workout, dayIndex) => (
+                    <button
+                      type="button"
+                      className={selectedWorkoutIndex === dayIndex ? 'active' : ''}
+                      key={`${dayIndex}-${workout.focus}`}
+                      onClick={() => { setSelectedWorkoutIndex(dayIndex); setViewMode('overview') }}
+                    >
+                      <span>{dayIndex + 1}</span>
+                      <div><strong>{workout.focus}</strong><small>{workout.exercises.length} exercises · {(sessionsByDay.get(dayIndex) ?? []).length} sessions</small></div>
+                    </button>
+                  ))}
+                </div>
+              </Card>
+
+              {(() => {
+                const workout = data.plan!.weeklyPlan[selectedWorkoutIndex] ?? data.plan!.weeklyPlan[0]
+                const dayIndex = data.plan!.weeklyPlan.indexOf(workout)
                 const sessions = sessionsByDay.get(dayIndex) ?? []
                 return (
-                  <Card className="coach-workout-type-card" padding="none" key={`${dayIndex}-${workout.focus}`}>
+                  <Card className="coach-workout-type-card" padding="none">
                     <div className="coach-workout-type-head">
-                      <div><span>Workout type {dayIndex + 1}</span><h3>{workout.focus}</h3></div>
-                      <Button variant="ghost" size="sm" leadingIcon={<Pencil size={14} />} onClick={() => openEdit(dayIndex)}>Edit</Button>
+                      <div><span>Workout type {dayIndex + 1}</span><h3>{workout.focus}</h3><small>{workout.exercises.length} prescribed exercises</small></div>
+                      <Button variant="ghost" size="sm" leadingIcon={<Pencil size={14} />} onClick={() => openEdit(dayIndex)}>Edit Workout</Button>
                     </div>
                     <div className="coach-workout-view-tabs">
-                      <button className={mode === 'overview' ? 'active' : ''} onClick={() => setViews(current => ({ ...current, [dayIndex]: 'overview' }))}><Dumbbell size={14} /> Overview</button>
-                      <button className={mode === 'sessions' ? 'active' : ''} onClick={() => setViews(current => ({ ...current, [dayIndex]: 'sessions' }))}><History size={14} /> Sessions <Badge>{sessions.length}</Badge></button>
+                      <button className={viewMode === 'overview' ? 'active' : ''} onClick={() => setViewMode('overview')}><Dumbbell size={14} /> General Overview</button>
+                      <button className={viewMode === 'sessions' ? 'active' : ''} onClick={() => setViewMode('sessions')}><History size={14} /> Recorded Sessions <Badge>{sessions.length}</Badge></button>
                     </div>
-                    {mode === 'overview' ? (
+                    {viewMode === 'overview' ? (
                       <div className="coach-workout-exercise-list">
                         <div className="coach-workout-exercise-labels"><span>Exercise</span><span>Sets</span><span>Reps</span></div>
                         {workout.exercises.map((exercise, index) => (
@@ -196,7 +217,7 @@ export default function CoachWorkoutsView() {
                     )}
                   </Card>
                 )
-              })}
+              })()}
             </div>
           )}
         </>
