@@ -67,19 +67,33 @@
 .coach-workout-recorded-sets { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; color: #475569; text-align: right; }
 .coach-workout-recorded-sets small { padding: 4px 7px; border-radius: 6px; background: #fff; border: 1px solid #e2e8f0; white-space: nowrap; }
 .coach-workout-session-detail p { margin: 4px 0 0; color: #475569; font-size: 12px; }
-.coach-workout-editor-modal { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
-.coach-workout-editor-form { display: grid; gap: 18px; padding: 20px; }
-.coach-workout-editor-exercises-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.coach-modal.coach-workout-editor-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(900px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 14px;
+}
+.coach-workout-editor-modal > .coach-modal-head { flex: 0 0 auto; margin: 0; padding: 22px 28px 18px; border-bottom: 1px solid #e5e7eb; }
+.coach-workout-editor-modal > .coach-modal-head h2 { font-size: 22px; }
+.coach-workout-editor-modal > .coach-modal-head p { max-width: 580px; line-height: 1.5; }
+.coach-workout-editor-form { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; gap: 0; }
+.coach-workout-editor-form > :first-child { flex: 0 0 auto; margin: 20px 28px; }
+.coach-workout-editor-exercises-head { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 16px; padding: 0 28px 14px; }
 .coach-workout-editor-exercises-head h3, .coach-workout-editor-exercises-head p { margin: 0; }
 .coach-workout-editor-exercises-head h3 { font-size: 15px; }
 .coach-workout-editor-exercises-head p { color: #6b7280; font-size: 12px; margin-top: 3px; }
-.coach-workout-editor-exercises { display: grid; gap: 12px; }
-.coach-workout-editor-exercise { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr) 32px; gap: 10px; padding: 14px; border: 1px solid #e5e7eb; border-radius: 10px; background: #f8fafc; }
+.coach-workout-editor-exercises { display: grid; min-height: 180px; padding: 0 28px 20px; gap: 14px; overflow-y: auto; }
+.coach-workout-editor-exercise { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) 36px; gap: 14px; padding: 18px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
 .coach-workout-editor-number { display: grid; place-items: center; align-self: start; width: 25px; height: 25px; border-radius: 50%; background: #ffedd5; color: #ea580c; font-size: 12px; font-weight: 800; }
-.coach-workout-editor-fields { display: grid; grid-template-columns: minmax(0, 1fr) 90px 110px; gap: 12px; }
+.coach-workout-editor-fields { display: grid; grid-template-columns: minmax(240px, 1fr) 110px 130px; gap: 14px; align-items: start; }
 .coach-workout-editor-remove { align-self: start; display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #ef4444; cursor: pointer; }
 .coach-workout-editor-remove:hover { background: #fee2e2; }
 .coach-workout-editor-remove:disabled { color: #cbd5e1; cursor: not-allowed; background: transparent; }
+.coach-workout-editor-form > [role="alert"] { margin: 0 28px 16px; }
+.coach-workout-editor-form > .coach-modal-actions { flex: 0 0 auto; padding: 16px 28px; border-top: 1px solid #e5e7eb; background: #fff; }
 @media (max-width: 850px) {
   .coach-workouts-page { width: min(100% - 32px, 1180px); padding-top: 24px; }
   .coach-workout-browser { grid-template-columns: 1fr; }
@@ -90,6 +104,19 @@
   .coach-workout-trainee-picker select { min-width: 0; width: 100%; }
   .coach-workout-editor-fields { grid-template-columns: 1fr 1fr; }
   .coach-workout-editor-fields > :first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .coach-modal-backdrop { padding: 12px; }
+  .coach-modal.coach-workout-editor-modal { width: 100%; max-height: calc(100vh - 24px); }
+  .coach-workout-editor-modal > .coach-modal-head { padding: 18px 18px 15px; }
+  .coach-workout-editor-form > :first-child { margin: 16px 18px; }
+  .coach-workout-editor-exercises-head { align-items: flex-start; padding: 0 18px 12px; }
+  .coach-workout-editor-exercises { padding: 0 18px 16px; }
+  .coach-workout-editor-exercise { grid-template-columns: 26px minmax(0, 1fr); padding: 14px; gap: 10px; }
+  .coach-workout-editor-fields { grid-template-columns: 1fr; }
+  .coach-workout-editor-fields > :first-child { grid-column: auto; }
+  .coach-workout-editor-remove { position: absolute; top: 10px; right: 10px; }
+  .coach-workout-editor-form > .coach-modal-actions { padding: 14px 18px; }
 }
 
 * {
