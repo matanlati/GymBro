@@ -2685,6 +2685,22 @@ button {
   font-size: 14px;
 }
 
+.session-coach-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 11px 13px;
+  border: 1px solid #fed7aa;
+  border-radius: 9px;
+  background: #fff7ed;
+  color: #7c2d12;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.session-coach-note strong { flex: 0 0 auto; color: #ea580c; }
+
 .session-sets {
   display: flex;
   flex-wrap: wrap;

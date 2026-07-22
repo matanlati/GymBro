@@ -126,6 +126,7 @@ export const getOrCreateTodaySession = async (
     name: ex.name,
     prescribedSets: ex.sets,
     prescribedReps: ex.reps,
+    coachNotes: ex.notes,
     orderIndex: i,
     sets: [],
   }))
@@ -214,6 +215,7 @@ export const scheduleSession = async (
       name: ex.name,
       prescribedSets: ex.sets,
       prescribedReps: ex.reps,
+      coachNotes: ex.notes,
       orderIndex: i,
       sets: [],
     }))

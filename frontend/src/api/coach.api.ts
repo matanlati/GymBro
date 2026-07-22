@@ -63,6 +63,7 @@ export interface CoachManagedWorkoutSession {
     name: string
     prescribedSets: string
     prescribedReps: string
+    coachNotes?: string
     sets: Array<{ setNumber: number; repsCompleted: number; weightUsedKg?: number; loggedAt: string }>
   }>
 }

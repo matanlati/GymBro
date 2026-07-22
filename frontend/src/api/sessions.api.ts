@@ -13,6 +13,7 @@ export interface ExerciseLog {
   prescribedSets: string
   prescribedReps: string
   prescribedWeightKg?: number
+  coachNotes?: string
   orderIndex: number
   sets: SetLog[]
 }
