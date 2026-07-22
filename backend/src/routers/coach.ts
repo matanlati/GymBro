@@ -1,11 +1,45 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth'
-import { acceptInvite, clearCoachProgressLookout, getCoachAlertSettings, getCoachDashboardSummary, getCoachProgressLookout, getCoachTraineeNotes, listCoachInvites, listCoachTodayWorkouts, listCoachTrainees, listMyInvites, removeCoachTrainee, reviewCoachWorkout, saveCoachTraineeNotes, sendInvite, updateCoachAlertSettings } from '../controllers/coach.controller'
+import {
+  acceptInvite,
+  clearCoachProgressLookout,
+  createTraineeProgressGoal,
+  deleteTraineeProgressGoal,
+  getCoachAlertSettings,
+  getCoachDashboardSummary,
+  getCoachProgressLookout,
+  getCoachTraineeNotes,
+  getProgressOverview,
+  getTraineeProgress,
+  getTraineeProgressAchievements,
+  getTraineeProgressExercise,
+  getTraineeProgressGoals,
+  getTraineeProgressMeasurements,
+  listCoachInvites,
+  listCoachTodayWorkouts,
+  listCoachTrainees,
+  listMyInvites,
+  removeCoachTrainee,
+  reviewCoachWorkout,
+  saveCoachTraineeNotes,
+  sendInvite,
+  updateCoachAlertSettings,
+  updateTraineeProgressGoal,
+} from '../controllers/coach.controller'
 
 const router = Router()
 
 router.use(authMiddleware)
 
+router.get('/progress/overview', getProgressOverview)
+router.get('/trainees/:id/progress/summary', getTraineeProgress)
+router.get('/trainees/:id/progress/goals', getTraineeProgressGoals)
+router.post('/trainees/:id/progress/goals', createTraineeProgressGoal)
+router.patch('/trainees/:id/progress/goals/:goalId', updateTraineeProgressGoal)
+router.delete('/trainees/:id/progress/goals/:goalId', deleteTraineeProgressGoal)
+router.get('/trainees/:id/progress/achievements', getTraineeProgressAchievements)
+router.get('/trainees/:id/progress/measurements', getTraineeProgressMeasurements)
+router.get('/trainees/:id/progress/exercise/:name', getTraineeProgressExercise)
 router.post('/invites', sendInvite)
 router.get('/invites', listCoachInvites)
 router.get('/trainees', listCoachTrainees)

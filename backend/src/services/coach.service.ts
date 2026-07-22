@@ -17,6 +17,12 @@ const requireUser = async (userId: string) => {
   return user
 }
 
+export const requireCoachUser = async (userId: string) => {
+  const user = await requireUser(userId)
+  if (user.role !== 'coach') throw new Error('COACH_ONLY')
+  return user
+}
+
 const populateInvite = (invite: ICoachInvite | null) => {
   if (!invite) throw new Error('INVITE_NOT_FOUND')
   return invite.populate([
@@ -490,7 +496,7 @@ export async function clearProgressLookout(
   if (typeof workoutKey !== 'string' || !workoutKey.trim() || workoutKey.length > 300) {
     throw new Error('INVALID_WORKOUT_KEY')
   }
-  const coach = await requireCoachTrainee(coachUserId, traineeId)
+  const coach = await requireAssignedTrainee(coachUserId, traineeId)
   const clearedAt = new Date()
   await CoachProgressAlertClear.findOneAndUpdate(
     { coachId: coach._id, traineeId, workoutKey },
@@ -500,7 +506,8 @@ export async function clearProgressLookout(
   return { traineeId, workoutKey, clearedAt }
 }
 
-const requireCoachTrainee = async (coachUserId: string, traineeId: string) => {
+/** Authorize access to a trainee currently assigned to the requesting coach. */
+export const requireAssignedTrainee = async (coachUserId: string, traineeId: string) => {
   if (!Types.ObjectId.isValid(traineeId)) throw new Error('INVALID_TRAINEE')
   const coach = await requireUser(coachUserId)
   if (coach.role !== 'coach') throw new Error('COACH_ONLY')
@@ -511,14 +518,14 @@ const requireCoachTrainee = async (coachUserId: string, traineeId: string) => {
 }
 
 export async function getTraineeNotes(coachUserId: string, traineeId: string) {
-  const coach = await requireCoachTrainee(coachUserId, traineeId)
+  const coach = await requireAssignedTrainee(coachUserId, traineeId)
   const record = await CoachTraineeNote.findOne({ coachId: coach._id, traineeId }).lean()
   return { notes: record?.notes ?? '', updatedAt: record?.updatedAt ?? null }
 }
 
 export async function saveTraineeNotes(coachUserId: string, traineeId: string, notes: unknown) {
   if (typeof notes !== 'string' || notes.length > 5000) throw new Error('INVALID_NOTES')
-  const coach = await requireCoachTrainee(coachUserId, traineeId)
+  const coach = await requireAssignedTrainee(coachUserId, traineeId)
   const record = await CoachTraineeNote.findOneAndUpdate(
     { coachId: coach._id, traineeId },
     { $set: { notes } },

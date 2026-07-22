@@ -1,4 +1,15 @@
 import client from './client'
+import type {
+  AchievementCategory,
+  AchievementUnlock,
+  BodyMeasurement,
+  CreateProgressGoalPayload,
+  ExercisePoint,
+  ProgressGoal,
+  ProgressGoalStatus,
+  ProgressSummary,
+  UpdateProgressGoalPayload,
+} from './progress.api'
 
 export interface CoachUser {
   _id: string
@@ -152,3 +163,69 @@ export function listMyCoachInvites() {
 export function acceptCoachInvite(inviteId: string) {
   return client.post<CoachInvite>(`/coach/invites/${inviteId}/accept`)
 }
+
+export type CoachProgressPeriod = 'week' | 'month' | 'quarter' | 'year'
+
+export interface CoachProgressOverview {
+  period: CoachProgressPeriod
+  range: { from: string; to: string }
+  completedWorkouts: {
+    current: number
+    previous: number
+    changePercent: number | null
+  }
+  personalRecords: number
+  goalsAchieved: number
+}
+
+export const getCoachProgressOverview = (period: CoachProgressPeriod = 'month') =>
+  client.get<CoachProgressOverview>('/coach/progress/overview', { params: { period } })
+
+export const getCoachTraineeProgressSummary = (traineeId: string) =>
+  client.get<ProgressSummary>(`/coach/trainees/${traineeId}/progress/summary`)
+
+export const getCoachTraineeExerciseSeries = (traineeId: string, exerciseName: string) =>
+  client.get<ExercisePoint[]>(
+    `/coach/trainees/${traineeId}/progress/exercise/${encodeURIComponent(exerciseName)}`
+  )
+
+export const listCoachTraineeGoals = (
+  traineeId: string,
+  status?: ProgressGoalStatus
+) => client.get<ProgressGoal[]>(`/coach/trainees/${traineeId}/progress/goals`, {
+  params: status ? { status } : undefined,
+})
+
+export const createCoachTraineeGoal = (
+  traineeId: string,
+  payload: CreateProgressGoalPayload
+) => client.post<ProgressGoal>(`/coach/trainees/${traineeId}/progress/goals`, payload)
+
+export const updateCoachTraineeGoal = (
+  traineeId: string,
+  goalId: string,
+  payload: UpdateProgressGoalPayload
+) => client.patch<ProgressGoal>(
+  `/coach/trainees/${traineeId}/progress/goals/${goalId}`,
+  payload
+)
+
+export const deleteCoachTraineeGoal = (traineeId: string, goalId: string) =>
+  client.delete(`/coach/trainees/${traineeId}/progress/goals/${goalId}`)
+
+export const listCoachTraineeAchievements = (
+  traineeId: string,
+  category?: AchievementCategory,
+  limit = 20
+) => client.get<AchievementUnlock[]>(
+  `/coach/trainees/${traineeId}/progress/achievements`,
+  { params: { ...(category ? { category } : {}), limit } }
+)
+
+export const listCoachTraineeMeasurements = (
+  traineeId: string,
+  params?: { from?: string; to?: string; limit?: number }
+) => client.get<BodyMeasurement[]>(
+  `/coach/trainees/${traineeId}/progress/measurements`,
+  { params }
+)

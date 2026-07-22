@@ -13,13 +13,11 @@ import {
 import type { SelectOption } from '@gymbro/ui-kit'
 import {
   AchievementUnlock,
-  createGoal,
-  listAchievements,
-  listGoals,
   ProgressGoal,
   ProgressGoalType,
-  updateGoal,
 } from '../../api/progress.api'
+import type { ProgressDataSource } from '../../api/progressDataSource'
+import type { ProgressDashboardPermissions } from './ProgressDashboard'
 import ProgressSelect from './ProgressSelect'
 
 const GOAL_TYPES: SelectOption<ProgressGoalType>[] = [
@@ -60,9 +58,15 @@ const achievementLabel = (achievement: AchievementUnlock) => {
 
 interface GoalsAchievementsProps {
   exercises: string[]
+  dataSource: ProgressDataSource
+  permissions: ProgressDashboardPermissions
 }
 
-export default function GoalsAchievements({ exercises }: GoalsAchievementsProps) {
+export default function GoalsAchievements({
+  exercises,
+  dataSource,
+  permissions,
+}: GoalsAchievementsProps) {
   const [goals, setGoals] = useState<ProgressGoal[]>([])
   const [achievements, setAchievements] = useState<AchievementUnlock[]>([])
   const [loading, setLoading] = useState(true)
@@ -75,20 +79,34 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError('')
+    setGoals([])
+    setAchievements([])
+
     const loadProgressPanels = () => Promise.all([
-      listGoals('active'),
-      listAchievements(undefined, 8),
-    ])
+        dataSource.goals.list('active'),
+        dataSource.achievements.list(undefined, 8),
+      ])
       .then(([goalResponse, achievementResponse]) => {
+        if (!active) return
         setGoals(goalResponse.data)
         setAchievements(achievementResponse.data)
       })
-      .catch(() => setError('Could not load goals and achievements.'))
+      .catch(() => {
+        if (active) setError('Could not load goals and achievements.')
+      })
 
-    loadProgressPanels().finally(() => setLoading(false))
+    loadProgressPanels().finally(() => {
+      if (active) setLoading(false)
+    })
     window.addEventListener('progress-data-changed', loadProgressPanels)
-    return () => window.removeEventListener('progress-data-changed', loadProgressPanels)
-  }, [])
+    return () => {
+      active = false
+      window.removeEventListener('progress-data-changed', loadProgressPanels)
+    }
+  }, [dataSource])
 
   const exerciseOptions: SelectOption[] = Array.from(
     new Set([...exercises, ...DEFAULT_STRENGTH_EXERCISES])
@@ -108,6 +126,7 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
 
   const submitGoal = async (event: FormEvent) => {
     event.preventDefault()
+    if (!permissions.canAddGoals) return
     const target = Number(targetValue)
     if (!Number.isFinite(target) || target <= 0) {
       setError('Enter a target greater than zero.')
@@ -125,13 +144,13 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
     setSaving(true)
     setError('')
     try {
-      await createGoal({
+      await dataSource.goals.create({
         type: goalType,
         targetValue: target,
         ...(exerciseName ? { exerciseName } : {}),
         ...(baselineValue ? { baselineValue: Number(baselineValue) } : {}),
       })
-      const { data } = await listGoals('active')
+      const { data } = await dataSource.goals.list('active')
       setGoals(data)
       resetForm()
     } catch {
@@ -142,8 +161,9 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
   }
 
   const archiveGoal = async (goal: ProgressGoal) => {
+    if (!permissions.canArchiveGoals) return
     try {
-      await updateGoal(goal._id, { status: 'archived' })
+      await dataSource.goals.update(goal._id, { status: 'archived' })
       setGoals(current => current.filter(item => item._id !== goal._id))
     } catch {
       setError('Could not archive this goal.')
@@ -157,7 +177,7 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
       <Card as="section" className="progress-card">
         <CardHeader
           title="Goals"
-          trailing={
+          trailing={permissions.canAddGoals ? (
             <Button
               variant="ghost"
               size="sm"
@@ -166,12 +186,12 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
             >
               {showForm ? 'Cancel' : 'Add goal'}
             </Button>
-          }
+          ) : undefined}
         />
 
         {error && <Alert variant="error">{error}</Alert>}
 
-        {showForm && (
+        {permissions.canAddGoals && showForm && (
           <form className="goal-form" onSubmit={submitGoal}>
             <FormField label="Goal type">
               <ProgressSelect
@@ -239,15 +259,17 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
                       <span style={{ width: `${percent}%` }} />
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="goal-archive-button"
-                    onClick={() => archiveGoal(goal)}
-                    aria-label={`Archive ${goalLabel(goal)}`}
-                    title="Archive goal"
-                  >
-                    <Archive size={16} />
-                  </button>
+                  {permissions.canArchiveGoals && (
+                    <button
+                      type="button"
+                      className="goal-archive-button"
+                      onClick={() => archiveGoal(goal)}
+                      aria-label={`Archive ${goalLabel(goal)}`}
+                      title="Archive goal"
+                    >
+                      <Archive size={16} />
+                    </button>
+                  )}
                 </li>
               )
             })}

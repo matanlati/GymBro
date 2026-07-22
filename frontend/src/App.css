@@ -2606,6 +2606,60 @@ button {
   padding: 24px;
 }
 
+.coach-overall-progress {
+  display: grid;
+  gap: 22px;
+}
+
+.coach-progress-page {
+  display: grid;
+  gap: 28px;
+}
+
+.coach-progress-page > .gb-page-header {
+  margin-bottom: 0;
+}
+
+.coach-progress-period-select {
+  min-width: 168px;
+}
+
+.coach-overall-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.coach-selected-trainee-progress,
+.progress-dashboard {
+  display: grid;
+  gap: 20px;
+}
+
+.coach-trainee-progress-heading {
+  display: grid;
+  gap: 18px;
+}
+
+.coach-trainee-select {
+  min-width: 220px;
+}
+
+@media (max-width: 760px) {
+  .coach-overall-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .coach-progress-period-select {
+    min-width: 150px;
+  }
+
+  .coach-trainee-select {
+    min-width: 150px;
+    width: 100%;
+  }
+}
+
 /* .progress-empty is still referenced inside BarChart/LineChart — remove once
    those move to the ui-kit and use EmptyState. */
 .progress-empty {
@@ -2718,6 +2772,19 @@ button {
 
 .progress-card {
   margin-bottom: 20px;
+}
+
+.strength-progress-explanation {
+  margin: -4px 0 18px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.strength-progress-explanation abbr {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
 }
 
 .progress-activity-card .bar-chart {
@@ -3185,6 +3252,33 @@ button {
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Keep decorative progress icons centered even when row typography rules
+   change the display mode of nested spans. */
+.progress-page :is(
+  .progress-stat-icon,
+  .bodyweight-record-icon,
+  .goal-icon,
+  .achievement-icon,
+  .measurement-entry-icon
+) {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.progress-page :is(
+  .progress-stat-icon,
+  .bodyweight-record-icon,
+  .goal-icon,
+  .achievement-icon,
+  .measurement-entry-icon
+) > svg {
+  display: block;
+  margin: auto;
 }
 
 .measurement-entry-actions {
