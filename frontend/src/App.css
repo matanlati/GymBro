@@ -45,10 +45,25 @@
 .coach-workout-session-detail > div { display: flex; justify-content: space-between; gap: 14px; font-size: 12px; }
 .coach-workout-session-detail > div span { color: #6b7280; text-align: right; }
 .coach-workout-session-detail p { margin: 4px 0 0; color: #475569; font-size: 12px; }
+.coach-workout-editor-modal { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.coach-workout-editor-form { display: grid; gap: 18px; padding: 20px; }
+.coach-workout-editor-exercises-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.coach-workout-editor-exercises-head h3, .coach-workout-editor-exercises-head p { margin: 0; }
+.coach-workout-editor-exercises-head h3 { font-size: 15px; }
+.coach-workout-editor-exercises-head p { color: #6b7280; font-size: 12px; margin-top: 3px; }
+.coach-workout-editor-exercises { display: grid; gap: 12px; }
+.coach-workout-editor-exercise { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr) 32px; gap: 10px; padding: 14px; border: 1px solid #e5e7eb; border-radius: 10px; background: #f8fafc; }
+.coach-workout-editor-number { display: grid; place-items: center; align-self: start; width: 25px; height: 25px; border-radius: 50%; background: #ffedd5; color: #ea580c; font-size: 12px; font-weight: 800; }
+.coach-workout-editor-fields { display: grid; grid-template-columns: minmax(0, 1fr) 90px 110px; gap: 12px; }
+.coach-workout-editor-remove { align-self: start; display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #ef4444; cursor: pointer; }
+.coach-workout-editor-remove:hover { background: #fee2e2; }
+.coach-workout-editor-remove:disabled { color: #cbd5e1; cursor: not-allowed; background: transparent; }
 @media (max-width: 850px) {
   .coach-workout-type-grid { grid-template-columns: 1fr; }
   .coach-workout-trainee-picker, .coach-workout-program-head { align-items: stretch; flex-direction: column; }
   .coach-workout-trainee-picker select { min-width: 0; width: 100%; }
+  .coach-workout-editor-fields { grid-template-columns: 1fr 1fr; }
+  .coach-workout-editor-fields > :first-child { grid-column: 1 / -1; }
 }
 
 * {
