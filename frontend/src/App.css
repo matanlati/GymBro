@@ -2579,6 +2579,33 @@ button {
   white-space: nowrap;
 }
 
+/* Keep decorative progress icons centered even when row typography rules
+   change the display mode of nested spans. */
+.progress-page :is(
+  .progress-stat-icon,
+  .bodyweight-record-icon,
+  .goal-icon,
+  .achievement-icon,
+  .measurement-entry-icon
+) {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.progress-page :is(
+  .progress-stat-icon,
+  .bodyweight-record-icon,
+  .goal-icon,
+  .achievement-icon,
+  .measurement-entry-icon
+) > svg {
+  display: block;
+  margin: auto;
+}
+
 .measurement-entry-actions {
   display: flex;
   gap: 2px;
