@@ -228,6 +228,10 @@ export default function ProgressDashboard({
                   ) : undefined
                 }
               />
+              <p className="strength-progress-explanation">
+                Estimated <abbr title="One-repetition maximum">1RM</abbr> is the predicted maximum
+                weight the trainee could lift for one repetition, based on logged weight and reps.
+              </p>
               {selectedStrength && (
                 <div className="strength-summary" aria-label={`${selectedExercise} strength summary`}>
                   <div>

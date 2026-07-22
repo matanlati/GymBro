@@ -2099,6 +2099,19 @@ button {
   margin-bottom: 20px;
 }
 
+.strength-progress-explanation {
+  margin: -4px 0 18px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.strength-progress-explanation abbr {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
 .progress-activity-card .bar-chart {
   height: 180px;
   padding: 12px 4px 0;
