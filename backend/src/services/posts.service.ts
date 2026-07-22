@@ -4,7 +4,8 @@ import { WorkoutSession } from '../models/WorkoutSession.model'
 import { User } from '../models/User.model'
 
 export interface CreatePostPayload {
-  sessionId: string
+  sessionId?: string
+  shoutoutTraineeId?: string
   workoutName: string
   title: string
   caption?: string
@@ -44,8 +45,6 @@ const populatePost = (post: Awaited<ReturnType<typeof loadPost>>) =>
   ])
 
 export const createPost = async (userId: string, payload: CreatePostPayload) => {
-  if (!Types.ObjectId.isValid(payload.sessionId)) throw new Error('INVALID_SESSION')
-
   const workoutName = payload.workoutName?.trim()
   const title = payload.title?.trim()
   const caption = payload.caption?.trim() ?? ''
@@ -55,16 +54,33 @@ export const createPost = async (userId: string, payload: CreatePostPayload) => 
   if (!title) throw new Error('INVALID_POST_TITLE')
   if (Number.isNaN(postDate.getTime())) throw new Error('INVALID_POST_DATE')
 
-  const session = await WorkoutSession.findOne({
-    _id: payload.sessionId,
-    userId,
-    completedAt: { $ne: null },
-  })
-  if (!session) throw new Error('SESSION_NOT_FOUND')
+  let sessionId: Types.ObjectId | undefined
+  let shoutoutTraineeId: Types.ObjectId | undefined
+  if (payload.sessionId) {
+    if (!Types.ObjectId.isValid(payload.sessionId)) throw new Error('INVALID_SESSION')
+    const session = await WorkoutSession.findOne({
+      _id: payload.sessionId,
+      userId,
+      completedAt: { $ne: null },
+    })
+    if (!session) throw new Error('SESSION_NOT_FOUND')
+    sessionId = session._id
+  } else if (payload.shoutoutTraineeId) {
+    if (!Types.ObjectId.isValid(payload.shoutoutTraineeId)) throw new Error('INVALID_SHOUTOUT')
+    const [coach, trainee] = await Promise.all([
+      User.findById(userId).select('role'),
+      User.findOne({ _id: payload.shoutoutTraineeId, coachId: userId, role: 'trainee' }).select('_id'),
+    ])
+    if (coach?.role !== 'coach' || !trainee) throw new Error('INVALID_SHOUTOUT')
+    shoutoutTraineeId = trainee._id
+  } else {
+    throw new Error('INVALID_SESSION')
+  }
 
   const post = await WorkoutPost.create({
     userId,
-    sessionId: session._id,
+    sessionId,
+    shoutoutTraineeId,
     workoutName,
     title,
     caption,

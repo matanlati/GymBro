@@ -37,6 +37,97 @@ export function listCoachTrainees() {
   return client.get<CoachUser[]>('/coach/trainees')
 }
 
+export interface CoachDashboardSummary {
+  totalWorkoutsThisWeek: number
+  traineesNotStartedThisWeek: number
+  inactiveTrainees: number
+  traineesWithPbThisWeek: number
+  inactivityDays: number
+  traineesWorkedOutThisWeek: CoachDashboardTrainee[]
+  traineesNotStarted: CoachDashboardTrainee[]
+  inactiveTraineeDetails: CoachDashboardTrainee[]
+  traineesWithPb: CoachDashboardTrainee[]
+}
+
+export interface CoachDashboardTrainee {
+  _id: string
+  name: string
+  email: string
+  workoutCountThisWeek: number
+  lastActiveAt: string | null
+  personalBests: Array<{ exerciseName: string; value: number; metric: 'weight' | 'reps' }>
+}
+
+export function getCoachDashboardSummary() {
+  return client.get<CoachDashboardSummary>('/coach/dashboard-summary')
+}
+
+export interface CoachAlertSettings {
+  inactivityDays: number
+  stagnantWorkoutCount: number
+}
+
+export function getCoachAlertSettings() {
+  return client.get<CoachAlertSettings>('/coach/settings')
+}
+
+export function updateCoachAlertSettings(settings: CoachAlertSettings) {
+  return client.put<CoachAlertSettings>('/coach/settings', settings)
+}
+
+export interface CoachWorkoutSetSummary {
+  setNumber: number
+  repsCompleted: number
+  weightUsedKg?: number
+  isPb: boolean
+}
+
+export interface CoachTodayWorkout {
+  sessionId: string
+  trainee: { _id: string; name: string; email: string; photo?: string }
+  title: string
+  completedAt: string
+  durationMinutes: number
+  reviewedAt: string | null
+  exercises: Array<{ name: string; sets: CoachWorkoutSetSummary[] }>
+}
+
+export function listCoachTodayWorkouts() {
+  return client.get<CoachTodayWorkout[]>('/coach/today-workouts')
+}
+
+export function reviewCoachWorkout(sessionId: string) {
+  return client.post<{ sessionId: string; reviewedAt: string }>(`/coach/workout-reviews/${sessionId}`)
+}
+
+export interface CoachProgressLookout {
+  trainee: { _id: string; name: string; email: string; photo?: string }
+  stalledWorkouts: Array<{
+    workoutKey: string
+    workoutName: string
+    latestWorkoutAt: string
+    stagnantExerciseCount: number
+    evaluatedExerciseCount: number
+    exercises: Array<{
+      exerciseKey: string
+      exerciseName: string
+      progressed: boolean
+      history: Array<{ completedAt: string; maxWeightKg: number; maxReps: number }>
+    }>
+  }>
+}
+
+export function getCoachProgressLookout() {
+  return client.get<CoachProgressLookout[]>('/coach/progress-lookout')
+}
+
+export function clearCoachProgressLookout(traineeId: string, workoutKey: string) {
+  return client.post<{ traineeId: string; workoutKey: string; clearedAt: string }>(
+    `/coach/progress-lookout/${traineeId}/clear`,
+    { workoutKey }
+  )
+}
+
 export function removeCoachTrainee(traineeId: string) {
   return client.delete(`/coach/trainees/${traineeId}`)
 }

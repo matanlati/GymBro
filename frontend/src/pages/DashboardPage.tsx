@@ -6,10 +6,21 @@ import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { getOrCreateToday, listSessions, scheduleSession, Session } from '../api/sessions.api'
 import { getSummary, ProgressSummary } from '../api/progress.api'
-import { acceptCoachInvite, CoachInvite, listMyCoachInvites } from '../api/coach.api'
+import { acceptCoachInvite, clearCoachProgressLookout, CoachDashboardSummary, CoachDashboardTrainee, CoachInvite, CoachProgressLookout, CoachTodayWorkout, getCoachDashboardSummary, getCoachProgressLookout, listCoachTodayWorkouts, listMyCoachInvites, reviewCoachWorkout } from '../api/coach.api'
 
 type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
   'calendar' | 'trend' | 'target' | 'weight' | 'trophy' | 'check' | 'chevronLeft' | 'chevronRight' | 'x'
+
+interface DashboardStatCard {
+  label: string
+  value: string
+  icon: IconName
+  tone: IconTileTone
+  detailTitle?: string
+  detailDescription?: string
+  detailMode?: 'workouts' | 'not-started' | 'inactive' | 'pb'
+  trainees?: CoachDashboardTrainee[]
+}
 
 function Icon({ name }: { name: IconName }) {
   const common = {
@@ -121,6 +132,15 @@ function Dashboard() {
   const [scheduling, setScheduling] = useState(false)
   const [coachInvites, setCoachInvites] = useState<CoachInvite[]>([])
   const [acceptingInviteId, setAcceptingInviteId] = useState('')
+  const [coachSummary, setCoachSummary] = useState<CoachDashboardSummary | null>(null)
+  const [selectedCoachStat, setSelectedCoachStat] = useState<DashboardStatCard | null>(null)
+  const [coachTodayWorkouts, setCoachTodayWorkouts] = useState<CoachTodayWorkout[]>([])
+  const [coachWorkoutsLoading, setCoachWorkoutsLoading] = useState(false)
+  const [selectedCoachWorkout, setSelectedCoachWorkout] = useState<CoachTodayWorkout | null>(null)
+  const [reviewingWorkout, setReviewingWorkout] = useState(false)
+  const [progressLookout, setProgressLookout] = useState<CoachProgressLookout[]>([])
+  const [selectedLookout, setSelectedLookout] = useState<CoachProgressLookout | null>(null)
+  const [clearingLookoutKey, setClearingLookoutKey] = useState('')
 
   useEffect(() => {
     Promise.allSettled([getActivePlan(), getSummary(), listSessions()])
@@ -131,6 +151,72 @@ function Dashboard() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (user?.role !== 'coach') return
+    setCoachWorkoutsLoading(true)
+    Promise.allSettled([getCoachDashboardSummary(), listCoachTodayWorkouts(), getCoachProgressLookout()])
+      .then(([summaryResult, workoutsResult, lookoutResult]) => {
+        setCoachSummary(summaryResult.status === 'fulfilled' ? summaryResult.value.data : null)
+        setCoachTodayWorkouts(workoutsResult.status === 'fulfilled' ? workoutsResult.value.data : [])
+        setProgressLookout(lookoutResult.status === 'fulfilled' ? lookoutResult.value.data : [])
+      })
+      .finally(() => setCoachWorkoutsLoading(false))
+  }, [user?.role])
+
+  const markWorkoutReviewed = async () => {
+    if (!selectedCoachWorkout) return
+    setReviewingWorkout(true)
+    try {
+      const { data } = await reviewCoachWorkout(selectedCoachWorkout.sessionId)
+      const update = (workout: CoachTodayWorkout) => workout.sessionId === data.sessionId
+        ? { ...workout, reviewedAt: data.reviewedAt }
+        : workout
+      setCoachTodayWorkouts(current => current.map(update).sort((left, right) => {
+        if (!!left.reviewedAt !== !!right.reviewedAt) return left.reviewedAt ? 1 : -1
+        return +new Date(right.completedAt) - +new Date(left.completedAt)
+      }))
+      setSelectedCoachWorkout(current => current ? update(current) : current)
+    } finally {
+      setReviewingWorkout(false)
+    }
+  }
+
+  const markLookoutHandled = async (workoutKey: string) => {
+    if (!selectedLookout) return
+    const traineeId = selectedLookout.trainee._id
+    setClearingLookoutKey(workoutKey)
+    try {
+      await clearCoachProgressLookout(traineeId, workoutKey)
+      setProgressLookout(current => current.flatMap(item => {
+        if (item.trainee._id !== traineeId) return [item]
+        const stalledWorkouts = item.stalledWorkouts.filter(workout => workout.workoutKey !== workoutKey)
+        return stalledWorkouts.length ? [{ ...item, stalledWorkouts }] : []
+      }))
+      setSelectedLookout(current => {
+        if (!current || current.trainee._id !== traineeId) return current
+        const stalledWorkouts = current.stalledWorkouts.filter(workout => workout.workoutKey !== workoutKey)
+        return stalledWorkouts.length ? { ...current, stalledWorkouts } : null
+      })
+    } finally {
+      setClearingLookoutKey('')
+    }
+  }
+
+  const openPbShoutout = (trainee: CoachDashboardTrainee) => {
+    const pb = trainee.personalBests?.[0]
+    const achievement = pb
+      ? `${pb.exerciseName}: ${pb.value}${pb.metric === 'weight' ? ' kg' : ' reps'}`
+      : 'a new personal best'
+    setSelectedCoachStat(null)
+    navigate('/feed', { state: {
+      openComposer: true,
+      shoutoutTraineeId: trainee._id,
+      workoutName: 'Trainee Achievement',
+      postTitle: `${trainee.name} hit a new PB!`,
+      caption: `Huge congratulations to ${trainee.name} for achieving ${achievement} this week! Amazing work—keep it going!`,
+    } })
+  }
 
   useEffect(() => {
     if (user?.role !== 'trainee') return
@@ -163,8 +249,11 @@ function Dashboard() {
   const welcomeMessage = user?.role === 'coach'
     ? `Welcome Coach ${welcomeName}`
     : `Welcome Back, ${welcomeName}!`
+  const welcomeSubtitle = user?.role === 'coach'
+    ? 'Keep your trainees moving forward and celebrate their progress.'
+    : "Let's crush your fitness goals today"
 
-  const statCards: { label: string; value: string; icon: IconName; tone: IconTileTone }[] = [
+  const traineeStatCards: DashboardStatCard[] = [
     {
       label: 'Workouts This Week',
       value: weeklyGoal ? `${weeklyCompleted.length}/${weeklyGoal}` : `${weeklyCompleted.length}`,
@@ -190,6 +279,50 @@ function Dashboard() {
       tone: 'red',
     },
   ]
+
+  const coachStatCards: DashboardStatCard[] = [
+    {
+      label: 'Trainee Workouts This Week',
+      value: coachSummary ? `${coachSummary.totalWorkoutsThisWeek}` : '—',
+      icon: 'dumbbell',
+      tone: 'orange',
+      detailTitle: 'Worked Out This Week',
+      detailDescription: 'Trainees who completed at least one workout this week.',
+      detailMode: 'workouts',
+      trainees: coachSummary?.traineesWorkedOutThisWeek ?? [],
+    },
+    {
+      label: 'Not Started This Week',
+      value: coachSummary ? `${coachSummary.traineesNotStartedThisWeek}` : '—',
+      icon: 'user',
+      tone: 'blue',
+      detailTitle: 'Not Started This Week',
+      detailDescription: 'Trainees who have not completed a workout this week.',
+      detailMode: 'not-started',
+      trainees: coachSummary?.traineesNotStarted ?? [],
+    },
+    {
+      label: `Inactive ${coachSummary?.inactivityDays ?? 7}+ Days`,
+      value: coachSummary ? `${coachSummary.inactiveTrainees}` : '—',
+      icon: 'calendar',
+      tone: 'red',
+      detailTitle: `Inactive ${coachSummary?.inactivityDays ?? 7}+ Days`,
+      detailDescription: 'Trainees whose last completed workout was outside the activity window.',
+      detailMode: 'inactive',
+      trainees: coachSummary?.inactiveTraineeDetails ?? [],
+    },
+    {
+      label: 'Trainees With a PB This Week',
+      value: coachSummary ? `${coachSummary.traineesWithPbThisWeek}` : '—',
+      icon: 'trophy',
+      tone: 'green',
+      detailTitle: 'Personal Bests This Week',
+      detailDescription: 'Your trainees achieved a PB this week! Want to shout it out?',
+      detailMode: 'pb',
+      trainees: coachSummary?.traineesWithPb ?? [],
+    },
+  ]
+  const statCards = user?.role === 'coach' ? coachStatCards : traineeStatCards
 
   const progressDays = dayLabels.map((day, index) => {
     const date = startOfWeek(new Date())
@@ -286,11 +419,13 @@ function Dashboard() {
       <section className="dashboard-hero">
         <div>
           <h1>{welcomeMessage}</h1>
-          <p>Let's crush your fitness goals today</p>
+          <p>{welcomeSubtitle}</p>
         </div>
-        <Button leadingIcon={<Icon name="share" />} onClick={() => navigate('/feed', { state: { openComposer: true } })}>
-          Share Workout
-        </Button>
+        {user?.role !== 'coach' ? (
+          <Button leadingIcon={<Icon name="share" />} onClick={() => navigate('/feed', { state: { openComposer: true } })}>
+            Share Workout
+          </Button>
+        ) : null}
       </section>
 
       {user?.role === 'trainee' && coachInvites.length > 0 ? (
@@ -316,16 +451,115 @@ function Dashboard() {
 
       <section className="stats-grid" aria-label="Workout stats">
         {statCards.map(card => (
-          <Card as="article" padding="none" className="stat-card" key={card.label}>
+          <Card
+            as="article"
+            padding="none"
+            className={user?.role === 'coach' ? 'stat-card coach-stat-card' : 'stat-card'}
+            key={card.label}
+            role={user?.role === 'coach' ? 'button' : undefined}
+            tabIndex={user?.role === 'coach' ? 0 : undefined}
+            aria-label={user?.role === 'coach' ? `${card.label}: ${card.value}. View trainees.` : undefined}
+            onClick={user?.role === 'coach' ? () => setSelectedCoachStat(card) : undefined}
+            onKeyDown={user?.role === 'coach' ? event => {
+              if (event.key === 'Enter' || event.key === ' ') setSelectedCoachStat(card)
+            } : undefined}
+          >
             <IconTile tone={card.tone}><Icon name={card.icon} /></IconTile>
             <p>{card.label}</p>
             <strong>{card.value}</strong>
+            {user?.role === 'coach' ? <span className="coach-stat-hint">View trainees</span> : null}
           </Card>
         ))}
       </section>
 
+      {selectedCoachStat ? (
+        <div className="dashboard-stat-modal-backdrop" role="presentation" onClick={() => setSelectedCoachStat(null)}>
+          <section
+            className="dashboard-stat-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dashboard-stat-modal-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="dashboard-stat-modal-head">
+              <div>
+                <h2 id="dashboard-stat-modal-title">{selectedCoachStat.detailTitle}</h2>
+                <p>{selectedCoachStat.detailDescription}</p>
+              </div>
+              <button type="button" aria-label="Close trainee list" onClick={() => setSelectedCoachStat(null)}>
+                <Icon name="x" />
+              </button>
+            </div>
+            {(selectedCoachStat.trainees ?? []).length === 0 ? (
+              <div className="dashboard-stat-empty">No trainees in this category.</div>
+            ) : (
+              <div className="dashboard-stat-trainee-list">
+                {(selectedCoachStat.trainees ?? []).map(trainee => (
+                  <div className="dashboard-stat-trainee" key={trainee._id}>
+                    <span className="dashboard-stat-avatar">{trainee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+                    <div>
+                      <strong>{trainee.name}</strong>
+                      <small>{trainee.email}</small>
+                    </div>
+                    {selectedCoachStat.detailMode === 'workouts' ? (
+                      <span>{trainee.workoutCountThisWeek} {trainee.workoutCountThisWeek === 1 ? 'workout' : 'workouts'}</span>
+                    ) : selectedCoachStat.detailMode === 'inactive' ? (
+                      <span>{trainee.lastActiveAt ? `Last active ${new Date(trainee.lastActiveAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Never active'}</span>
+                    ) : selectedCoachStat.detailMode === 'pb' ? (
+                      <div className="dashboard-pb-actions">
+                        <span className="dashboard-stat-pb">New PB</span>
+                        <button
+                          type="button"
+                          onClick={() => openPbShoutout(trainee)}
+                        >Share achievement</button>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
+
       <section className="dashboard-grid">
         <Card as="article" className="workout-panel">
+          {user?.role === 'coach' ? (
+            <>
+              <CardHeader title="Workouts Completed Today" />
+              {coachWorkoutsLoading ? (
+                <div className="coach-workout-queue-empty">Loading completed workouts...</div>
+              ) : coachTodayWorkouts.length === 0 ? (
+                <div className="coach-workout-queue-empty">No trainees have completed a workout today yet.</div>
+              ) : (
+                <div className="coach-workout-queue">
+                  {coachTodayWorkouts.map(workout => (
+                    <div className={workout.reviewedAt ? 'coach-workout-row reviewed' : 'coach-workout-row'} key={workout.sessionId}>
+                      <span className="coach-workout-avatar">
+                        {workout.trainee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}
+                      </span>
+                      <div>
+                        <strong>{workout.trainee.name}</strong>
+                        <span>{workout.title}</span>
+                        <small>
+                          {new Date(workout.completedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                          {' · '}{workout.durationMinutes} min
+                        </small>
+                      </div>
+                      {workout.reviewedAt ? (
+                        <button className="coach-workout-reviewed-button" type="button" onClick={() => setSelectedCoachWorkout(workout)}>
+                          <Icon name="check" /> Reviewed
+                        </button>
+                      ) : (
+                        <Button size="sm" onClick={() => setSelectedCoachWorkout(workout)}>Review</Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+          <>
           <CardHeader
             title="Today's Workout"
             trailing={
@@ -373,9 +607,30 @@ function Dashboard() {
               ))}
             </div>
           </div>
+          </>
+          )}
         </Card>
 
         <aside className="side-column">
+          {user?.role === 'coach' ? (
+            <Card as="section" className="achievements-panel coach-lookout-panel">
+              <CardHeader title="Look Out" />
+              <p className="coach-lookout-subtitle">These trainees haven’t been progressing lately. It may be time to check in with them.</p>
+              {progressLookout.length === 0 ? (
+                <div className="coach-lookout-empty"><Icon name="check" /> No stalled progress detected.</div>
+              ) : (
+                <div className="coach-lookout-list">
+                  {progressLookout.map(item => (
+                    <button type="button" key={item.trainee._id} onClick={() => setSelectedLookout(item)}>
+                      <span className="dashboard-stat-avatar">{item.trainee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+                      <span><strong>{item.trainee.name}</strong><small>{item.stalledWorkouts.length} stalled {item.stalledWorkouts.length === 1 ? 'workout type' : 'workout types'}</small></span>
+                      <Icon name="chevronRight" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Card>
+          ) : (
           <Card as="section" className="achievements-panel">
             <CardHeader title="Recent Achievements" />
             {topRecord ? (
@@ -397,6 +652,7 @@ function Dashboard() {
               </div>
             ) : null}
           </Card>
+          )}
           {user?.role !== 'coach' ? (
             <Card as="section" variant="info" className="coach-panel">
               <h2>AI Coach Available</h2>
@@ -408,6 +664,117 @@ function Dashboard() {
           ) : null}
         </aside>
       </section>
+      {selectedCoachWorkout ? (
+        <div className="coach-workout-modal-backdrop" role="presentation" onClick={() => setSelectedCoachWorkout(null)}>
+          <section
+            className="coach-workout-review-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="coach-workout-review-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="coach-workout-review-head">
+              <div>
+                <span>{selectedCoachWorkout.trainee.name}</span>
+                <h2 id="coach-workout-review-title">{selectedCoachWorkout.title}</h2>
+                <p>
+                  Completed {new Date(selectedCoachWorkout.completedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  {' · '}{selectedCoachWorkout.durationMinutes} minutes
+                </p>
+              </div>
+              <button type="button" aria-label="Close workout review" onClick={() => setSelectedCoachWorkout(null)}>
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="coach-workout-exercises">
+              {selectedCoachWorkout.exercises.length === 0 ? (
+                <div className="coach-workout-queue-empty">No exercise details were logged.</div>
+              ) : selectedCoachWorkout.exercises.map((exercise, exerciseIndex) => (
+                <div className="coach-workout-exercise" key={`${exercise.name}-${exerciseIndex}`}>
+                  <h3>{exercise.name}</h3>
+                  <div className="coach-workout-set-head"><span>Set</span><span>Reps</span><span>Weight</span></div>
+                  {exercise.sets.map((set, setIndex) => (
+                    <div className={set.isPb ? 'coach-workout-set pb' : 'coach-workout-set'} key={`${set.setNumber}-${setIndex}`}>
+                      <span>{set.setNumber}</span>
+                      <span>{set.repsCompleted}</span>
+                      <span>
+                        {set.weightUsedKg !== undefined ? `${set.weightUsedKg} kg` : 'Bodyweight'}
+                        {set.isPb ? <b><Icon name="trophy" /> PB!</b> : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="coach-workout-review-actions">
+              {selectedCoachWorkout.reviewedAt ? (
+                <span><Icon name="check" /> Reviewed {new Date(selectedCoachWorkout.reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              ) : (
+                <Button loading={reviewingWorkout} loadingLabel="Marking reviewed..." onClick={markWorkoutReviewed}>
+                  Mark as Reviewed
+                </Button>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {selectedLookout ? (
+        <div className="coach-workout-modal-backdrop" role="presentation" onClick={() => setSelectedLookout(null)}>
+          <section
+            className="coach-lookout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="coach-lookout-modal-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="coach-workout-review-head">
+              <div>
+                <span>Progress lookout</span>
+                <h2 id="coach-lookout-modal-title">{selectedLookout.trainee.name}</h2>
+                <p>{selectedLookout.trainee.email}</p>
+              </div>
+              <button type="button" aria-label="Close progress lookout" onClick={() => setSelectedLookout(null)}><Icon name="x" /></button>
+            </div>
+            <div className="coach-lookout-workouts">
+              {selectedLookout.stalledWorkouts.map(workout => (
+                <section className="coach-lookout-workout" key={workout.workoutKey}>
+                  <div className="coach-lookout-workout-head">
+                    <div><h3>{workout.workoutName}</h3><p>{workout.stagnantExerciseCount} of {workout.evaluatedExerciseCount} exercises have not progressed</p></div>
+                    <div className="coach-lookout-actions">
+                      <span>Last {workout.exercises[0]?.history.length ?? 0} workouts</span>
+                      <button
+                        type="button"
+                        disabled={clearingLookoutKey === workout.workoutKey}
+                        onClick={() => markLookoutHandled(workout.workoutKey)}
+                      >
+                        <Icon name="check" /> {clearingLookoutKey === workout.workoutKey ? 'Clearing...' : 'Mark handled'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="coach-lookout-exercises">
+                    {workout.exercises.map(exercise => (
+                      <div className={exercise.progressed ? 'coach-lookout-exercise progressed' : 'coach-lookout-exercise stalled'} key={exercise.exerciseKey}>
+                        <div>
+                          <strong>{exercise.exerciseName}</strong>
+                          <span>{exercise.progressed ? 'Progressing' : 'No increase'}</span>
+                        </div>
+                        <div className="coach-lookout-history">
+                          {exercise.history.map((entry, index) => (
+                            <span key={entry.completedAt}>
+                              <small>Workout {index + 1}</small>
+                              <b>{entry.maxWeightKg > 0 ? `${entry.maxWeightKg} kg` : 'Bodyweight'} · {entry.maxReps} reps</b>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
       {calendarOpen ? (
         <div className="calendar-modal-backdrop" role="presentation" onClick={() => setCalendarOpen(false)}>
           <section

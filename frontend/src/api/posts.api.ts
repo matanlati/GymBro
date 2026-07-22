@@ -16,7 +16,8 @@ export interface WorkoutComment {
 export interface WorkoutPost {
   _id: string
   userId: FeedAuthor
-  sessionId: string
+  sessionId?: string
+  shoutoutTraineeId?: string
   workoutName: string
   title: string
   caption: string
@@ -28,7 +29,8 @@ export interface WorkoutPost {
 }
 
 export interface CreateWorkoutPostPayload {
-  sessionId: string
+  sessionId?: string
+  shoutoutTraineeId?: string
   workoutName: string
   title: string
   caption?: string
@@ -43,7 +45,8 @@ export const listPosts = (scope: FeedScope = 'all') =>
 
 export const createPost = (payload: CreateWorkoutPostPayload) => {
   const form = new FormData()
-  form.append('sessionId', payload.sessionId)
+  if (payload.sessionId) form.append('sessionId', payload.sessionId)
+  if (payload.shoutoutTraineeId) form.append('shoutoutTraineeId', payload.shoutoutTraineeId)
   form.append('workoutName', payload.workoutName)
   form.append('title', payload.title)
   form.append('caption', payload.caption ?? '')

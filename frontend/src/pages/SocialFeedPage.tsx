@@ -35,17 +35,25 @@ const suggestedComments = [
 const SocialFeedPage = () => {
   const { user } = useAuth()
   const location = useLocation()
-  const state = location.state as { openComposer?: boolean; sessionId?: string; caption?: string } | null
+  const state = location.state as {
+    openComposer?: boolean
+    sessionId?: string
+    caption?: string
+    shoutoutTraineeId?: string
+    workoutName?: string
+    postTitle?: string
+  } | null
   const [posts, setPosts] = useState<WorkoutPost[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
   const [plan, setPlan] = useState<WorkoutPlan | null>(null)
   const [loading, setLoading] = useState(true)
   const [composerOpen, setComposerOpen] = useState(state?.openComposer === true)
   const [sessionId, setSessionId] = useState(state?.sessionId ?? '')
-  const [workoutName, setWorkoutName] = useState('')
-  const [postTitle, setPostTitle] = useState('')
+  const [workoutName, setWorkoutName] = useState(state?.workoutName ?? '')
+  const [postTitle, setPostTitle] = useState(state?.postTitle ?? '')
   const [caption, setCaption] = useState(state?.caption ?? '')
   const [photo, setPhoto] = useState<File | undefined>()
+  const [shoutoutTraineeId, setShoutoutTraineeId] = useState(state?.shoutoutTraineeId ?? '')
   const [error, setError] = useState('')
   const [feedError, setFeedError] = useState('')
   const [posting, setPosting] = useState(false)
@@ -55,6 +63,7 @@ const SocialFeedPage = () => {
   const [filtering, setFiltering] = useState(false)
   const hasLoadedFeed = useRef(false)
   const feedRequest = useRef(0)
+  const isShoutout = !!shoutoutTraineeId
 
   useEffect(() => {
     Promise.all([
@@ -86,10 +95,10 @@ const SocialFeedPage = () => {
   }, [feedScope])
 
   useEffect(() => {
-    if (composerOpen && !sessionId && sessions[0]) {
+    if (!isShoutout && composerOpen && !sessionId && sessions[0]) {
       setSessionId(sessions[0]._id)
     }
-  }, [composerOpen, sessionId, sessions])
+  }, [composerOpen, isShoutout, sessionId, sessions])
 
   const selectedSession = useMemo(
     () => sessions.find(session => session._id === sessionId) ?? null,
@@ -97,14 +106,15 @@ const SocialFeedPage = () => {
   )
 
   useEffect(() => {
-    if (!selectedSession) return
+    if (isShoutout || !selectedSession) return
     const name = sessionName(selectedSession, plan)
     setWorkoutName(name)
     setPostTitle(name)
-  }, [selectedSession, plan])
+  }, [isShoutout, selectedSession, plan])
 
   const openComposer = () => {
     setError('')
+    setShoutoutTraineeId('')
     setComposerOpen(true)
     if (!sessionId && sessions[0]) setSessionId(sessions[0]._id)
   }
@@ -121,7 +131,8 @@ const SocialFeedPage = () => {
     setError('')
     try {
       const { data } = await createPost({
-        sessionId,
+        sessionId: sessionId || undefined,
+        shoutoutTraineeId: shoutoutTraineeId || undefined,
         workoutName,
         title: postTitle,
         caption,
@@ -135,6 +146,7 @@ const SocialFeedPage = () => {
       setWorkoutName('')
       setSessionId('')
       setPhoto(undefined)
+      setShoutoutTraineeId('')
     } catch {
       setError('Could not publish this post. Check the fields and try again.')
     } finally {
@@ -345,18 +357,18 @@ const SocialFeedPage = () => {
           <section className="feed-composer-modal" role="dialog" aria-modal="true" aria-label="Add workout post" onClick={event => event.stopPropagation()}>
             <div className="feed-composer-head">
               <div>
-                <h2>Add Post</h2>
-                <p>Choose a completed workout and write your post.</p>
+                <h2>{isShoutout ? 'Share Trainee Achievement' : 'Add Post'}</h2>
+                <p>{isShoutout ? 'Celebrate your trainee’s personal best with the community.' : 'Choose a completed workout and write your post.'}</p>
               </div>
               <button type="button" aria-label="Close post composer" onClick={closeComposer}>x</button>
             </div>
 
             {error ? <Alert variant="error">{error}</Alert> : null}
-            {sessions.length === 0 ? (
+            {!isShoutout && sessions.length === 0 ? (
               <EmptyState>Complete a workout before creating a post.</EmptyState>
             ) : (
               <form className="feed-composer-form" onSubmit={submit}>
-                <label>
+                {!isShoutout ? <label>
                   Completed workout
                   <select value={sessionId} onChange={event => setSessionId(event.target.value)} required>
                     <option value="" disabled>Select workout</option>
@@ -366,7 +378,7 @@ const SocialFeedPage = () => {
                       </option>
                     ))}
                   </select>
-                </label>
+                </label> : null}
                 <label>
                   Workout name
                   <input value={workoutName} onChange={event => setWorkoutName(event.target.value)} required />
@@ -379,14 +391,14 @@ const SocialFeedPage = () => {
                   Short caption
                   <textarea value={caption} onChange={event => setCaption(event.target.value)} maxLength={240} rows={3} />
                 </label>
-                <label>
+                {!isShoutout ? <label>
                   Photo
                   <input
                     type="file"
                     accept="image/*"
                     onChange={event => setPhoto(event.target.files?.[0])}
                   />
-                </label>
+                </label> : null}
                 <div className="feed-composer-actions">
                   <Button variant="secondary" onClick={closeComposer}>Cancel</Button>
                   <Button type="submit" loading={posting} loadingLabel="Posting...">Post</Button>

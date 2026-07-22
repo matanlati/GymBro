@@ -14,6 +14,12 @@ const startOfWeek = (d: Date): Date => {
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
+// FUTURE COACH-CREATED PLANS: keep every assigned plan's `_id` persistent and
+// each workout slot's `dayIndex` stable across sessions. Coach progress alerts
+// group generated and custom-plan workouts by `planId + dayIndex`; custom
+// exercises should also receive stable `exerciseKey` values rather than relying
+// on editable display names. Ad-hoc workouts use normalized titles as a fallback.
+
 const WorkoutsPage = () => {
   const navigate = useNavigate()
   const [sessions, setSessions] = useState<Session[]>([])

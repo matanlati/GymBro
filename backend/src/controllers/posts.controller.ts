@@ -7,6 +7,8 @@ const handleError = (res: Response, err: unknown) => {
   switch (message) {
     case 'INVALID_SESSION':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'sessionId is invalid' })
+    case 'INVALID_SHOUTOUT':
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'You can only share achievements for your trainees' })
     case 'INVALID_POST':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'postId is invalid' })
     case 'POST_NOT_FOUND':
