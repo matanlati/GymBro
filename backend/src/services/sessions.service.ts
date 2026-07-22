@@ -89,10 +89,10 @@ const requireSet = (session: IWorkoutSession, exerciseIndex: number, setIndex: n
 }
 
 // Backfill coach notes for sessions created before notes were snapshotted.
-// Completed sessions stay immutable; unfinished sessions receive each note once.
+// Once copied, the session keeps its own note even if the plan later changes.
 const hydrateMissingCoachNotes = async (session: IWorkoutSession): Promise<IWorkoutSession> => {
-  if (session.completedAt || session.dayIndex < 0) return session
-  const missingNotes = session.exercises.some(exercise => exercise.coachNotes === undefined)
+  if (session.dayIndex < 0) return session
+  const missingNotes = session.exercises.some(exercise => !exercise.coachNotes?.trim())
   if (!missingNotes) return session
 
   const plan = await WorkoutPlan.findById(session.planId).select('weeklyPlan')
@@ -101,7 +101,7 @@ const hydrateMissingCoachNotes = async (session: IWorkoutSession): Promise<IWork
 
   let changed = false
   session.exercises.forEach((exercise, index) => {
-    if (exercise.coachNotes !== undefined) return
+    if (exercise.coachNotes?.trim()) return
     const planExercise = planDay.exercises.find(candidate => (
       (candidate.exerciseKey || toExerciseKey(candidate.name)) === (exercise.exerciseKey || toExerciseKey(exercise.name))
     )) ?? planDay.exercises[index]
