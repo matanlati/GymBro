@@ -8,7 +8,13 @@
 }
 
 /* Coach workout management */
-.coach-workouts-page { display: grid; gap: 18px; }
+.coach-workouts-page {
+  display: grid;
+  width: min(1180px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 34px 0 44px;
+  gap: 18px;
+}
 .coach-workout-trainee-picker { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .coach-workout-trainee-picker > div { display: flex; align-items: center; gap: 12px; color: #f97316; }
 .coach-workout-trainee-picker > div div { display: grid; gap: 3px; color: #111827; }
@@ -75,6 +81,7 @@
 .coach-workout-editor-remove:hover { background: #fee2e2; }
 .coach-workout-editor-remove:disabled { color: #cbd5e1; cursor: not-allowed; background: transparent; }
 @media (max-width: 850px) {
+  .coach-workouts-page { width: min(100% - 32px, 1180px); padding-top: 24px; }
   .coach-workout-browser { grid-template-columns: 1fr; }
   .coach-workout-type-nav { position: static; }
   .coach-workout-type-nav-list { display: flex; overflow-x: auto; }
