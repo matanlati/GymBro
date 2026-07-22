@@ -4,11 +4,13 @@ import {
   acceptInvite,
   clearCoachProgressLookout,
   createTraineeProgressGoal,
+  createCoachTraineeWorkoutType,
   deleteTraineeProgressGoal,
   getCoachAlertSettings,
   getCoachDashboardSummary,
   getCoachProgressLookout,
   getCoachTraineeNotes,
+  getCoachTraineeWorkouts,
   getProgressOverview,
   getTraineeProgress,
   getTraineeProgressAchievements,
@@ -24,6 +26,7 @@ import {
   saveCoachTraineeNotes,
   sendInvite,
   updateCoachAlertSettings,
+  updateCoachTraineeWorkoutType,
   updateTraineeProgressGoal,
 } from '../controllers/coach.controller'
 
@@ -43,6 +46,9 @@ router.get('/trainees/:id/progress/exercise/:name', getTraineeProgressExercise)
 router.post('/invites', sendInvite)
 router.get('/invites', listCoachInvites)
 router.get('/trainees', listCoachTrainees)
+router.get('/trainees/:id/workouts', getCoachTraineeWorkouts)
+router.post('/trainees/:id/workout-types', createCoachTraineeWorkoutType)
+router.put('/trainees/:id/workout-types/:dayIndex', updateCoachTraineeWorkoutType)
 router.get('/dashboard-summary', getCoachDashboardSummary)
 router.get('/settings', getCoachAlertSettings)
 router.put('/settings', updateCoachAlertSettings)
