@@ -75,6 +75,7 @@ export default function CoachTraineeProgress() {
           key={selectedTraineeId}
           dataSource={dataSource}
           embedded
+          showSummaryStats={false}
           permissions={COACH_PROGRESS_PERMISSIONS}
         />
       )}

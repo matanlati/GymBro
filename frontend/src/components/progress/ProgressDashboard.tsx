@@ -20,6 +20,7 @@ const formatDate = (iso: string) =>
 interface ProgressDashboardProps {
   dataSource: ProgressDataSource
   embedded?: boolean
+  showSummaryStats?: boolean
   title?: string
   subtitle?: string
   permissions?: ProgressDashboardPermissions
@@ -55,6 +56,7 @@ export const COACH_PROGRESS_PERMISSIONS: ProgressDashboardPermissions = {
 export default function ProgressDashboard({
   dataSource,
   embedded = false,
+  showSummaryStats = true,
   title = 'Your Progress',
   subtitle = 'Track your fitness journey and celebrate achievements',
   permissions = FULL_PROGRESS_PERMISSIONS,
@@ -168,36 +170,38 @@ export default function ProgressDashboard({
 
       {hasData && summary && (
         <>
-          <section className="progress-stats">
-            <StatCard
-              label="Total Workouts"
-              value={String(summary.totalSessions)}
-              detail="Completed sessions"
-              icon={<Dumbbell size={19} />}
-              accent="#F97316"
-            />
-            <StatCard
-              label="Average Duration"
-              value={`${summary.averageDurationMinutes} min`}
-              detail="Per workout"
-              icon={<Timer size={19} />}
-              accent="#3B82F6"
-            />
-            <StatCard
-              label="Personal Records"
-              value={String(summary.personalRecords.length + summary.bodyweightRecords.length)}
-              detail="Weight and rep records"
-              icon={<Trophy size={19} />}
-              accent="#EAB308"
-            />
-            <StatCard
-              label="Current Streak"
-              value={`${summary.currentStreakDays} days`}
-              detail={`Best: ${summary.bestStreakDays} days`}
-              icon={<Flame size={19} />}
-              accent="#22C55E"
-            />
-          </section>
+          {showSummaryStats && (
+            <section className="progress-stats">
+              <StatCard
+                label="Total Workouts"
+                value={String(summary.totalSessions)}
+                detail="Completed sessions"
+                icon={<Dumbbell size={19} />}
+                accent="#F97316"
+              />
+              <StatCard
+                label="Average Duration"
+                value={`${summary.averageDurationMinutes} min`}
+                detail="Per workout"
+                icon={<Timer size={19} />}
+                accent="#3B82F6"
+              />
+              <StatCard
+                label="Personal Records"
+                value={String(summary.personalRecords.length + summary.bodyweightRecords.length)}
+                detail="Weight and rep records"
+                icon={<Trophy size={19} />}
+                accent="#EAB308"
+              />
+              <StatCard
+                label="Current Streak"
+                value={`${summary.currentStreakDays} days`}
+                detail={`Best: ${summary.bestStreakDays} days`}
+                icon={<Flame size={19} />}
+                accent="#22C55E"
+              />
+            </section>
+          )}
 
           <Card as="section" className="progress-card progress-activity-card">
             <CardHeader title="Weekly Activity" trailing={<CalendarDays size={18} aria-hidden="true" />} />
