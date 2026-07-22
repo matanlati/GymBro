@@ -184,15 +184,17 @@ export default function CoachWorkoutsView() {
                 <div className="coach-workout-type-nav-head"><span>Workout Types</span><Badge>{workoutTypes.length}</Badge></div>
                 <div className="coach-workout-type-nav-list">
                   {workoutTypes.map(({ workout, dayIndex }) => (
+                    <div className={selectedWorkoutIndex === dayIndex ? 'coach-workout-type-nav-item active' : 'coach-workout-type-nav-item'} key={`${dayIndex}-${workout.focus}`}>
                     <button
                       type="button"
-                      className={selectedWorkoutIndex === dayIndex ? 'active' : ''}
-                      key={`${dayIndex}-${workout.focus}`}
+                      className="coach-workout-type-select"
                       onClick={() => { setSelectedWorkoutIndex(dayIndex); setViewMode('overview') }}
                     >
                       <span>{dayIndex + 1}</span>
                       <div><strong>{workout.focus}</strong><small>{workout.exercises.length} exercises · {(sessionsByDay.get(dayIndex) ?? []).length} sessions</small></div>
                     </button>
+                    <button className="coach-workout-type-remove" type="button" aria-label={`Remove ${workout.focus}`} title="Remove workout" onClick={() => setWorkoutToRemove({ dayIndex, name: workout.focus })}><Trash2 size={15} /></button>
+                    </div>
                   ))}
                 </div>
               </Card>
@@ -205,10 +207,7 @@ export default function CoachWorkoutsView() {
                   <Card className="coach-workout-type-card" padding="none">
                     <div className="coach-workout-type-head">
                       <div><span>Workout type {dayIndex + 1}</span><h3>{workout.focus}</h3><small>{workout.exercises.length} prescribed exercises</small></div>
-                      <div className="coach-workout-type-actions">
-                        <Button variant="ghost" size="sm" leadingIcon={<Pencil size={14} />} onClick={() => openEdit(dayIndex)}>Edit Workout</Button>
-                        <Button variant="ghost" size="sm" leadingIcon={<Trash2 size={14} />} onClick={() => setWorkoutToRemove({ dayIndex, name: workout.focus })}>Remove</Button>
-                      </div>
+                      <Button variant="ghost" size="sm" leadingIcon={<Pencil size={14} />} onClick={() => openEdit(dayIndex)}>Edit Workout</Button>
                     </div>
                     <div className="coach-workout-view-tabs">
                       <button className={viewMode === 'overview' ? 'active' : ''} onClick={() => setViewMode('overview')}><Dumbbell size={14} /> General Overview</button>
