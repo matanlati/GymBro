@@ -533,11 +533,21 @@ const validateWorkoutType = (input: CoachWorkoutTypeInput) => {
     const exerciseName = typeof exercise.name === 'string' ? exercise.name.trim() : ''
     const sets = typeof exercise.sets === 'string' || typeof exercise.sets === 'number' ? String(exercise.sets).trim() : ''
     const reps = typeof exercise.reps === 'string' || typeof exercise.reps === 'number' ? String(exercise.reps).trim() : ''
+    const durationMinutes = typeof exercise.durationMinutes === 'string' || typeof exercise.durationMinutes === 'number'
+      ? String(exercise.durationMinutes).trim()
+      : ''
     const notes = typeof exercise.notes === 'string' ? exercise.notes.trim() : ''
-    if (!exerciseName || exerciseName.length > 120 || !sets || sets.length > 30 || !reps || reps.length > 30 || notes.length > 500) {
+    if (!exerciseName || exerciseName.length > 120 || !sets || sets.length > 30 || !reps || reps.length > 30 || durationMinutes.length > 30 || notes.length > 500) {
       throw new Error('INVALID_WORKOUT_TYPE')
     }
-    return { exerciseKey: toExerciseKey(exerciseName), name: exerciseName, sets, reps, notes: notes || undefined }
+    return {
+      exerciseKey: toExerciseKey(exerciseName),
+      name: exerciseName,
+      sets,
+      reps,
+      durationMinutes: durationMinutes || undefined,
+      notes: notes || undefined,
+    }
   })
   return { name, exercises }
 }

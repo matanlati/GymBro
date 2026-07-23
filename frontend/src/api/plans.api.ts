@@ -17,6 +17,7 @@ export interface PlanExercise {
   name: string
   sets: string
   reps: string
+  durationMinutes?: string
   notes?: string
 }
 

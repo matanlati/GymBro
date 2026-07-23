@@ -6,6 +6,7 @@ export interface IExercise {
   name: string
   sets: string
   reps: string
+  durationMinutes?: string
   notes?: string
 }
 
@@ -35,6 +36,7 @@ const exerciseSchema = new Schema<IExercise>(
     name: { type: String, required: true },
     sets: { type: String, required: true },
     reps: { type: String, required: true },
+    durationMinutes: { type: String, trim: true },
     notes: String,
   },
   { _id: false }

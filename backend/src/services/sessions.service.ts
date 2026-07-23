@@ -41,6 +41,19 @@ const startOfWeek = (d: Date): Date => {
   return x
 }
 
+const durationFromExercise = (exercise: {
+  name?: string
+  durationMinutes?: string
+  reps?: string
+  notes?: string
+}) => {
+  if (exercise.durationMinutes?.trim()) return exercise.durationMinutes.trim()
+  if (!/^(?:n\/?a|not applicable|-)?$/i.test(exercise.reps?.trim() ?? '')) return undefined
+  const description = `${exercise.name ?? ''} ${exercise.notes ?? ''}`
+  const match = description.match(/(\d+(?:\s*-\s*\d+)?)\s*[- ]?\s*(?:minutes?|mins?)\b/i)
+  return match?.[1]?.replace(/\s+/g, '')
+}
+
 // Lowest dayIndex in the active plan that hasn't been completed this calendar week.
 const firstIncompleteDay = async (
   userId: string,
@@ -88,26 +101,37 @@ const requireSet = (session: IWorkoutSession, exerciseIndex: number, setIndex: n
   return exercise
 }
 
-// Backfill coach notes for sessions created before notes were snapshotted.
-// Once copied, the session keeps its own note even if the plan later changes.
+// Backfill plan metadata for sessions created before it was snapshotted.
+// Once copied, the session keeps its own values even if the plan later changes.
 const hydrateMissingCoachNotes = async (session: IWorkoutSession): Promise<IWorkoutSession> => {
   if (session.dayIndex < 0) return session
-  const missingNotes = session.exercises.some(exercise => !exercise.coachNotes?.trim())
-  if (!missingNotes) return session
+  const exercises = session.exercises ?? []
+  if (!exercises.length) return session
+  const needsHydration = exercises.some(exercise => (
+    !exercise.coachNotes?.trim() || !exercise.prescribedDurationMinutes?.trim()
+  ))
+  if (!needsHydration) return session
 
   const plan = await WorkoutPlan.findById(session.planId).select('weeklyPlan')
   const planDay = plan?.weeklyPlan[session.dayIndex]
   if (!planDay) return session
 
   let changed = false
-  session.exercises.forEach((exercise, index) => {
+  exercises.forEach((exercise, index) => {
     if (exercise.coachNotes?.trim()) return
     const planExercise = planDay.exercises.find(candidate => (
       (candidate.exerciseKey || toExerciseKey(candidate.name)) === (exercise.exerciseKey || toExerciseKey(exercise.name))
     )) ?? planDay.exercises[index]
-    if (planExercise?.notes) {
+    if (!exercise.coachNotes?.trim() && planExercise?.notes) {
       exercise.coachNotes = planExercise.notes
       changed = true
+    }
+    if (!exercise.prescribedDurationMinutes?.trim() && planExercise) {
+      const durationMinutes = durationFromExercise(planExercise)
+      if (durationMinutes) {
+        exercise.prescribedDurationMinutes = durationMinutes
+        changed = true
+      }
     }
   })
   if (changed) await session.save()
@@ -152,6 +176,7 @@ export const getOrCreateTodaySession = async (
     name: ex.name,
     prescribedSets: ex.sets,
     prescribedReps: ex.reps,
+    prescribedDurationMinutes: durationFromExercise(ex),
     coachNotes: ex.notes,
     orderIndex: i,
     sets: [],
@@ -242,6 +267,7 @@ export const scheduleSession = async (
       name: ex.name,
       prescribedSets: ex.sets,
       prescribedReps: ex.reps,
+      prescribedDurationMinutes: durationFromExercise(ex),
       coachNotes: ex.notes,
       orderIndex: i,
       sets: [],

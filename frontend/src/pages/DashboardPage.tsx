@@ -84,9 +84,15 @@ const completedThisWeek = (sessions: Session[]) => {
 }
 
 const volumeLabel = (value: number) => {
-  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k kg`
-  return `${value} kg`
+  return `${Math.round(value).toLocaleString('en-US')} kg`
 }
+
+const sessionVolumeKg = (session: Session) =>
+  session.exercises.reduce((sessionTotal, exercise) => (
+    sessionTotal + exercise.sets.reduce((exerciseTotal, set) => (
+      exerciseTotal + (set.weightUsedKg ?? 0) * set.repsCompleted
+    ), 0)
+  ), 0)
 
 const dateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -238,6 +244,9 @@ function Dashboard() {
   }
 
   const weeklyCompleted = completedThisWeek(sessions)
+  const weeklyVolumeKg = Math.round(
+    weeklyCompleted.reduce((total, session) => total + sessionVolumeKg(session), 0)
+  )
   const activeWorkoutTypes = activePlan?.weeklyPlan
     ?.map((day, index) => ({ day, index }))
     .filter(item => !item.day.isArchived) ?? []
@@ -276,8 +285,8 @@ function Dashboard() {
       tone: 'blue',
     },
     {
-      label: 'Total Volume',
-      value: volumeLabel(summary?.totalVolumeKg ?? 0),
+      label: 'Volume This Week',
+      value: volumeLabel(weeklyVolumeKg),
       icon: 'weight',
       tone: 'red',
     },

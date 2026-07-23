@@ -12,6 +12,7 @@ export interface ExerciseLog {
   muscleGroups?: string[]
   prescribedSets: string
   prescribedReps: string
+  prescribedDurationMinutes?: string
   prescribedWeightKg?: number
   coachNotes?: string
   orderIndex: number

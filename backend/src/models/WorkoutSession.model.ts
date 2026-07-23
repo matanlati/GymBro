@@ -13,6 +13,7 @@ export interface IExerciseLog {
   muscleGroups?: string[]
   prescribedSets: string
   prescribedReps: string
+  prescribedDurationMinutes?: string
   prescribedWeightKg?: number
   coachNotes?: string
   orderIndex: number
@@ -48,6 +49,7 @@ const exerciseLogSchema = new Schema<IExerciseLog>(
     muscleGroups: { type: [String], default: undefined },
     prescribedSets: { type: String, required: true },
     prescribedReps: { type: String, required: true },
+    prescribedDurationMinutes: { type: String, trim: true },
     prescribedWeightKg: Number,
     coachNotes: String,
     orderIndex: { type: Number, required: true },
