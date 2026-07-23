@@ -5,6 +5,7 @@ import { listSessions, getOrCreateToday, Session } from '../api/sessions.api'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { useAuth } from '../context/AuthContext'
 import CoachWorkoutsView from '../components/CoachWorkoutsView'
+import { Play } from 'lucide-react'
 
 const startOfWeek = (d: Date): Date => {
   const x = new Date(d)
@@ -15,6 +16,14 @@ const startOfWeek = (d: Date): Date => {
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+const isToday = (iso: string) => {
+  const date = new Date(iso)
+  const today = new Date()
+  return date.getFullYear() === today.getFullYear()
+    && date.getMonth() === today.getMonth()
+    && date.getDate() === today.getDate()
+}
 
 // FUTURE COACH-CREATED PLANS: keep every assigned plan's `_id` persistent and
 // each workout slot's `dayIndex` stable across sessions. Coach progress alerts
@@ -28,8 +37,10 @@ const WorkoutsPage = () => {
   const [sessions, setSessions] = useState<Session[]>([])
   const [plan, setPlan] = useState<WorkoutPlan | null>(null)
   const [loading, setLoading] = useState(true)
-  const [starting, setStarting] = useState(false)
+  const [startingDayIndex, setStartingDayIndex] = useState<number | null>(null)
   const [error, setError] = useState('')
+  const [showReplacePlanWarning, setShowReplacePlanWarning] = useState(false)
+  const [showWorkoutChooser, setShowWorkoutChooser] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -45,19 +56,32 @@ const WorkoutsPage = () => {
     s => s.completedAt && new Date(s.scheduledDate) >= weekStart
   ).length
   const scheduledTotal = plan?.weeklyPlan?.filter(day => !day.isArchived).length ?? 0
+  const plannedTodayDayIndexes = new Set(
+    sessions
+      .filter(session => !session.completedAt && session.dayIndex >= 0 && isToday(session.scheduledDate))
+      .map(session => session.dayIndex)
+  )
 
   const titleFor = (session: Session) =>
     session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
 
-  const startNext = async () => {
-    setStarting(true)
+  const openNewPlan = () => {
+    if (plan?.isActive) {
+      setShowReplacePlanWarning(true)
+      return
+    }
+    navigate('/plans/new')
+  }
+
+  const startWorkout = async (dayIndex: number) => {
+    setStartingDayIndex(dayIndex)
     setError('')
     try {
-      const { data } = await getOrCreateToday()
+      const { data } = await getOrCreateToday(dayIndex)
       navigate(`/session/${data._id}`)
     } catch {
-      setError('No active plan yet. Create one to start a workout.')
-      setStarting(false)
+      setError('Could not start this workout. Please try again.')
+      setStartingDayIndex(null)
     }
   }
 
@@ -69,7 +93,17 @@ const WorkoutsPage = () => {
         title="My Workouts"
         subtitle="Track and manage your training sessions"
         actions={
-          <Button onClick={() => navigate('/plans/new')}>+ New Workout</Button>
+          <div className="workouts-header-actions">
+            <Button
+              className="start-workout-button"
+              leadingIcon={<Play size={16} fill="currentColor" />}
+              disabled={!plan}
+              onClick={() => setShowWorkoutChooser(true)}
+            >
+              Start Workout
+            </Button>
+            <Button variant="secondary" onClick={openNewPlan}>+ New Workout Plan</Button>
+          </div>
         }
       />
 
@@ -119,16 +153,72 @@ const WorkoutsPage = () => {
           </ul>
         )}
 
-        <Button
-          fullWidth
-          loading={starting}
-          loadingLabel="Starting…"
-          onClick={startNext}
-          style={{ marginTop: 20 }}
-        >
-          Start Next Workout
-        </Button>
       </Card>
+
+      {showWorkoutChooser && plan ? (
+        <div className="coach-modal-backdrop" role="presentation" onClick={() => startingDayIndex === null && setShowWorkoutChooser(false)}>
+          <section
+            className="coach-modal workout-chooser-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="choose-workout-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="coach-modal-head">
+              <div>
+                <h2 id="choose-workout-title">Which workout do you want to start?</h2>
+                <p>Choose one from your active workout plan.</p>
+              </div>
+            </div>
+            <div className="workout-chooser-options">
+              {plan.weeklyPlan.map((workout, dayIndex) => workout.isArchived ? null : (
+                <button
+                  type="button"
+                  className={plannedTodayDayIndexes.has(dayIndex) ? 'recommended' : undefined}
+                  key={`${dayIndex}-${workout.focus}`}
+                  disabled={startingDayIndex !== null}
+                  onClick={() => startWorkout(dayIndex)}
+                >
+                  <span>
+                    <strong>
+                      {workout.focus}
+                      {plannedTodayDayIndexes.has(dayIndex) ? <em>Planned today</em> : null}
+                    </strong>
+                    <small>{workout.day} · {workout.exercises.length} exercises</small>
+                  </span>
+                  <b>{startingDayIndex === dayIndex ? 'Starting…' : 'Start →'}</b>
+                </button>
+              ))}
+            </div>
+            <div className="coach-modal-actions">
+              <Button variant="secondary" disabled={startingDayIndex !== null} onClick={() => setShowWorkoutChooser(false)}>Cancel</Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {showReplacePlanWarning ? (
+        <div className="coach-modal-backdrop" role="presentation" onClick={() => setShowReplacePlanWarning(false)}>
+          <section
+            className="coach-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="replace-plan-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="coach-modal-head">
+              <div>
+                <h2 id="replace-plan-title">Create a new workout plan?</h2>
+                <p>Your current active plan will be deleted when the new plan is successfully created. Completed workout history and progress will remain available.</p>
+              </div>
+            </div>
+            <div className="coach-modal-actions">
+              <Button variant="secondary" onClick={() => setShowReplacePlanWarning(false)}>Cancel</Button>
+              <Button onClick={() => navigate('/plans/new')}>Continue</Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }

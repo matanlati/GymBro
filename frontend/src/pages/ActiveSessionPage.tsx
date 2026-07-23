@@ -2,7 +2,7 @@ import { useEffect, useState, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, Badge, Button, Card, Input, LoadingState, PageHeader } from '@gymbro/ui-kit'
 import {
-  getSession,
+  startSession,
   logSet,
   completeSession,
   Session,
@@ -27,6 +27,7 @@ const ExerciseRow = ({
   const [reps, setReps] = useState('')
   const [weight, setWeight] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const duration = exercise.prescribedDurationMinutes
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -47,8 +48,8 @@ const ExerciseRow = ({
       <div className="session-exercise-head">
         <h3>{exercise.name}</h3>
         <span className="session-prescribed">
-          {exercise.prescribedSets} × {exercise.prescribedReps}
-          {exercise.prescribedWeightKg ? ` @ ${exercise.prescribedWeightKg}kg` : ''}
+          {duration ? `${duration} min` : `${exercise.prescribedSets} × ${exercise.prescribedReps}`}
+          {!duration && exercise.prescribedWeightKg ? ` @ ${exercise.prescribedWeightKg}kg` : ''}
         </span>
       </div>
 
@@ -70,7 +71,7 @@ const ExerciseRow = ({
         </div>
       )}
 
-      {!disabled && (
+      {!disabled && !duration && (
         <form className="session-log-form" onSubmit={submit}>
           <Input
             type="number"
@@ -110,7 +111,7 @@ const ActiveSessionPage = () => {
 
   useEffect(() => {
     if (!id) return
-    getSession(id)
+    startSession(id)
       .then(({ data }) => setSession(data))
       .catch(() => setError('Could not load this workout session.'))
       .finally(() => setLoading(false))

@@ -63,12 +63,12 @@ const sameDay = (left: Date, right: Date) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate()
 
-const isFutureDay = (date: Date) => {
+const isTodayOrFutureDay = (date: Date) => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const day = new Date(date)
   day.setHours(0, 0, 0, 0)
-  return day > today
+  return day >= today
 }
 
 const completedThisWeek = (sessions: Session[]) => {
@@ -84,9 +84,15 @@ const completedThisWeek = (sessions: Session[]) => {
 }
 
 const volumeLabel = (value: number) => {
-  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k kg`
-  return `${value} kg`
+  return `${Math.round(value).toLocaleString('en-US')} kg`
 }
+
+const sessionVolumeKg = (session: Session) =>
+  session.exercises.reduce((sessionTotal, exercise) => (
+    sessionTotal + exercise.sets.reduce((exerciseTotal, set) => (
+      exerciseTotal + (set.weightUsedKg ?? 0) * set.repsCompleted
+    ), 0)
+  ), 0)
 
 const dateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -238,6 +244,9 @@ function Dashboard() {
   }
 
   const weeklyCompleted = completedThisWeek(sessions)
+  const weeklyVolumeKg = Math.round(
+    weeklyCompleted.reduce((total, session) => total + sessionVolumeKg(session), 0)
+  )
   const activeWorkoutTypes = activePlan?.weeklyPlan
     ?.map((day, index) => ({ day, index }))
     .filter(item => !item.day.isArchived) ?? []
@@ -276,8 +285,8 @@ function Dashboard() {
       tone: 'blue',
     },
     {
-      label: 'Total Volume',
-      value: volumeLabel(summary?.totalVolumeKg ?? 0),
+      label: 'Volume This Week',
+      value: volumeLabel(weeklyVolumeKg),
       icon: 'weight',
       tone: 'red',
     },
@@ -371,7 +380,7 @@ function Dashboard() {
   }
 
   const openPlanningModal = (date: Date) => {
-    if (!isFutureDay(date)) return
+    if (!isTodayOrFutureDay(date)) return
     setPlanningDate(date)
     setSelectedWorkout(activeWorkoutTypes.length ? String(activeWorkoutTypes[0].index) : 'other')
     setCustomWorkoutName('')
@@ -811,7 +820,7 @@ function Dashboard() {
                 const completedNames = cell.date ? completedByDate[dateKey(cell.date)] ?? [] : []
                 const plannedCount = workouts.length - completedNames.length
                 const isToday = cell.date ? sameDay(cell.date, new Date()) : false
-                const canPlan = cell.date ? isFutureDay(cell.date) : false
+                const canPlan = cell.date ? isTodayOrFutureDay(cell.date) : false
                 return (
                   <button
                     type="button"
@@ -846,7 +855,7 @@ function Dashboard() {
               })}
             </div>
             {planningDate ? (
-              <div className="schedule-workout-modal" role="dialog" aria-modal="true" aria-label="Plan future workout">
+              <div className="schedule-workout-modal" role="dialog" aria-modal="true" aria-label="Plan workout">
                 <h3>Plan Workout</h3>
                 <p>{planningDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                 <label>

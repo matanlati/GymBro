@@ -17,7 +17,7 @@ import {
 type ViewMode = 'overview' | 'sessions'
 type WorkoutEditor = CoachWorkoutTypeInput & { dayIndex: number | null }
 
-const blankExercise = () => ({ name: '', sets: '3', reps: '8-12', notes: '' })
+const blankExercise = () => ({ name: '', sets: '3', reps: '8-12', durationMinutes: '', notes: '' })
 
 const formatDate = (value: string) => new Date(value).toLocaleDateString('en-GB', {
   day: 'numeric', month: 'short', year: 'numeric',
@@ -219,7 +219,8 @@ export default function CoachWorkoutsView() {
                         {workout.exercises.map((exercise, index) => (
                           <div className="coach-workout-exercise-row" key={`${exercise.name}-${index}`}>
                             <div><strong>{exercise.name}</strong>{exercise.notes && <small>{exercise.notes}</small>}</div>
-                            <span>{exercise.sets}</span><span>{exercise.reps}</span>
+                            <span>{exercise.durationMinutes ? '—' : exercise.sets}</span>
+                            <span>{exercise.durationMinutes ? `${exercise.durationMinutes} min` : exercise.reps}</span>
                           </div>
                         ))}
                       </div>
@@ -231,7 +232,7 @@ export default function CoachWorkoutsView() {
                             <div className="coach-workout-session-detail">
                               {session.exercises.map(exercise => (
                                 <div key={exercise.exerciseKey ?? exercise.name}>
-                                  <div><strong>{exercise.name}</strong><small>Prescribed {exercise.prescribedSets} × {exercise.prescribedReps}</small></div>
+                                  <div><strong>{exercise.name}</strong><small>Prescribed {exercise.prescribedDurationMinutes ? `${exercise.prescribedDurationMinutes} min` : `${exercise.prescribedSets} × ${exercise.prescribedReps}`}</small></div>
                                   <span className="coach-workout-recorded-sets">
                                     {exercise.sets.length ? exercise.sets.map(set => (
                                       <small key={`${set.setNumber}-${set.loggedAt}`}>Set {set.setNumber}: {set.weightUsedKg ? `${set.weightUsedKg} kg × ` : ''}{set.repsCompleted} reps</small>
@@ -286,6 +287,9 @@ export default function CoachWorkoutsView() {
                       </FormField>
                       <FormField label="Reps">
                         <Input value={exercise.reps} maxLength={30} required placeholder="8-12" onChange={event => updateExercise(index, 'reps', event.target.value)} />
+                      </FormField>
+                      <FormField label="Duration (minutes)">
+                        <Input value={exercise.durationMinutes ?? ''} maxLength={30} placeholder="Optional, e.g. 5-10" onChange={event => updateExercise(index, 'durationMinutes', event.target.value)} />
                       </FormField>
                       <FormField label="Coach notes" style={{ gridColumn: '1 / -1' }}>
                         <Textarea value={exercise.notes ?? ''} maxLength={500} rows={2} placeholder="Optional form or progression guidance" onChange={event => updateExercise(index, 'notes', event.target.value)} />

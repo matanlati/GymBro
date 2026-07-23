@@ -63,6 +63,7 @@ export interface CoachManagedWorkoutSession {
     name: string
     prescribedSets: string
     prescribedReps: string
+    prescribedDurationMinutes?: string
     coachNotes?: string
     sets: Array<{ setNumber: number; repsCompleted: number; weightUsedKg?: number; loggedAt: string }>
   }>
@@ -75,7 +76,7 @@ export interface CoachTraineeWorkouts {
 
 export interface CoachWorkoutTypeInput {
   name: string
-  exercises: Array<{ name: string; sets: string; reps: string; notes?: string }>
+  exercises: Array<{ name: string; sets: string; reps: string; durationMinutes?: string; notes?: string }>
 }
 
 export function getCoachTraineeWorkouts(traineeId: string) {
