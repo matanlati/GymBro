@@ -5,7 +5,7 @@ import { listSessions, getOrCreateToday, Session } from '../api/sessions.api'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { useAuth } from '../context/AuthContext'
 import CoachWorkoutsView from '../components/CoachWorkoutsView'
-import { Play } from 'lucide-react'
+import { Dumbbell, History, Play } from 'lucide-react'
 
 const startOfWeek = (d: Date): Date => {
   const x = new Date(d)
@@ -41,6 +41,7 @@ const WorkoutsPage = () => {
   const [error, setError] = useState('')
   const [showReplacePlanWarning, setShowReplacePlanWarning] = useState(false)
   const [showWorkoutChooser, setShowWorkoutChooser] = useState(false)
+  const [selectedPlanDayIndex, setSelectedPlanDayIndex] = useState(0)
 
   useEffect(() => {
     Promise.all([
@@ -52,10 +53,20 @@ const WorkoutsPage = () => {
   }, [])
 
   const weekStart = startOfWeek(new Date())
-  const completedThisWeek = sessions.filter(
+  const completedWeekSessions = sessions.filter(
     s => s.completedAt && new Date(s.scheduledDate) >= weekStart
-  ).length
-  const scheduledTotal = plan?.weeklyPlan?.filter(day => !day.isArchived).length ?? 0
+  )
+  const activeWorkoutTypes = plan?.weeklyPlan
+    .map((workout, dayIndex) => ({ workout, dayIndex }))
+    .filter(item => !item.workout.isArchived) ?? []
+  const scheduledTotal = activeWorkoutTypes.length
+  const completedPlanDayIndexes = new Set(
+    completedWeekSessions
+      .filter(session => session.planId === plan?._id && session.dayIndex >= 0)
+      .map(session => session.dayIndex)
+  )
+  const nextWorkout = activeWorkoutTypes.find(item => !completedPlanDayIndexes.has(item.dayIndex)) ?? activeWorkoutTypes[0]
+  const selectedWorkout = activeWorkoutTypes.find(item => item.dayIndex === selectedPlanDayIndex) ?? nextWorkout
   const plannedTodayDayIndexes = new Set(
     sessions
       .filter(session => !session.completedAt && session.dayIndex >= 0 && isToday(session.scheduledDate))
@@ -113,11 +124,74 @@ const WorkoutsPage = () => {
         </Alert>
       )}
 
-      <Card as="section">
+      {loading ? null : plan && activeWorkoutTypes.length ? (
+        <section className="trainee-plan-overview" aria-labelledby="active-plan-title">
+          <Card className="trainee-plan-summary">
+            <div className="trainee-plan-summary-main">
+              <span className="trainee-plan-eyebrow">Active workout plan</span>
+              <h2 id="active-plan-title">{plan.title}</h2>
+              <p>{plan.summary}</p>
+            </div>
+            <div className="trainee-plan-progress">
+              <div><span>This week</span><strong>{completedPlanDayIndexes.size} / {scheduledTotal}</strong></div>
+              <div className="trainee-plan-progress-track"><span style={{ width: `${Math.min(100, (completedPlanDayIndexes.size / scheduledTotal) * 100)}%` }} /></div>
+              <small>{completedPlanDayIndexes.size >= scheduledTotal ? 'Weekly plan complete' : `${scheduledTotal - completedPlanDayIndexes.size} workout${scheduledTotal - completedPlanDayIndexes.size === 1 ? '' : 's'} remaining`}</small>
+            </div>
+          </Card>
+
+          <div className="trainee-plan-browser">
+            <div className="trainee-workout-selector" role="tablist" aria-label="Workout types">
+              {activeWorkoutTypes.map(({ workout, dayIndex }, position) => {
+                const completed = completedPlanDayIndexes.has(dayIndex)
+                const isNext = nextWorkout?.dayIndex === dayIndex && !completed
+                const selected = selectedWorkout?.dayIndex === dayIndex
+                return (
+                  <button type="button" role="tab" aria-selected={selected} className={selected ? 'active' : ''} key={`${dayIndex}-${workout.focus}`} onClick={() => setSelectedPlanDayIndex(dayIndex)}>
+                    <span>{position + 1}</span>
+                    <div><strong>{workout.focus}</strong><small>{workout.exercises.length} exercises</small></div>
+                    {completed ? <Badge tone="success">Done</Badge> : isNext ? <Badge tone="accent">Up next</Badge> : null}
+                  </button>
+                )
+              })}
+            </div>
+
+            {selectedWorkout ? (
+              <Card className="trainee-workout-preview" padding="none">
+                <div className="trainee-workout-preview-head">
+                  <div><span>{selectedWorkout.workout.day}</span><h3>{selectedWorkout.workout.focus}</h3><p>{selectedWorkout.workout.exercises.length} exercises in this workout</p></div>
+                  <Button leadingIcon={<Play size={15} fill="currentColor" />} loading={startingDayIndex === selectedWorkout.dayIndex} loadingLabel="Starting..." onClick={() => startWorkout(selectedWorkout.dayIndex)}>Start This Workout</Button>
+                </div>
+                <div className="trainee-workout-exercises">
+                  <div className="trainee-workout-exercise-head"><span>Exercise</span><span>Sets</span><span>Reps</span></div>
+                  {selectedWorkout.workout.exercises.map((exercise, index) => (
+                    <div className="trainee-workout-exercise" key={`${exercise.name}-${index}`}>
+                      <span className="trainee-exercise-number">{index + 1}</span>
+                      <div><strong>{exercise.name}</strong>{exercise.notes && <small><b>Coach’s note:</b> {exercise.notes}</small>}</div>
+                      <span>{exercise.sets}</span><span>{exercise.reps}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ) : null}
+          </div>
+        </section>
+      ) : (
+        <Card className="trainee-plan-empty">
+          <EmptyState>
+            <Dumbbell size={26} />
+            <strong>No active workout plan</strong>
+            <span>Create a plan to see your weekly workouts and exercise overview here.</span>
+            <Button onClick={openNewPlan}>Create Workout Plan</Button>
+          </EmptyState>
+        </Card>
+      )}
+
+      <Card as="section" className="trainee-session-history">
+        <div className="trainee-session-history-title"><History size={17} /><div><h2>Session History</h2><p>Your scheduled and completed workouts</p></div></div>
         <div className="workouts-week">
           <span>This Week</span>
           <strong>
-            {completedThisWeek} completed{scheduledTotal ? ` / ${scheduledTotal} planned` : ''}
+            {completedPlanDayIndexes.size} completed{scheduledTotal ? ` / ${scheduledTotal} planned` : ''}
           </strong>
         </div>
 
