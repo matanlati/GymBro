@@ -30,6 +30,7 @@ const WorkoutsPage = () => {
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
+  const [showReplacePlanWarning, setShowReplacePlanWarning] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -48,6 +49,14 @@ const WorkoutsPage = () => {
 
   const titleFor = (session: Session) =>
     session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
+
+  const openNewPlan = () => {
+    if (plan?.isActive) {
+      setShowReplacePlanWarning(true)
+      return
+    }
+    navigate('/plans/new')
+  }
 
   const startNext = async () => {
     setStarting(true)
@@ -69,7 +78,7 @@ const WorkoutsPage = () => {
         title="My Workouts"
         subtitle="Track and manage your training sessions"
         actions={
-          <Button onClick={() => navigate('/plans/new')}>+ New Workout</Button>
+          <Button onClick={openNewPlan}>+ New Workout Plan</Button>
         }
       />
 
@@ -129,6 +138,29 @@ const WorkoutsPage = () => {
           Start Next Workout
         </Button>
       </Card>
+
+      {showReplacePlanWarning ? (
+        <div className="coach-modal-backdrop" role="presentation" onClick={() => setShowReplacePlanWarning(false)}>
+          <section
+            className="coach-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="replace-plan-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="coach-modal-head">
+              <div>
+                <h2 id="replace-plan-title">Create a new workout plan?</h2>
+                <p>Your current active plan will be deleted when the new plan is successfully created. Completed workout history and progress will remain available.</p>
+              </div>
+            </div>
+            <div className="coach-modal-actions">
+              <Button variant="secondary" onClick={() => setShowReplacePlanWarning(false)}>Cancel</Button>
+              <Button onClick={() => navigate('/plans/new')}>Continue</Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }

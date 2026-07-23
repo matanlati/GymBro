@@ -58,23 +58,24 @@ describe('WorkoutPlanService.generatePlan', () => {
 describe('WorkoutPlanService.saveGeneratedPlan', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(MockWorkoutPlan.updateMany as jest.Mock) = jest.fn().mockResolvedValue({})
+    ;(MockWorkoutPlan.deleteMany as jest.Mock) = jest.fn().mockResolvedValue({})
     ;(MockWorkoutPlan.create as jest.Mock) = jest.fn().mockImplementation(async doc => ({
       _id: 'plan1',
       ...doc,
     }))
   })
 
-  it('deactivates existing plans before creating the new one', async () => {
+  it('deletes the previous active plan after creating its replacement', async () => {
     await WorkoutPlanService.saveGeneratedPlan('user1', samplePlan)
 
-    expect(MockWorkoutPlan.updateMany).toHaveBeenCalledWith(
-      { userId: 'user1' },
-      { $set: { isActive: false } }
-    )
-    const updateOrder = (MockWorkoutPlan.updateMany as jest.Mock).mock.invocationCallOrder[0]
+    expect(MockWorkoutPlan.deleteMany).toHaveBeenCalledWith({
+      userId: 'user1',
+      isActive: true,
+      _id: { $ne: 'plan1' },
+    })
     const createOrder = (MockWorkoutPlan.create as jest.Mock).mock.invocationCallOrder[0]
-    expect(updateOrder).toBeLessThan(createOrder)
+    const deleteOrder = (MockWorkoutPlan.deleteMany as jest.Mock).mock.invocationCallOrder[0]
+    expect(createOrder).toBeLessThan(deleteOrder)
   })
 
   it('creates the new plan with isActive: true', async () => {

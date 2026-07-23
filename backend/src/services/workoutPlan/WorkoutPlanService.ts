@@ -27,8 +27,7 @@ class WorkoutPlanService {
     title?: string,
     questionnaireData?: QuestionnaireData
   ): Promise<IWorkoutPlan> {
-    await WorkoutPlan.updateMany({ userId }, { $set: { isActive: false } })
-    return WorkoutPlan.create({
+    const savedPlan = await WorkoutPlan.create({
       userId,
       title: title ?? this.deriveTitle(plan),
       summary: plan.summary,
@@ -44,6 +43,12 @@ class WorkoutPlanService {
       questionnaireData,
       isActive: true,
     })
+    await WorkoutPlan.deleteMany({
+      userId,
+      isActive: true,
+      _id: { $ne: savedPlan._id },
+    })
+    return savedPlan
   }
 
   async getActivePlan(userId: string): Promise<IWorkoutPlan | null> {
