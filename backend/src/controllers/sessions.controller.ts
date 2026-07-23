@@ -16,7 +16,7 @@ const handleError = (res: Response, err: unknown) => {
     case 'INVALID_SCHEDULED_DATE':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'scheduledDate must be a valid date' })
     case 'SCHEDULED_DATE_NOT_FUTURE':
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'scheduledDate must be in the future' })
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'scheduledDate cannot be in the past' })
     case 'INVALID_SCHEDULE_TITLE':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'title is required for custom workouts' })
     case 'INVALID_EXERCISE_INDEX':

@@ -17,6 +17,14 @@ const startOfWeek = (d: Date): Date => {
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
+const isToday = (iso: string) => {
+  const date = new Date(iso)
+  const today = new Date()
+  return date.getFullYear() === today.getFullYear()
+    && date.getMonth() === today.getMonth()
+    && date.getDate() === today.getDate()
+}
+
 // FUTURE COACH-CREATED PLANS: keep every assigned plan's `_id` persistent and
 // each workout slot's `dayIndex` stable across sessions. Coach progress alerts
 // group generated and custom-plan workouts by `planId + dayIndex`; custom
@@ -48,6 +56,11 @@ const WorkoutsPage = () => {
     s => s.completedAt && new Date(s.scheduledDate) >= weekStart
   ).length
   const scheduledTotal = plan?.weeklyPlan?.filter(day => !day.isArchived).length ?? 0
+  const plannedTodayDayIndexes = new Set(
+    sessions
+      .filter(session => !session.completedAt && session.dayIndex >= 0 && isToday(session.scheduledDate))
+      .map(session => session.dayIndex)
+  )
 
   const titleFor = (session: Session) =>
     session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
@@ -161,11 +174,18 @@ const WorkoutsPage = () => {
               {plan.weeklyPlan.map((workout, dayIndex) => workout.isArchived ? null : (
                 <button
                   type="button"
+                  className={plannedTodayDayIndexes.has(dayIndex) ? 'recommended' : undefined}
                   key={`${dayIndex}-${workout.focus}`}
                   disabled={startingDayIndex !== null}
                   onClick={() => startWorkout(dayIndex)}
                 >
-                  <span><strong>{workout.focus}</strong><small>{workout.day} · {workout.exercises.length} exercises</small></span>
+                  <span>
+                    <strong>
+                      {workout.focus}
+                      {plannedTodayDayIndexes.has(dayIndex) ? <em>Planned today</em> : null}
+                    </strong>
+                    <small>{workout.day} · {workout.exercises.length} exercises</small>
+                  </span>
                   <b>{startingDayIndex === dayIndex ? 'Starting…' : 'Start →'}</b>
                 </button>
               ))}

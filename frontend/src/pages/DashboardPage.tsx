@@ -63,12 +63,12 @@ const sameDay = (left: Date, right: Date) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate()
 
-const isFutureDay = (date: Date) => {
+const isTodayOrFutureDay = (date: Date) => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const day = new Date(date)
   day.setHours(0, 0, 0, 0)
-  return day > today
+  return day >= today
 }
 
 const completedThisWeek = (sessions: Session[]) => {
@@ -380,7 +380,7 @@ function Dashboard() {
   }
 
   const openPlanningModal = (date: Date) => {
-    if (!isFutureDay(date)) return
+    if (!isTodayOrFutureDay(date)) return
     setPlanningDate(date)
     setSelectedWorkout(activeWorkoutTypes.length ? String(activeWorkoutTypes[0].index) : 'other')
     setCustomWorkoutName('')
@@ -820,7 +820,7 @@ function Dashboard() {
                 const completedNames = cell.date ? completedByDate[dateKey(cell.date)] ?? [] : []
                 const plannedCount = workouts.length - completedNames.length
                 const isToday = cell.date ? sameDay(cell.date, new Date()) : false
-                const canPlan = cell.date ? isFutureDay(cell.date) : false
+                const canPlan = cell.date ? isTodayOrFutureDay(cell.date) : false
                 return (
                   <button
                     type="button"
@@ -855,7 +855,7 @@ function Dashboard() {
               })}
             </div>
             {planningDate ? (
-              <div className="schedule-workout-modal" role="dialog" aria-modal="true" aria-label="Plan future workout">
+              <div className="schedule-workout-modal" role="dialog" aria-modal="true" aria-label="Plan workout">
                 <h3>Plan Workout</h3>
                 <p>{planningDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                 <label>

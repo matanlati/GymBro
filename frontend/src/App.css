@@ -2720,6 +2720,12 @@ button {
   background: #fff8f3;
 }
 
+.workout-chooser-options button.recommended {
+  border-color: #ff9a5f;
+  background: #fff7ed;
+  box-shadow: inset 3px 0 0 #ff6b1a;
+}
+
 .workout-chooser-options button:disabled {
   cursor: wait;
   opacity: 0.65;
@@ -2728,6 +2734,24 @@ button {
 .workout-chooser-options span {
   display: grid;
   gap: 3px;
+}
+
+.workout-chooser-options strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workout-chooser-options em {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #ff6b1a;
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .workout-chooser-options small {

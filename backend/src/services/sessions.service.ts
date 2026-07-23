@@ -247,7 +247,7 @@ export const scheduleSession = async (
   if (Number.isNaN(scheduledDate.getTime())) throw new Error('INVALID_SCHEDULED_DATE')
 
   const today = startOfDay(new Date())
-  if (scheduledDate <= today) throw new Error('SCHEDULED_DATE_NOT_FUTURE')
+  if (scheduledDate < today) throw new Error('SCHEDULED_DATE_NOT_FUTURE')
 
   const hasPlanDay = payload.dayIndex !== undefined && payload.dayIndex !== null
   let dayIndex = -1
