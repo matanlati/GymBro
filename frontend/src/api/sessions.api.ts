@@ -27,6 +27,7 @@ export interface Session {
   dayIndex: number
   scheduledDate: string
   completedAt?: string
+  startedAt?: string
   notes?: string
   exercises: ExerciseLog[]
   createdAt: string
@@ -64,6 +65,8 @@ export const scheduleSession = (payload: ScheduleSessionPayload) =>
   client.post<Session>('/sessions/scheduled', payload)
 
 export const getSession = (id: string) => client.get<Session>(`/sessions/${id}`)
+
+export const startSession = (id: string) => client.post<Session>(`/sessions/${id}/start`)
 
 export const completeSession = (id: string) =>
   client.post<CompleteSessionResult>(`/sessions/${id}/complete`)

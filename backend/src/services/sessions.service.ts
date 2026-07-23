@@ -188,6 +188,7 @@ export const getOrCreateTodaySession = async (
     dayIndex: index,
     scheduledDate: dayStart,
     startedAt: new Date(),
+    actualStartRecorded: true,
     exercises,
   })
 }
@@ -288,6 +289,16 @@ export const scheduleSession = async (
 
 export const getSession = async (userId: string, id: string): Promise<IWorkoutSession> =>
   hydrateMissingCoachNotes(await loadOwned(userId, id))
+
+export const startSession = async (userId: string, id: string): Promise<IWorkoutSession> => {
+  const session = await loadOwned(userId, id)
+  if (!session.completedAt && !session.actualStartRecorded) {
+    session.startedAt = new Date()
+    session.actualStartRecorded = true
+    await session.save()
+  }
+  return hydrateMissingCoachNotes(session)
+}
 
 const detectPersonalBests = async (
   userId: string,

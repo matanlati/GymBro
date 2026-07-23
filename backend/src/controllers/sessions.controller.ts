@@ -89,6 +89,15 @@ export const getSession = async (req: AuthRequest, res: Response) => {
   }
 }
 
+export const startSession = async (req: AuthRequest, res: Response) => {
+  try {
+    const session = await sessionsService.startSession(req.user!.userId, req.params.id)
+    return res.json(session)
+  } catch (err) {
+    return handleError(res, err)
+  }
+}
+
 export const completeSession = async (req: AuthRequest, res: Response) => {
   try {
     const result = await sessionsService.completeSession(req.user!.userId, req.params.id)

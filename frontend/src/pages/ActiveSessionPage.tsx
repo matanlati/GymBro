@@ -2,7 +2,7 @@ import { useEffect, useState, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, Badge, Button, Card, Input, LoadingState, PageHeader } from '@gymbro/ui-kit'
 import {
-  getSession,
+  startSession,
   logSet,
   completeSession,
   Session,
@@ -111,7 +111,7 @@ const ActiveSessionPage = () => {
 
   useEffect(() => {
     if (!id) return
-    getSession(id)
+    startSession(id)
       .then(({ data }) => setSession(data))
       .catch(() => setError('Could not load this workout session.'))
       .finally(() => setLoading(false))
