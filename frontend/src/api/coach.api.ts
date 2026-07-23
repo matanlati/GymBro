@@ -1,4 +1,5 @@
 import client from './client'
+import { WorkoutPlan } from './plans.api'
 import type {
   AchievementCategory,
   AchievementUnlock,
@@ -46,6 +47,51 @@ export function listCoachInvites() {
 
 export function listCoachTrainees() {
   return client.get<CoachUser[]>('/coach/trainees')
+}
+
+export interface CoachManagedWorkoutSession {
+  _id: string
+  planId: string
+  title?: string
+  dayIndex: number
+  scheduledDate: string
+  startedAt: string
+  completedAt: string
+  notes?: string
+  exercises: Array<{
+    exerciseKey?: string
+    name: string
+    prescribedSets: string
+    prescribedReps: string
+    coachNotes?: string
+    sets: Array<{ setNumber: number; repsCompleted: number; weightUsedKg?: number; loggedAt: string }>
+  }>
+}
+
+export interface CoachTraineeWorkouts {
+  plan: WorkoutPlan | null
+  sessions: CoachManagedWorkoutSession[]
+}
+
+export interface CoachWorkoutTypeInput {
+  name: string
+  exercises: Array<{ name: string; sets: string; reps: string; notes?: string }>
+}
+
+export function getCoachTraineeWorkouts(traineeId: string) {
+  return client.get<CoachTraineeWorkouts>(`/coach/trainees/${traineeId}/workouts`)
+}
+
+export function createCoachTraineeWorkoutType(traineeId: string, workout: CoachWorkoutTypeInput) {
+  return client.post<WorkoutPlan>(`/coach/trainees/${traineeId}/workout-types`, workout)
+}
+
+export function updateCoachTraineeWorkoutType(traineeId: string, dayIndex: number, workout: CoachWorkoutTypeInput) {
+  return client.put<WorkoutPlan>(`/coach/trainees/${traineeId}/workout-types/${dayIndex}`, workout)
+}
+
+export function removeCoachTraineeWorkoutType(traineeId: string, dayIndex: number) {
+  return client.delete<WorkoutPlan>(`/coach/trainees/${traineeId}/workout-types/${dayIndex}`)
 }
 
 export interface CoachDashboardSummary {

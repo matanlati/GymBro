@@ -13,6 +13,7 @@ export interface IDayPlan {
   day: string
   focus: string
   exercises: IExercise[]
+  isArchived?: boolean
 }
 
 export interface IWorkoutPlan extends Document {
@@ -44,6 +45,7 @@ const dayPlanSchema = new Schema<IDayPlan>(
     day: { type: String, required: true },
     focus: { type: String, required: true },
     exercises: { type: [exerciseSchema], default: [] },
+    isArchived: { type: Boolean, default: false },
   },
   { _id: false }
 )

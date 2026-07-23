@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Alert, Badge, Button, Card, EmptyState, LoadingState, PageHeader } from '@gymbro/ui-kit'
 import { listSessions, getOrCreateToday, Session } from '../api/sessions.api'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
+import { useAuth } from '../context/AuthContext'
+import CoachWorkoutsView from '../components/CoachWorkoutsView'
 
 const startOfWeek = (d: Date): Date => {
   const x = new Date(d)
@@ -21,6 +23,7 @@ const formatDate = (iso: string) =>
 // on editable display names. Ad-hoc workouts use normalized titles as a fallback.
 
 const WorkoutsPage = () => {
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [sessions, setSessions] = useState<Session[]>([])
   const [plan, setPlan] = useState<WorkoutPlan | null>(null)
@@ -41,7 +44,7 @@ const WorkoutsPage = () => {
   const completedThisWeek = sessions.filter(
     s => s.completedAt && new Date(s.scheduledDate) >= weekStart
   ).length
-  const scheduledTotal = plan?.weeklyPlan?.length ?? 0
+  const scheduledTotal = plan?.weeklyPlan?.filter(day => !day.isArchived).length ?? 0
 
   const titleFor = (session: Session) =>
     session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
@@ -57,6 +60,8 @@ const WorkoutsPage = () => {
       setStarting(false)
     }
   }
+
+  if (user?.role === 'coach') return <CoachWorkoutsView />
 
   return (
     <main className="workouts-page">

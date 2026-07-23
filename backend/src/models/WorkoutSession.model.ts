@@ -14,6 +14,7 @@ export interface IExerciseLog {
   prescribedSets: string
   prescribedReps: string
   prescribedWeightKg?: number
+  coachNotes?: string
   orderIndex: number
   sets: ISetLog[]
 }
@@ -48,6 +49,7 @@ const exerciseLogSchema = new Schema<IExerciseLog>(
     prescribedSets: { type: String, required: true },
     prescribedReps: { type: String, required: true },
     prescribedWeightKg: Number,
+    coachNotes: String,
     orderIndex: { type: Number, required: true },
     sets: { type: [setLogSchema], default: [] },
   },

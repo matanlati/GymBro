@@ -238,10 +238,13 @@ function Dashboard() {
   }
 
   const weeklyCompleted = completedThisWeek(sessions)
-  const weeklyGoal = activePlan?.weeklyPlan?.length ?? 0
+  const activeWorkoutTypes = activePlan?.weeklyPlan
+    ?.map((day, index) => ({ day, index }))
+    .filter(item => !item.day.isArchived) ?? []
+  const weeklyGoal = activeWorkoutTypes.length
   const completedDayIndexes = new Set(weeklyCompleted.map(session => session.dayIndex))
-  const nextDayIndex = activePlan?.weeklyPlan.findIndex((_, index) => !completedDayIndexes.has(index)) ?? -1
-  const displayDayIndex = nextDayIndex >= 0 ? nextDayIndex : 0
+  const nextDayIndex = activeWorkoutTypes.find(item => !completedDayIndexes.has(item.index))?.index ?? -1
+  const displayDayIndex = nextDayIndex >= 0 ? nextDayIndex : (activeWorkoutTypes[0]?.index ?? 0)
   const todayDay = activePlan?.weeklyPlan?.[displayDayIndex]
   const todayTitle = todayDay?.focus ?? activePlan?.title ?? 'Your Workout'
   const todayExerciseCount = todayDay?.exercises?.length ?? 0
@@ -370,7 +373,7 @@ function Dashboard() {
   const openPlanningModal = (date: Date) => {
     if (!isFutureDay(date)) return
     setPlanningDate(date)
-    setSelectedWorkout(activePlan?.weeklyPlan?.length ? '0' : 'other')
+    setSelectedWorkout(activeWorkoutTypes.length ? String(activeWorkoutTypes[0].index) : 'other')
     setCustomWorkoutName('')
     setScheduleError('')
   }
@@ -849,7 +852,7 @@ function Dashboard() {
                 <label>
                   Workout type
                   <select value={selectedWorkout} onChange={event => setSelectedWorkout(event.target.value)}>
-                    {activePlan?.weeklyPlan?.map((day, index) => (
+                    {activeWorkoutTypes.map(({ day, index }) => (
                       <option value={String(index)} key={`${day.focus}-${index}`}>
                         {day.focus}
                       </option>

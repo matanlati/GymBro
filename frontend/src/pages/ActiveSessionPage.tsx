@@ -52,6 +52,13 @@ const ExerciseRow = ({
         </span>
       </div>
 
+      {exercise.coachNotes && (
+        <div className="session-coach-note">
+          <strong>Coach’s note</strong>
+          <span>{exercise.coachNotes}</span>
+        </div>
+      )}
+
       {exercise.sets.length > 0 && (
         <div className="session-sets">
           {exercise.sets.map(set => (

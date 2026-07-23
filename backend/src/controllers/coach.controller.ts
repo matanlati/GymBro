@@ -50,6 +50,14 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(404).json({ error: 'WORKOUT_NOT_FOUND', message: 'Completed trainee workout not found' })
     case 'INVALID_WORKOUT_KEY':
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A valid workout key is required' })
+    case 'INVALID_WORKOUT_TYPE':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Workout name and at least one valid exercise are required' })
+    case 'INVALID_WORKOUT_TYPE_INDEX':
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Workout type index is invalid' })
+    case 'WORKOUT_TYPE_NOT_FOUND':
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Workout type not found' })
+    case 'PLAN_NOT_FOUND':
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'No active workout plan was found' })
     case 'TRAINEE_NOT_FOUND':
       return res.status(404).json({ error: 'TRAINEE_NOT_FOUND', message: 'No trainee account was found with that email' })
     case 'COACH_TRAINEE_NOT_FOUND':
@@ -199,6 +207,40 @@ export async function listCoachTrainees(req: AuthRequest, res: Response) {
   try {
     const trainees = await coachService.listCoachTrainees(req.user!.userId)
     return res.json(trainees)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function getCoachTraineeWorkouts(req: AuthRequest, res: Response) {
+  try {
+    return res.json(await coachService.getTraineeWorkouts(req.user!.userId, req.params.id))
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function createCoachTraineeWorkoutType(req: AuthRequest, res: Response) {
+  try {
+    const plan = await coachService.createTraineeWorkoutType(req.user!.userId, req.params.id, req.body ?? {})
+    return res.status(201).json(plan)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function updateCoachTraineeWorkoutType(req: AuthRequest, res: Response) {
+  try {
+    const plan = await coachService.updateTraineeWorkoutType(req.user!.userId, req.params.id, req.params.dayIndex, req.body ?? {})
+    return res.json(plan)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function removeCoachTraineeWorkoutType(req: AuthRequest, res: Response) {
+  try {
+    return res.json(await coachService.removeTraineeWorkoutType(req.user!.userId, req.params.id, req.params.dayIndex))
   } catch (err) {
     return handleCoachError(res, err)
   }

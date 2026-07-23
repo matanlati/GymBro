@@ -7,6 +7,7 @@ import { AchievementUnlock } from '../models/AchievementUnlock.model'
 import { CoachWorkoutReview } from '../models/CoachWorkoutReview.model'
 import { CoachProgressAlertClear } from '../models/CoachProgressAlert.model'
 import { CoachSettings } from '../models/CoachSettings.model'
+import { IExercise, WorkoutPlan } from '../models/WorkoutPlan.model'
 import { toExerciseKey } from '../utils/exerciseKey'
 
 const userSelect = 'name email photo role coachId timezone'
@@ -515,6 +516,103 @@ export const requireAssignedTrainee = async (coachUserId: string, traineeId: str
   const trainee = await User.exists({ _id: traineeId, coachId: coach._id, role: 'trainee' })
   if (!trainee) throw new Error('COACH_TRAINEE_NOT_FOUND')
   return coach
+}
+
+type CoachWorkoutTypeInput = {
+  name?: unknown
+  exercises?: unknown
+}
+
+const validateWorkoutType = (input: CoachWorkoutTypeInput) => {
+  const name = typeof input.name === 'string' ? input.name.trim() : ''
+  if (!name || name.length > 100 || !Array.isArray(input.exercises) || input.exercises.length === 0 || input.exercises.length > 30) {
+    throw new Error('INVALID_WORKOUT_TYPE')
+  }
+  const exercises: IExercise[] = input.exercises.map(value => {
+    const exercise = value as Record<string, unknown>
+    const exerciseName = typeof exercise.name === 'string' ? exercise.name.trim() : ''
+    const sets = typeof exercise.sets === 'string' || typeof exercise.sets === 'number' ? String(exercise.sets).trim() : ''
+    const reps = typeof exercise.reps === 'string' || typeof exercise.reps === 'number' ? String(exercise.reps).trim() : ''
+    const notes = typeof exercise.notes === 'string' ? exercise.notes.trim() : ''
+    if (!exerciseName || exerciseName.length > 120 || !sets || sets.length > 30 || !reps || reps.length > 30 || notes.length > 500) {
+      throw new Error('INVALID_WORKOUT_TYPE')
+    }
+    return { exerciseKey: toExerciseKey(exerciseName), name: exerciseName, sets, reps, notes: notes || undefined }
+  })
+  return { name, exercises }
+}
+
+export async function getTraineeWorkouts(coachUserId: string, traineeId: string) {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  const plan = await WorkoutPlan.findOne({ userId: traineeId, isActive: true }).lean()
+  if (!plan) return { plan: null, sessions: [] }
+  const sessions = await WorkoutSession.find({
+    userId: traineeId,
+    planId: plan._id,
+    completedAt: { $ne: null },
+  }).sort({ completedAt: -1 }).lean()
+  return { plan, sessions }
+}
+
+export async function createTraineeWorkoutType(
+  coachUserId: string,
+  traineeId: string,
+  input: CoachWorkoutTypeInput
+) {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  const workout = validateWorkoutType(input)
+  let plan = await WorkoutPlan.findOne({ userId: traineeId, isActive: true })
+  if (!plan) {
+    const trainee = await User.findById(traineeId).select('name')
+    plan = await WorkoutPlan.create({
+      userId: traineeId,
+      title: `${trainee?.name ?? 'Trainee'} Training Plan`,
+      summary: 'Custom workout plan managed by coach.',
+      weeklyPlan: [],
+      safetyNotes: [],
+      progressionNotes: '',
+      isActive: true,
+    })
+  }
+  const activeWorkoutCount = plan.weeklyPlan.filter(day => !day.isArchived).length
+  plan.weeklyPlan.push({ day: `Workout ${activeWorkoutCount + 1}`, focus: workout.name, exercises: workout.exercises, isArchived: false })
+  await plan.save()
+  return plan
+}
+
+export async function updateTraineeWorkoutType(
+  coachUserId: string,
+  traineeId: string,
+  dayIndexValue: string,
+  input: CoachWorkoutTypeInput
+) {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  const dayIndex = Number(dayIndexValue)
+  if (!Number.isInteger(dayIndex) || dayIndex < 0) throw new Error('INVALID_WORKOUT_TYPE_INDEX')
+  const workout = validateWorkoutType(input)
+  const plan = await WorkoutPlan.findOne({ userId: traineeId, isActive: true })
+  if (!plan) throw new Error('PLAN_NOT_FOUND')
+  const current = plan.weeklyPlan[dayIndex]
+  if (!current || current.isArchived) throw new Error('WORKOUT_TYPE_NOT_FOUND')
+  current.focus = workout.name
+  current.exercises = workout.exercises
+  plan.markModified('weeklyPlan')
+  await plan.save()
+  return plan
+}
+
+export async function removeTraineeWorkoutType(coachUserId: string, traineeId: string, dayIndexValue: string) {
+  await requireAssignedTrainee(coachUserId, traineeId)
+  const dayIndex = Number(dayIndexValue)
+  if (!Number.isInteger(dayIndex) || dayIndex < 0) throw new Error('INVALID_WORKOUT_TYPE_INDEX')
+  const plan = await WorkoutPlan.findOne({ userId: traineeId, isActive: true })
+  if (!plan) throw new Error('PLAN_NOT_FOUND')
+  const workout = plan.weeklyPlan[dayIndex]
+  if (!workout || workout.isArchived) throw new Error('WORKOUT_TYPE_NOT_FOUND')
+  workout.isArchived = true
+  plan.markModified('weeklyPlan')
+  await plan.save()
+  return plan
 }
 
 export async function getTraineeNotes(coachUserId: string, traineeId: string) {
