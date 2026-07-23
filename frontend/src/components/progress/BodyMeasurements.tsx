@@ -45,6 +45,7 @@ export default function BodyMeasurements({
   const [metric, setMetric] = useState<MeasurementMetric>('weightKg')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<BodyMeasurement | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -52,6 +53,7 @@ export default function BodyMeasurements({
   const [weightKg, setWeightKg] = useState('')
   const [bodyFatPercent, setBodyFatPercent] = useState('')
   const [muscleMassKg, setMuscleMassKg] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<BodyMeasurement | null>(null)
 
   const loadMeasurements = async () => {
     const { data } = await dataSource.measurements.list({ limit: 100 })
@@ -145,15 +147,28 @@ export default function BodyMeasurements({
     }
   }
 
-  const removeMeasurement = async (measurement: BodyMeasurement) => {
+  const requestMeasurementDelete = (measurement: BodyMeasurement) => {
     if (!permissions.canDeleteMeasurements) return
-    if (!window.confirm('Delete this measurement entry?')) return
+    setPendingDelete(measurement)
+  }
+
+  const closeDeleteDialog = () => {
+    if (!deleting) setPendingDelete(null)
+  }
+
+  const confirmMeasurementDelete = async () => {
+    if (!permissions.canDeleteMeasurements || !pendingDelete) return
+    setDeleting(true)
+    setError('')
     try {
-      await dataSource.measurements.remove?.(measurement._id)
-      setMeasurements(current => current.filter(item => item._id !== measurement._id))
+      await dataSource.measurements.remove?.(pendingDelete._id)
+      setMeasurements(current => current.filter(item => item._id !== pendingDelete._id))
       window.dispatchEvent(new Event('progress-data-changed'))
+      setPendingDelete(null)
     } catch {
       setError('Could not delete this measurement.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -256,7 +271,7 @@ export default function BodyMeasurements({
                         </button>
                       )}
                       {permissions.canDeleteMeasurements && (
-                        <button type="button" onClick={() => removeMeasurement(measurement)} aria-label="Delete measurement" title="Delete measurement">
+                        <button type="button" onClick={() => requestMeasurementDelete(measurement)} aria-label="Delete measurement" title="Delete measurement">
                           <Trash2 size={15} />
                         </button>
                       )}
@@ -268,6 +283,49 @@ export default function BodyMeasurements({
           )}
         </div>
       </div>
+
+      {pendingDelete && (
+        <div
+          className="coach-modal-backdrop"
+          role="presentation"
+          onClick={closeDeleteDialog}
+        >
+          <section
+            className="coach-modal measurement-delete-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="measurement-delete-title"
+            aria-describedby="measurement-delete-description"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="measurement-delete-icon" aria-hidden="true">
+              <Trash2 size={22} />
+            </div>
+            <div className="measurement-delete-copy">
+              <h2 id="measurement-delete-title">Delete measurement?</h2>
+              <p id="measurement-delete-description">
+                The entry from {new Date(pendingDelete.measuredAt).toLocaleDateString('en-US', {
+                  month: 'long', day: 'numeric', year: 'numeric',
+                })} will be permanently removed.
+              </p>
+            </div>
+            <div className="coach-modal-actions">
+              <Button variant="secondary" onClick={closeDeleteDialog} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button
+                className="measurement-delete-confirm-button"
+                leadingIcon={<Trash2 size={16} />}
+                loading={deleting}
+                loadingLabel="Deleting..."
+                onClick={confirmMeasurementDelete}
+              >
+                Delete entry
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
     </Card>
   )
 }

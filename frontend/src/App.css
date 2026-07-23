@@ -3413,6 +3413,51 @@ button {
   white-space: nowrap;
 }
 
+.measurement-delete-modal {
+  width: min(430px, calc(100vw - 32px));
+  padding: 28px;
+  text-align: center;
+}
+
+.measurement-delete-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 16px;
+  border-radius: 12px;
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.measurement-delete-copy h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 20px;
+}
+
+.measurement-delete-copy p {
+  margin: 10px 0 24px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.measurement-delete-modal .coach-modal-actions {
+  justify-content: center;
+}
+
+.measurement-delete-confirm-button {
+  border-color: #dc2626 !important;
+  background: #dc2626 !important;
+  box-shadow: none !important;
+}
+
+.measurement-delete-confirm-button:hover:not(:disabled) {
+  border-color: #b91c1c !important;
+  background: #b91c1c !important;
+}
+
 /* Keep decorative progress icons centered even when row typography rules
    change the display mode of nested spans. */
 .progress-page :is(
