@@ -2677,6 +2677,7 @@ button {
 .trainee-session-history-title p { color: #94a3b8; font-size: 11px; margin-top: 2px; }
 .trainee-plan-empty .gb-empty-state { display: grid; justify-items: center; gap: 8px; text-align: center; }
 .trainee-plan-empty .gb-empty-state > svg { color: #f97316; }
+.coach-managed-plan-message { display: grid; align-content: start; justify-items: start; gap: 16px; }
 
 @media (max-width: 780px) {
   .trainee-plan-summary { grid-template-columns: 1fr; gap: 18px; }

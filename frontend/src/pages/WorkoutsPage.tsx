@@ -6,6 +6,7 @@ import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { useAuth } from '../context/AuthContext'
 import CoachWorkoutsView from '../components/CoachWorkoutsView'
 import { Dumbbell, History, Play } from 'lucide-react'
+import { getMe } from '../api/users.api'
 
 const startOfWeek = (d: Date): Date => {
   const x = new Date(d)
@@ -42,6 +43,7 @@ const WorkoutsPage = () => {
   const [showReplacePlanWarning, setShowReplacePlanWarning] = useState(false)
   const [showWorkoutChooser, setShowWorkoutChooser] = useState(false)
   const [selectedPlanDayIndex, setSelectedPlanDayIndex] = useState(0)
+  const [hasCoach, setHasCoach] = useState(Boolean(user?.coachId))
 
   useEffect(() => {
     Promise.all([
@@ -49,6 +51,9 @@ const WorkoutsPage = () => {
       getActivePlan()
         .then(({ data }) => setPlan(data))
         .catch(() => setPlan(null)),
+      getMe()
+        .then(({ data }) => setHasCoach(Boolean(data.coachId)))
+        .catch(() => setHasCoach(Boolean(user?.coachId))),
     ]).finally(() => setLoading(false))
   }, [])
 
@@ -77,6 +82,7 @@ const WorkoutsPage = () => {
     session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
 
   const openNewPlan = () => {
+    if (hasCoach) return
     if (plan?.isActive) {
       setShowReplacePlanWarning(true)
       return
@@ -113,7 +119,7 @@ const WorkoutsPage = () => {
             >
               Start Workout
             </Button>
-            <Button variant="secondary" onClick={openNewPlan}>+ New Workout Plan</Button>
+            <Button variant="secondary" disabled={hasCoach} title={hasCoach ? 'Your coach manages your workout plan' : undefined} onClick={openNewPlan}>+ New Workout Plan</Button>
           </div>
         }
       />
@@ -122,6 +128,9 @@ const WorkoutsPage = () => {
         <Alert variant="error" style={{ marginBottom: 16 }}>
           {error}
         </Alert>
+      )}
+      {hasCoach && (
+        <Alert variant="info">Your workout plan is managed by your coach. Ask your coach if you would like changes to your program.</Alert>
       )}
 
       {loading ? null : plan && activeWorkoutTypes.length ? (
@@ -181,7 +190,9 @@ const WorkoutsPage = () => {
             <Dumbbell size={26} />
             <strong>No active workout plan</strong>
             <span>Create a plan to see your weekly workouts and exercise overview here.</span>
-            <Button onClick={openNewPlan}>Create Workout Plan</Button>
+            {hasCoach
+              ? <span>Your coach has not assigned a workout plan yet.</span>
+              : <Button onClick={openNewPlan}>Create Workout Plan</Button>}
           </EmptyState>
         </Card>
       )}
