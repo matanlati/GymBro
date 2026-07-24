@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { Archive, Award, Plus, Target, Trophy, X } from 'lucide-react'
+import { Archive, Award, History, Plus, Target, Trophy, X } from 'lucide-react'
 import {
   Alert,
   Button,
@@ -69,6 +69,10 @@ export default function GoalsAchievements({
 }: GoalsAchievementsProps) {
   const [goals, setGoals] = useState<ProgressGoal[]>([])
   const [achievements, setAchievements] = useState<AchievementUnlock[]>([])
+  const [achievementHistory, setAchievementHistory] = useState<AchievementUnlock[]>([])
+  const [showAchievementHistory, setShowAchievementHistory] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -87,7 +91,7 @@ export default function GoalsAchievements({
 
     const loadProgressPanels = () => Promise.all([
         dataSource.goals.list('active'),
-        dataSource.achievements.list(undefined, 8),
+        dataSource.achievements.list(undefined, 5),
       ])
       .then(([goalResponse, achievementResponse]) => {
         if (!active) return
@@ -169,6 +173,31 @@ export default function GoalsAchievements({
       setError('Could not archive this goal.')
     }
   }
+
+  const openAchievementHistory = async () => {
+    setShowAchievementHistory(true)
+    setHistoryError('')
+    if (achievementHistory.length > 0) return
+
+    setHistoryLoading(true)
+    try {
+      const { data } = await dataSource.achievements.list(undefined, 0)
+      setAchievementHistory(data)
+    } catch {
+      setHistoryError('Could not load your achievement history.')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!showAchievementHistory) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowAchievementHistory(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [showAchievementHistory])
 
   if (loading) return <LoadingState label="Loading goals and achievements..." />
 
@@ -282,21 +311,91 @@ export default function GoalsAchievements({
         {achievements.length === 0 ? (
           <EmptyState>No achievements unlocked yet.</EmptyState>
         ) : (
-          <ul className="achievement-list">
-            {achievements.map(achievement => (
-              <li key={achievement._id} className="achievement-row">
-                <span className="achievement-icon"><Trophy size={18} aria-hidden="true" /></span>
-                <div>
-                  <strong>{achievementLabel(achievement)}</strong>
-                  <span>{new Date(achievement.unlockedAt).toLocaleDateString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric',
-                  })}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="achievement-list">
+              {achievements.map(achievement => (
+                <li key={achievement._id} className="achievement-row">
+                  <span className="achievement-icon"><Trophy size={18} aria-hidden="true" /></span>
+                  <div>
+                    <strong>{achievementLabel(achievement)}</strong>
+                    <span>{new Date(achievement.unlockedAt).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                    })}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="achievement-history-button"
+              leadingIcon={<History size={16} aria-hidden="true" />}
+              onClick={openAchievementHistory}
+            >
+              Achievement history
+            </Button>
+          </>
         )}
       </Card>
+
+      {showAchievementHistory && (
+        <div
+          className="coach-modal-backdrop"
+          role="presentation"
+          onClick={() => setShowAchievementHistory(false)}
+        >
+          <section
+            className="coach-modal achievement-history-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="achievement-history-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="coach-modal-head achievement-history-head">
+              <div>
+                <h2 id="achievement-history-title">Achievement history</h2>
+                <p>Every milestone you have unlocked, newest first.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAchievementHistory(false)}
+                aria-label="Close achievement history"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="achievement-history-content">
+              {historyLoading ? (
+                <LoadingState label="Loading achievement history..." />
+              ) : historyError ? (
+                <Alert variant="error">{historyError}</Alert>
+              ) : achievementHistory.length === 0 ? (
+                <EmptyState>No achievements unlocked yet.</EmptyState>
+              ) : (
+                <ul className="achievement-list achievement-history-list">
+                  {achievementHistory.map(achievement => (
+                    <li key={achievement._id} className="achievement-row">
+                      <span className="achievement-icon">
+                        <Trophy size={18} aria-hidden="true" />
+                      </span>
+                      <div>
+                        <strong>{achievementLabel(achievement)}</strong>
+                        <span>{new Date(achievement.unlockedAt).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   )
 }
