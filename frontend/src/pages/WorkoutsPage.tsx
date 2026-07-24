@@ -119,7 +119,7 @@ const WorkoutsPage = () => {
             >
               Start Workout
             </Button>
-            <Button variant="secondary" disabled={hasCoach} title={hasCoach ? 'Your coach manages your workout plan' : undefined} onClick={openNewPlan}>+ New Workout Plan</Button>
+            {!hasCoach && <Button variant="secondary" onClick={openNewPlan}>+ New Workout Plan</Button>}
           </div>
         }
       />
@@ -130,7 +130,7 @@ const WorkoutsPage = () => {
         </Alert>
       )}
       {hasCoach && (
-        <Alert variant="info">Your workout plan is managed by your coach. Ask your coach if you would like changes to your program.</Alert>
+        <Alert variant="info" style={{ marginBottom: 18 }}>Your workout plan is managed by your coach. Ask your coach if you would like changes to your program.</Alert>
       )}
 
       {loading ? null : plan && activeWorkoutTypes.length ? (
