@@ -5,8 +5,9 @@ import { listSessions, getOrCreateToday, Session } from '../api/sessions.api'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { useAuth } from '../context/AuthContext'
 import CoachWorkoutsView from '../components/CoachWorkoutsView'
-import { Dumbbell, History, Play } from 'lucide-react'
+import { CalendarPlus, Dumbbell, History, Play } from 'lucide-react'
 import { getMe } from '../api/users.api'
+import WorkoutSchedulerModal from '../components/WorkoutSchedulerModal'
 
 const startOfWeek = (d: Date): Date => {
   const x = new Date(d)
@@ -44,6 +45,7 @@ const WorkoutsPage = () => {
   const [showWorkoutChooser, setShowWorkoutChooser] = useState(false)
   const [selectedPlanDayIndex, setSelectedPlanDayIndex] = useState(0)
   const [hasCoach, setHasCoach] = useState(Boolean(user?.coachId))
+  const [plannerDayIndex, setPlannerDayIndex] = useState<number | null | undefined>(undefined)
 
   useEffect(() => {
     Promise.all([
@@ -119,6 +121,7 @@ const WorkoutsPage = () => {
             >
               Start Workout
             </Button>
+            {plan && <Button variant="secondary" leadingIcon={<CalendarPlus size={16} />} onClick={() => setPlannerDayIndex(null)}>Plan Workouts</Button>}
             {!hasCoach && <Button variant="secondary" onClick={openNewPlan}>+ New Workout Plan</Button>}
           </div>
         }
@@ -168,7 +171,10 @@ const WorkoutsPage = () => {
               <Card className="trainee-workout-preview" padding="none">
                 <div className="trainee-workout-preview-head">
                   <div><span>{selectedWorkout.workout.day}</span><h3>{selectedWorkout.workout.focus}</h3><p>{selectedWorkout.workout.exercises.length} exercises in this workout</p></div>
-                  <Button leadingIcon={<Play size={15} fill="currentColor" />} loading={startingDayIndex === selectedWorkout.dayIndex} loadingLabel="Starting..." onClick={() => startWorkout(selectedWorkout.dayIndex)}>Start This Workout</Button>
+                  <div className="trainee-workout-preview-actions">
+                    <Button variant="secondary" leadingIcon={<CalendarPlus size={15} />} onClick={() => setPlannerDayIndex(selectedWorkout.dayIndex)}>Plan</Button>
+                    <Button leadingIcon={<Play size={15} fill="currentColor" />} loading={startingDayIndex === selectedWorkout.dayIndex} loadingLabel="Starting..." onClick={() => startWorkout(selectedWorkout.dayIndex)}>Start This Workout</Button>
+                  </div>
                 </div>
                 <div className="trainee-workout-exercises">
                   <div className="trainee-workout-exercise-head"><span>Exercise</span><span>Sets</span><span>Reps</span></div>
@@ -280,6 +286,19 @@ const WorkoutsPage = () => {
             </div>
           </section>
         </div>
+      ) : null}
+
+      {plannerDayIndex !== undefined && plan ? (
+        <WorkoutSchedulerModal
+          plan={plan}
+          sessions={sessions}
+          initialDayIndex={plannerDayIndex ?? undefined}
+          onClose={() => setPlannerDayIndex(undefined)}
+          onScheduled={session => {
+            setSessions(current => [session, ...current])
+            setPlannerDayIndex(undefined)
+          }}
+        />
       ) : null}
 
       {showReplacePlanWarning ? (
