@@ -56,6 +56,22 @@ describe('progress.service.getSummary', () => {
     expect(summary.averageDurationMinutes).toBe(0)
   })
 
+  it('never returns a negative average duration from invalid historical timing data', async () => {
+    ;(MockSession.aggregate as jest.Mock) = jest.fn()
+      .mockResolvedValueOnce([{
+        totalSessions: 6,
+        totalVolumeKg: 0,
+        averageDurationMinutes: -3104,
+      }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+
+    const summary = await getSummary(USER_ID)
+
+    expect(summary.averageDurationMinutes).toBe(0)
+  })
+
   it('returns estimated strength progress from the aggregation', async () => {
     const strengthProgress = [{
       exerciseKey: 'bench_press',
