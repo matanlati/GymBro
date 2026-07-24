@@ -79,7 +79,6 @@ const WorkoutsPage = () => {
       .filter(session => !session.completedAt && session.dayIndex >= 0 && isToday(session.scheduledDate))
       .map(session => session.dayIndex)
   )
-
   const titleFor = (session: Session) =>
     session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
 
@@ -111,20 +110,7 @@ const WorkoutsPage = () => {
       <PageHeader
         title="My Workouts"
         subtitle="Track and manage your training sessions"
-        actions={
-          <div className="workouts-header-actions">
-            <Button
-              className="start-workout-button"
-              leadingIcon={<Play size={16} fill="currentColor" />}
-              disabled={!plan}
-              onClick={() => setShowWorkoutChooser(true)}
-            >
-              Start Workout
-            </Button>
-            {plan && <Button variant="secondary" leadingIcon={<CalendarPlus size={16} />} onClick={() => setPlannerDayIndex(null)}>Plan Workouts</Button>}
-            {!hasCoach && <Button variant="secondary" onClick={openNewPlan}>+ New Workout Plan</Button>}
-          </div>
-        }
+        actions={!hasCoach ? <Button variant="secondary" onClick={openNewPlan}>+ New Workout Plan</Button> : undefined}
       />
 
       {error && (
@@ -172,7 +158,7 @@ const WorkoutsPage = () => {
                 <div className="trainee-workout-preview-head">
                   <div><span>{selectedWorkout.workout.day}</span><h3>{selectedWorkout.workout.focus}</h3><p>{selectedWorkout.workout.exercises.length} exercises in this workout</p></div>
                   <div className="trainee-workout-preview-actions">
-                    <Button variant="secondary" leadingIcon={<CalendarPlus size={15} />} onClick={() => setPlannerDayIndex(selectedWorkout.dayIndex)}>Plan</Button>
+                    <Button variant="secondary" leadingIcon={<CalendarPlus size={15} />} onClick={() => setPlannerDayIndex(selectedWorkout.dayIndex)}>Plan This Workout</Button>
                     <Button leadingIcon={<Play size={15} fill="currentColor" />} loading={startingDayIndex === selectedWorkout.dayIndex} loadingLabel="Starting..." onClick={() => startWorkout(selectedWorkout.dayIndex)}>Start This Workout</Button>
                   </div>
                 </div>
