@@ -110,7 +110,8 @@ export const listAchievements = async (
 ): Promise<IAchievementUnlock[]> => {
   const categories: AchievementCategory[] = ['workout_count', 'streak', 'personal_record']
   if (category && !categories.includes(category)) throw new Error('INVALID_ACHIEVEMENT_FILTERS')
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+  // A zero limit intentionally means "all" for the full achievement-history view.
+  if (!Number.isInteger(limit) || limit < 0 || limit > 100) {
     throw new Error('INVALID_ACHIEVEMENT_FILTERS')
   }
   const query = category ? { userId, category } : { userId }

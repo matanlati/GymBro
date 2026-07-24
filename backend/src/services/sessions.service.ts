@@ -363,7 +363,12 @@ export const completeSession = async (
 ): Promise<CompleteSessionResult> => {
   const session = await loadOwned(userId, id)
   const achievements = await detectPersonalBests(userId, session)
-  session.completedAt = new Date()
+  const completedAt = new Date()
+  if (!session.startedAt || session.startedAt > completedAt) {
+    session.startedAt = completedAt
+  }
+  session.actualStartRecorded = true
+  session.completedAt = completedAt
   const saved = await session.save()
   let unlockedAchievements: IAchievementUnlock[] = []
   try {

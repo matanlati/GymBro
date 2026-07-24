@@ -2,6 +2,7 @@ import { Response } from 'express'
 import { AuthRequest, QuestionnaireData } from '../types'
 import WorkoutPlanService from '../services/workoutPlan/WorkoutPlanService'
 import * as usersService from '../services/users.service'
+import { User } from '../models/User.model'
 
 function notFound(res: Response, message = 'Plan not found') {
   return res.status(404).json({ error: 'NOT_FOUND', message })
@@ -37,6 +38,17 @@ export async function getActivePlan(req: AuthRequest, res: Response) {
 }
 
 export async function generateAndSavePlan(req: AuthRequest, res: Response) {
+  try {
+    const requester = await User.findById(req.user!.userId).select('role coachId').lean()
+    if (requester?.role === 'trainee' && requester.coachId) {
+      return res.status(403).json({
+        error: 'COACH_MANAGED_PLAN',
+        message: 'Your workout plan is managed by your coach.',
+      })
+    }
+  } catch (err) {
+    return serverError(res, err)
+  }
   const data = req.body as QuestionnaireData
   if (!data || typeof data !== 'object') {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Questionnaire data is required' })
