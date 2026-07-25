@@ -13,7 +13,9 @@ export interface IExerciseLog {
   muscleGroups?: string[]
   prescribedSets: string
   prescribedReps: string
+  prescribedDurationMinutes?: string
   prescribedWeightKg?: number
+  coachNotes?: string
   orderIndex: number
   sets: ISetLog[]
 }
@@ -25,6 +27,7 @@ export interface IWorkoutSession extends Document {
   dayIndex: number
   scheduledDate: Date
   startedAt: Date
+  actualStartRecorded?: boolean
   completedAt?: Date
   notes?: string
   exercises: IExerciseLog[]
@@ -47,7 +50,9 @@ const exerciseLogSchema = new Schema<IExerciseLog>(
     muscleGroups: { type: [String], default: undefined },
     prescribedSets: { type: String, required: true },
     prescribedReps: { type: String, required: true },
+    prescribedDurationMinutes: { type: String, trim: true },
     prescribedWeightKg: Number,
+    coachNotes: String,
     orderIndex: { type: Number, required: true },
     sets: { type: [setLogSchema], default: [] },
   },
@@ -61,7 +66,8 @@ const workoutSessionSchema = new Schema<IWorkoutSession>(
     title: String,
     dayIndex: { type: Number, required: true },
     scheduledDate: { type: Date, required: true },
-    startedAt: { type: Date, required: true, default: Date.now },
+    startedAt: Date,
+    actualStartRecorded: { type: Boolean, default: false },
     completedAt: Date,
     notes: String,
     exercises: { type: [exerciseLogSchema], default: [] },
