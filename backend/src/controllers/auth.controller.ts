@@ -34,11 +34,13 @@ function validationError(res: Response, message: string) {
 
 export async function register(req: Request, res: Response) {
   const { email, password, name } = req.body
+  const role = req.body.role === 'coach' ? 'coach' : req.body.role === 'trainee' || req.body.role === undefined ? 'trainee' : null
   const err = validateRegisterInput(email, password, name)
   if (err) return validationError(res, err)
+  if (!role) return validationError(res, 'role must be trainee or coach')
 
   try {
-    const { accessToken, refreshToken, user } = await authService.registerUser(email, password, name)
+    const { accessToken, refreshToken, user } = await authService.registerUser(email, password, name, role)
     setAuthCookies(res, accessToken, refreshToken)
     return res.status(201).json({ user })
   } catch (err: unknown) {

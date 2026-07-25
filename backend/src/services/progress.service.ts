@@ -93,7 +93,12 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
       $project: {
         durationMinutes: {
           $cond: [
-            { $ne: [{ $type: '$startedAt' }, 'missing'] },
+            {
+              $and: [
+                { $eq: [{ $type: '$startedAt' }, 'date'] },
+                { $gte: ['$completedAt', '$startedAt'] },
+              ],
+            },
             { $divide: [{ $subtract: ['$completedAt', '$startedAt'] }, 60_000] },
             null,
           ],
@@ -287,11 +292,15 @@ export const getSummary = async (userId: string): Promise<ProgressSummary> => {
     completed.map(s => s.completedAt as Date).filter(Boolean),
     user?.timezone ?? 'UTC'
   )
+  const averageDuration = totals?.averageDurationMinutes
 
   return {
     totalSessions: totals?.totalSessions ?? 0,
     totalVolumeKg: Math.round(totals?.totalVolumeKg ?? 0),
-    averageDurationMinutes: Math.round(totals?.averageDurationMinutes ?? 0),
+    averageDurationMinutes:
+      typeof averageDuration === 'number' && Number.isFinite(averageDuration)
+        ? Math.max(0, Math.round(averageDuration))
+        : 0,
     currentStreakDays: calendarMetrics.currentStreakDays,
     bestStreakDays: calendarMetrics.bestStreakDays,
     weeklyActivity: calendarMetrics.weeklyActivity,
