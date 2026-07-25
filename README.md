@@ -38,11 +38,9 @@ npm install
 
 3. Set up environment variables:
    - Copy `.env.example` to `.env`
-   - Add your Groq API key: `GROQ_API_KEY=your_groq_api_key_here`
-   - If needed, also set `GROQ_MODEL=llama3-8b-8192`
+   - Configure the authenticated LLM service with `LLM_BASE_URL`, `LLM_USERNAME`, `LLM_PASSWORD`, and `LLM_MODEL`
    - Add your video analysis service endpoint: `VIDEO_ANALYSIS_SERVICE_URL=https://your-video-analysis-service.example.com/analyze`
    - If the service uses auth, add `VIDEO_ANALYSIS_API_KEY=your_video_analysis_api_key_here`
-   - Create a Groq API key in the Groq console and add it to `.env`
 
 4. Start the backend:
 
