@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { Archive, Award, Plus, Target, Trophy, X } from 'lucide-react'
+import { Archive, Award, History, Plus, Target, Trophy, X } from 'lucide-react'
 import {
   Alert,
   Button,
@@ -13,13 +13,11 @@ import {
 import type { SelectOption } from '@gymbro/ui-kit'
 import {
   AchievementUnlock,
-  createGoal,
-  listAchievements,
-  listGoals,
   ProgressGoal,
   ProgressGoalType,
-  updateGoal,
 } from '../../api/progress.api'
+import type { ProgressDataSource } from '../../api/progressDataSource'
+import type { ProgressDashboardPermissions } from './ProgressDashboard'
 import ProgressSelect from './ProgressSelect'
 
 const GOAL_TYPES: SelectOption<ProgressGoalType>[] = [
@@ -60,11 +58,21 @@ const achievementLabel = (achievement: AchievementUnlock) => {
 
 interface GoalsAchievementsProps {
   exercises: string[]
+  dataSource: ProgressDataSource
+  permissions: ProgressDashboardPermissions
 }
 
-export default function GoalsAchievements({ exercises }: GoalsAchievementsProps) {
+export default function GoalsAchievements({
+  exercises,
+  dataSource,
+  permissions,
+}: GoalsAchievementsProps) {
   const [goals, setGoals] = useState<ProgressGoal[]>([])
   const [achievements, setAchievements] = useState<AchievementUnlock[]>([])
+  const [achievementHistory, setAchievementHistory] = useState<AchievementUnlock[]>([])
+  const [showAchievementHistory, setShowAchievementHistory] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -75,20 +83,34 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError('')
+    setGoals([])
+    setAchievements([])
+
     const loadProgressPanels = () => Promise.all([
-      listGoals('active'),
-      listAchievements(undefined, 8),
-    ])
+        dataSource.goals.list('active'),
+        dataSource.achievements.list(undefined, 5),
+      ])
       .then(([goalResponse, achievementResponse]) => {
+        if (!active) return
         setGoals(goalResponse.data)
         setAchievements(achievementResponse.data)
       })
-      .catch(() => setError('Could not load goals and achievements.'))
+      .catch(() => {
+        if (active) setError('Could not load goals and achievements.')
+      })
 
-    loadProgressPanels().finally(() => setLoading(false))
+    loadProgressPanels().finally(() => {
+      if (active) setLoading(false)
+    })
     window.addEventListener('progress-data-changed', loadProgressPanels)
-    return () => window.removeEventListener('progress-data-changed', loadProgressPanels)
-  }, [])
+    return () => {
+      active = false
+      window.removeEventListener('progress-data-changed', loadProgressPanels)
+    }
+  }, [dataSource])
 
   const exerciseOptions: SelectOption[] = Array.from(
     new Set([...exercises, ...DEFAULT_STRENGTH_EXERCISES])
@@ -108,6 +130,7 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
 
   const submitGoal = async (event: FormEvent) => {
     event.preventDefault()
+    if (!permissions.canAddGoals) return
     const target = Number(targetValue)
     if (!Number.isFinite(target) || target <= 0) {
       setError('Enter a target greater than zero.')
@@ -125,13 +148,13 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
     setSaving(true)
     setError('')
     try {
-      await createGoal({
+      await dataSource.goals.create({
         type: goalType,
         targetValue: target,
         ...(exerciseName ? { exerciseName } : {}),
         ...(baselineValue ? { baselineValue: Number(baselineValue) } : {}),
       })
-      const { data } = await listGoals('active')
+      const { data } = await dataSource.goals.list('active')
       setGoals(data)
       resetForm()
     } catch {
@@ -142,13 +165,39 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
   }
 
   const archiveGoal = async (goal: ProgressGoal) => {
+    if (!permissions.canArchiveGoals) return
     try {
-      await updateGoal(goal._id, { status: 'archived' })
+      await dataSource.goals.update(goal._id, { status: 'archived' })
       setGoals(current => current.filter(item => item._id !== goal._id))
     } catch {
       setError('Could not archive this goal.')
     }
   }
+
+  const openAchievementHistory = async () => {
+    setShowAchievementHistory(true)
+    setHistoryError('')
+    if (achievementHistory.length > 0) return
+
+    setHistoryLoading(true)
+    try {
+      const { data } = await dataSource.achievements.list(undefined, 0)
+      setAchievementHistory(data)
+    } catch {
+      setHistoryError('Could not load your achievement history.')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!showAchievementHistory) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowAchievementHistory(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [showAchievementHistory])
 
   if (loading) return <LoadingState label="Loading goals and achievements..." />
 
@@ -157,7 +206,7 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
       <Card as="section" className="progress-card">
         <CardHeader
           title="Goals"
-          trailing={
+          trailing={permissions.canAddGoals ? (
             <Button
               variant="ghost"
               size="sm"
@@ -166,12 +215,12 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
             >
               {showForm ? 'Cancel' : 'Add goal'}
             </Button>
-          }
+          ) : undefined}
         />
 
         {error && <Alert variant="error">{error}</Alert>}
 
-        {showForm && (
+        {permissions.canAddGoals && showForm && (
           <form className="goal-form" onSubmit={submitGoal}>
             <FormField label="Goal type">
               <ProgressSelect
@@ -239,15 +288,17 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
                       <span style={{ width: `${percent}%` }} />
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="goal-archive-button"
-                    onClick={() => archiveGoal(goal)}
-                    aria-label={`Archive ${goalLabel(goal)}`}
-                    title="Archive goal"
-                  >
-                    <Archive size={16} />
-                  </button>
+                  {permissions.canArchiveGoals && (
+                    <button
+                      type="button"
+                      className="goal-archive-button"
+                      onClick={() => archiveGoal(goal)}
+                      aria-label={`Archive ${goalLabel(goal)}`}
+                      title="Archive goal"
+                    >
+                      <Archive size={16} />
+                    </button>
+                  )}
                 </li>
               )
             })}
@@ -260,21 +311,91 @@ export default function GoalsAchievements({ exercises }: GoalsAchievementsProps)
         {achievements.length === 0 ? (
           <EmptyState>No achievements unlocked yet.</EmptyState>
         ) : (
-          <ul className="achievement-list">
-            {achievements.map(achievement => (
-              <li key={achievement._id} className="achievement-row">
-                <span className="achievement-icon"><Trophy size={18} aria-hidden="true" /></span>
-                <div>
-                  <strong>{achievementLabel(achievement)}</strong>
-                  <span>{new Date(achievement.unlockedAt).toLocaleDateString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric',
-                  })}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="achievement-list">
+              {achievements.map(achievement => (
+                <li key={achievement._id} className="achievement-row">
+                  <span className="achievement-icon"><Trophy size={18} aria-hidden="true" /></span>
+                  <div>
+                    <strong>{achievementLabel(achievement)}</strong>
+                    <span>{new Date(achievement.unlockedAt).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                    })}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="achievement-history-button"
+              leadingIcon={<History size={16} aria-hidden="true" />}
+              onClick={openAchievementHistory}
+            >
+              Achievement history
+            </Button>
+          </>
         )}
       </Card>
+
+      {showAchievementHistory && (
+        <div
+          className="coach-modal-backdrop"
+          role="presentation"
+          onClick={() => setShowAchievementHistory(false)}
+        >
+          <section
+            className="coach-modal achievement-history-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="achievement-history-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="coach-modal-head achievement-history-head">
+              <div>
+                <h2 id="achievement-history-title">Achievement history</h2>
+                <p>Every milestone you have unlocked, newest first.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAchievementHistory(false)}
+                aria-label="Close achievement history"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="achievement-history-content">
+              {historyLoading ? (
+                <LoadingState label="Loading achievement history..." />
+              ) : historyError ? (
+                <Alert variant="error">{historyError}</Alert>
+              ) : achievementHistory.length === 0 ? (
+                <EmptyState>No achievements unlocked yet.</EmptyState>
+              ) : (
+                <ul className="achievement-list achievement-history-list">
+                  {achievementHistory.map(achievement => (
+                    <li key={achievement._id} className="achievement-row">
+                      <span className="achievement-icon">
+                        <Trophy size={18} aria-hidden="true" />
+                      </span>
+                      <div>
+                        <strong>{achievementLabel(achievement)}</strong>
+                        <span>{new Date(achievement.unlockedAt).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   )
 }

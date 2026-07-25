@@ -29,10 +29,10 @@ The `docs/` folder contains the agreed design. **Always consult the relevant fil
 
 The codebase is mid-implementation and diverges from `PLAN.md` in places. Trust the code for what *exists*; trust the docs for the intended *target*. When in doubt, ask before "fixing" a divergence.
 
-- **LLM provider**: PLAN.md says OpenAI GPT-4o. Code uses **Groq** (see `backend/src/services/workoutPlan/GroqAiService.ts`, `.env.example` → `GROQ_API_KEY`, `GROQ_MODEL`). A Gemini adapter also exists but Groq is wired in.
+- **LLM provider**: PLAN.md says OpenAI GPT-4o. Code uses the same authenticated Ollama-style HTTP service as pose estimation (`LLM_BASE_URL`, `LLM_USERNAME`, `LLM_PASSWORD`, and `LLM_MODEL`).
 - **Pose estimation**: PLAN.md says in-process TF.js + MoveNet + ffmpeg. Code calls an **external HTTP service** via `VideoAnalysisApiAdapter` (`VIDEO_ANALYSIS_SERVICE_URL` in `.env.example`), with a `VideoAnalysisStubAdapter` fallback. No TF.js or ffmpeg dependency is installed.
 - **Backend folder layout**: PLAN.md describes `src/modules/<domain>/`. Actual layout is flatter: `src/controllers/`, `src/routers/`, `src/services/`, `src/models/`, `src/middleware/`. Follow the existing layout when adding files.
-- **WorkoutPlan schema**: PLAN.md prescribes `weeks[].sessions[].exercises[]`. The Groq prompt produces (and we persist) `weeklyPlan[].exercises[]` — a single week, no `sessions` layer. Will be widened when `WorkoutSession` is introduced; existing rows will need a migration script.
+- **WorkoutPlan schema**: PLAN.md prescribes `weeks[].sessions[].exercises[]`. The LLM prompt produces (and we persist) `weeklyPlan[].exercises[]` — a single week, no `sessions` layer. Will be widened when `WorkoutSession` is introduced; existing rows will need a migration script.
 - **Auth transport**: PLAN.md says `Authorization: Bearer <token>`. Code uses an httpOnly `accessToken` cookie (`middleware/auth.ts`) and the Axios client sends `withCredentials: true`. Refresh flow lives at `POST /api/auth/refresh`.
 - **Implemented surface so far**: auth, users, video analyze, workout-plan generate + persist (`/api/plans/*`). Sessions, set logging, progress, and social endpoints from PLAN.md are **not yet built**.
 
@@ -40,7 +40,7 @@ The codebase is mid-implementation and diverges from `PLAN.md` in places. Trust 
 
 - **Frontend**: React 18 + TypeScript + Vite, React Router v6, Axios, `@react-oauth/google`, `lucide-react`. Styling per the palette in `docs/design.md` (no Tailwind installed yet despite the plan).
 - **Backend**: Express 4 + TypeScript, Mongoose 8, JWT (`jsonwebtoken`) + bcryptjs, `cookie-parser`, `multer`, `google-auth-library`.
-- **AI**: Groq SDK calls for plan generation; HTTP call to external pose-estimation service for video analysis.
+- **AI**: Authenticated Ollama-style HTTP calls for plan generation; HTTP call to external pose-estimation service for video analysis.
 - **DB**: MongoDB via Mongoose. Connection string in `MONGODB_URI`.
 - **Tests**: Jest + ts-jest. Coverage target ≥ 80% on `services/`, `controllers/`, `middleware/`.
 
@@ -62,7 +62,7 @@ npm run build        # tsc && vite build
 npm run lint
 ```
 
-Both apps read `.env` at the repo root (or per-package — see `.env.example`). Required: `GROQ_API_KEY`, `MONGODB_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `FRONTEND_URL`, `VIDEO_ANALYSIS_SERVICE_URL`.
+Both apps read `.env` at the repo root (or per-package — see `.env.example`). Required: `LLM_BASE_URL`, `LLM_USERNAME`, `LLM_PASSWORD`, `LLM_MODEL`, `MONGODB_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `FRONTEND_URL`, `VIDEO_ANALYSIS_SERVICE_URL`.
 
 ## Conventions
 

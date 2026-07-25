@@ -10,14 +10,15 @@ import { AxiosError } from 'axios'
 export default function RegisterPage() {
   const { register, googleLogin, user } = useAuth()
   const navigate = useNavigate()
-
-  if (user) return <Navigate to="/home" replace />
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [role, setRole] = useState<'trainee' | 'coach'>('trainee')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  if (user) return <Navigate to="/home" replace />
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -26,7 +27,7 @@ export default function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      await register(email, password, name)
+      await register(email, password, name, role)
       navigate('/home')
     } catch (err) {
       const axiosErr = err as AxiosError<{ message: string }>
@@ -73,6 +74,23 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
+          <div style={styles.roleToggle} role="group" aria-label="Signup mode">
+            <button
+              type="button"
+              onClick={() => setRole('trainee')}
+              style={{ ...styles.roleButton, ...(role === 'trainee' ? styles.roleButtonActive : {}) }}
+            >
+              I'm training
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole('coach')}
+              style={{ ...styles.roleButton, ...(role === 'coach' ? styles.roleButtonActive : {}) }}
+            >
+              I'm a coach
+            </button>
+          </div>
+
           <FormField label="Full name">
             <Input
               type="text"
@@ -185,6 +203,29 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
+  },
+  roleToggle: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 6,
+    padding: 4,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+  },
+  roleButton: {
+    border: 'none',
+    borderRadius: 6,
+    padding: '10px 12px',
+    backgroundColor: 'transparent',
+    color: '#6B7280',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  roleButtonActive: {
+    backgroundColor: '#FFFFFF',
+    color: '#F97316',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
   },
   passwordWrapper: {
     position: 'relative',

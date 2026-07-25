@@ -69,4 +69,16 @@ describe('achievements.service', () => {
     expect(sort).toHaveBeenCalledWith({ unlockedAt: -1 })
     expect(limit).toHaveBeenCalledWith(10)
   })
+
+  it('allows an unlimited query for the full achievement history', async () => {
+    const limit = jest.fn().mockResolvedValue([])
+    const sort = jest.fn().mockReturnValue({ limit })
+    ;(MockAchievement.find as jest.Mock) = jest.fn().mockReturnValue({ sort })
+
+    await listAchievements('user1', undefined, 0)
+
+    expect(MockAchievement.find).toHaveBeenCalledWith({ userId: 'user1' })
+    expect(sort).toHaveBeenCalledWith({ unlockedAt: -1 })
+    expect(limit).toHaveBeenCalledWith(0)
+  })
 })

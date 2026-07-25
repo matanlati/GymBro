@@ -41,11 +41,24 @@ const startOfWeek = (d: Date): Date => {
   return x
 }
 
+const durationFromExercise = (exercise: {
+  name?: string
+  durationMinutes?: string
+  reps?: string
+  notes?: string
+}) => {
+  if (exercise.durationMinutes?.trim()) return exercise.durationMinutes.trim()
+  if (!/^(?:n\/?a|not applicable|-)?$/i.test(exercise.reps?.trim() ?? '')) return undefined
+  const description = `${exercise.name ?? ''} ${exercise.notes ?? ''}`
+  const match = description.match(/(\d+(?:\s*-\s*\d+)?)\s*[- ]?\s*(?:minutes?|mins?)\b/i)
+  return match?.[1]?.replace(/\s+/g, '')
+}
+
 // Lowest dayIndex in the active plan that hasn't been completed this calendar week.
 const firstIncompleteDay = async (
   userId: string,
   planId: Types.ObjectId,
-  dayCount: number
+  dayIndexes: number[]
 ): Promise<number> => {
   const weekStart = startOfWeek(new Date())
   const completed = await WorkoutSession.find({
@@ -56,10 +69,10 @@ const firstIncompleteDay = async (
   }).select('dayIndex')
 
   const done = new Set(completed.map(s => s.dayIndex))
-  for (let i = 0; i < dayCount; i++) {
-    if (!done.has(i)) return i
+  for (const index of dayIndexes) {
+    if (!done.has(index)) return index
   }
-  return 0
+  return dayIndexes[0]
 }
 
 const loadOwned = async (userId: string, id: string): Promise<IWorkoutSession> => {
@@ -88,6 +101,43 @@ const requireSet = (session: IWorkoutSession, exerciseIndex: number, setIndex: n
   return exercise
 }
 
+// Backfill plan metadata for sessions created before it was snapshotted.
+// Once copied, the session keeps its own values even if the plan later changes.
+const hydrateMissingCoachNotes = async (session: IWorkoutSession): Promise<IWorkoutSession> => {
+  if (session.dayIndex < 0) return session
+  const exercises = session.exercises ?? []
+  if (!exercises.length) return session
+  const needsHydration = exercises.some(exercise => (
+    !exercise.coachNotes?.trim() || !exercise.prescribedDurationMinutes?.trim()
+  ))
+  if (!needsHydration) return session
+
+  const plan = await WorkoutPlan.findById(session.planId).select('weeklyPlan')
+  const planDay = plan?.weeklyPlan[session.dayIndex]
+  if (!planDay) return session
+
+  let changed = false
+  exercises.forEach((exercise, index) => {
+    if (exercise.coachNotes?.trim()) return
+    const planExercise = planDay.exercises.find(candidate => (
+      (candidate.exerciseKey || toExerciseKey(candidate.name)) === (exercise.exerciseKey || toExerciseKey(exercise.name))
+    )) ?? planDay.exercises[index]
+    if (!exercise.coachNotes?.trim() && planExercise?.notes) {
+      exercise.coachNotes = planExercise.notes
+      changed = true
+    }
+    if (!exercise.prescribedDurationMinutes?.trim() && planExercise) {
+      const durationMinutes = durationFromExercise(planExercise)
+      if (durationMinutes) {
+        exercise.prescribedDurationMinutes = durationMinutes
+        changed = true
+      }
+    }
+  })
+  if (changed) await session.save()
+  return session
+}
+
 // Find-or-create today's session for the active plan. Default dayIndex is the
 // first incomplete day this week. Upsert semantics avoid duplicate sessions on reload.
 export const getOrCreateTodaySession = async (
@@ -97,14 +147,14 @@ export const getOrCreateTodaySession = async (
   const plan = await WorkoutPlan.findOne({ userId, isActive: true })
   if (!plan) throw new Error('NO_ACTIVE_PLAN')
 
-  const dayCount = plan.weeklyPlan.length
-  if (dayCount === 0) throw new Error('NO_ACTIVE_PLAN')
+  const activeDayIndexes = plan.weeklyPlan.flatMap((day, index) => day.isArchived ? [] : [index])
+  if (activeDayIndexes.length === 0) throw new Error('NO_ACTIVE_PLAN')
 
   let index = dayIndex
   if (index === undefined || index === null) {
-    index = await firstIncompleteDay(userId, plan._id as Types.ObjectId, dayCount)
+    index = await firstIncompleteDay(userId, plan._id as Types.ObjectId, activeDayIndexes)
   }
-  if (!Number.isInteger(index) || index < 0 || index >= dayCount) {
+  if (!Number.isInteger(index) || !activeDayIndexes.includes(index)) {
     throw new Error('INVALID_DAY_INDEX')
   }
 
@@ -118,7 +168,7 @@ export const getOrCreateTodaySession = async (
     dayIndex: index,
     scheduledDate: { $gte: dayStart, $lt: nextDay },
   })
-  if (existing) return existing
+  if (existing) return hydrateMissingCoachNotes(existing)
 
   const planDay = plan.weeklyPlan[index]
   const exercises = (planDay?.exercises ?? []).map((ex, i) => ({
@@ -126,6 +176,8 @@ export const getOrCreateTodaySession = async (
     name: ex.name,
     prescribedSets: ex.sets,
     prescribedReps: ex.reps,
+    prescribedDurationMinutes: durationFromExercise(ex),
+    coachNotes: ex.notes,
     orderIndex: i,
     sets: [],
   }))
@@ -136,6 +188,7 @@ export const getOrCreateTodaySession = async (
     dayIndex: index,
     scheduledDate: dayStart,
     startedAt: new Date(),
+    actualStartRecorded: true,
     exercises,
   })
 }
@@ -148,10 +201,11 @@ export const getTodaySession = async (
   const plan = await WorkoutPlan.findOne({ userId, isActive: true })
   if (!plan) throw new Error('NO_ACTIVE_PLAN')
 
-  const dayCount = plan.weeklyPlan.length
+  const activeDayIndexes = plan.weeklyPlan.flatMap((day, dayIndex) => day.isArchived ? [] : [dayIndex])
+  if (!activeDayIndexes.length) throw new Error('NO_ACTIVE_PLAN')
   let index = dayIndex
   if (index === undefined || index === null) {
-    index = await firstIncompleteDay(userId, plan._id as Types.ObjectId, dayCount)
+    index = await firstIncompleteDay(userId, plan._id as Types.ObjectId, activeDayIndexes)
   }
 
   const dayStart = startOfDay(new Date())
@@ -193,7 +247,7 @@ export const scheduleSession = async (
   if (Number.isNaN(scheduledDate.getTime())) throw new Error('INVALID_SCHEDULED_DATE')
 
   const today = startOfDay(new Date())
-  if (scheduledDate <= today) throw new Error('SCHEDULED_DATE_NOT_FUTURE')
+  if (scheduledDate < today) throw new Error('SCHEDULED_DATE_NOT_FUTURE')
 
   const hasPlanDay = payload.dayIndex !== undefined && payload.dayIndex !== null
   let dayIndex = -1
@@ -202,7 +256,7 @@ export const scheduleSession = async (
 
   if (hasPlanDay) {
     const index = Number(payload.dayIndex)
-    if (!Number.isInteger(index) || index < 0 || index >= plan.weeklyPlan.length) {
+    if (!Number.isInteger(index) || index < 0 || index >= plan.weeklyPlan.length || plan.weeklyPlan[index]?.isArchived) {
       throw new Error('INVALID_DAY_INDEX')
     }
 
@@ -214,6 +268,8 @@ export const scheduleSession = async (
       name: ex.name,
       prescribedSets: ex.sets,
       prescribedReps: ex.reps,
+      prescribedDurationMinutes: durationFromExercise(ex),
+      coachNotes: ex.notes,
       orderIndex: i,
       sets: [],
     }))
@@ -231,8 +287,18 @@ export const scheduleSession = async (
   })
 }
 
-export const getSession = (userId: string, id: string): Promise<IWorkoutSession> =>
-  loadOwned(userId, id)
+export const getSession = async (userId: string, id: string): Promise<IWorkoutSession> =>
+  hydrateMissingCoachNotes(await loadOwned(userId, id))
+
+export const startSession = async (userId: string, id: string): Promise<IWorkoutSession> => {
+  const session = await loadOwned(userId, id)
+  if (!session.completedAt && !session.actualStartRecorded) {
+    session.startedAt = new Date()
+    session.actualStartRecorded = true
+    await session.save()
+  }
+  return hydrateMissingCoachNotes(session)
+}
 
 const detectPersonalBests = async (
   userId: string,
@@ -297,7 +363,12 @@ export const completeSession = async (
 ): Promise<CompleteSessionResult> => {
   const session = await loadOwned(userId, id)
   const achievements = await detectPersonalBests(userId, session)
-  session.completedAt = new Date()
+  const completedAt = new Date()
+  if (!session.startedAt || session.startedAt > completedAt) {
+    session.startedAt = completedAt
+  }
+  session.actualStartRecorded = true
+  session.completedAt = completedAt
   const saved = await session.save()
   let unlockedAchievements: IAchievementUnlock[] = []
   try {

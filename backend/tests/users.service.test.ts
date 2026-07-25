@@ -14,7 +14,9 @@ describe('users.service updateMe', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(MockUser.findByIdAndUpdate as jest.Mock) = jest.fn().mockReturnValue({
-      select: jest.fn().mockResolvedValue({ _id: 'user1', name: 'Updated', weightKg: 82 }),
+      select: jest.fn().mockReturnValue({
+        populate: jest.fn().mockResolvedValue({ _id: 'user1', name: 'Updated', weightKg: 82 }),
+      }),
     })
   })
 

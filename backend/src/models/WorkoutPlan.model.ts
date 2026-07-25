@@ -6,6 +6,7 @@ export interface IExercise {
   name: string
   sets: string
   reps: string
+  durationMinutes?: string
   notes?: string
 }
 
@@ -13,6 +14,7 @@ export interface IDayPlan {
   day: string
   focus: string
   exercises: IExercise[]
+  isArchived?: boolean
 }
 
 export interface IWorkoutPlan extends Document {
@@ -34,6 +36,7 @@ const exerciseSchema = new Schema<IExercise>(
     name: { type: String, required: true },
     sets: { type: String, required: true },
     reps: { type: String, required: true },
+    durationMinutes: { type: String, trim: true },
     notes: String,
   },
   { _id: false }
@@ -44,6 +47,7 @@ const dayPlanSchema = new Schema<IDayPlan>(
     day: { type: String, required: true },
     focus: { type: String, required: true },
     exercises: { type: [exerciseSchema], default: [] },
+    isArchived: { type: Boolean, default: false },
   },
   { _id: false }
 )

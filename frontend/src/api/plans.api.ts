@@ -17,6 +17,7 @@ export interface PlanExercise {
   name: string
   sets: string
   reps: string
+  durationMinutes?: string
   notes?: string
 }
 
@@ -24,6 +25,7 @@ export interface PlanDay {
   day: string
   focus: string
   exercises: PlanExercise[]
+  isArchived?: boolean
 }
 
 export interface WorkoutPlan {

@@ -6,6 +6,7 @@ import {
   createTodaySession,
   scheduleSession,
   getSession,
+  startSession,
   completeSession,
   logSet,
   updateSet,
@@ -22,6 +23,7 @@ router.get('/today', getTodaySession)
 router.post('/today', createTodaySession)
 router.post('/scheduled', scheduleSession)
 router.get('/:id', getSession)
+router.post('/:id/start', startSession)
 router.post('/:id/complete', completeSession)
 router.post('/:sessionId/exercises/:exerciseIndex/sets', logSet)
 router.put('/:sessionId/exercises/:exerciseIndex/sets/:setIndex', updateSet)
