@@ -4,9 +4,10 @@ import { Button, Card, CardHeader, IconTile } from '@gymbro/ui-kit'
 import type { IconTileTone } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
-import { getOrCreateToday, listSessions, scheduleSession, Session } from '../api/sessions.api'
+import { getOrCreateToday, listSessions, Session } from '../api/sessions.api'
 import { getSummary, ProgressSummary } from '../api/progress.api'
 import { acceptCoachInvite, clearCoachProgressLookout, CoachDashboardSummary, CoachDashboardTrainee, CoachInvite, CoachProgressLookout, CoachTodayWorkout, getCoachDashboardSummary, getCoachProgressLookout, listCoachTodayWorkouts, listMyCoachInvites, reviewCoachWorkout } from '../api/coach.api'
+import WorkoutSchedulerModal from '../components/WorkoutSchedulerModal'
 
 type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
   'calendar' | 'trend' | 'target' | 'weight' | 'trophy' | 'check' | 'chevronLeft' | 'chevronRight' | 'x'
@@ -132,10 +133,6 @@ function Dashboard() {
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
   const [planningDate, setPlanningDate] = useState<Date | null>(null)
-  const [selectedWorkout, setSelectedWorkout] = useState('')
-  const [customWorkoutName, setCustomWorkoutName] = useState('')
-  const [scheduleError, setScheduleError] = useState('')
-  const [scheduling, setScheduling] = useState(false)
   const [coachInvites, setCoachInvites] = useState<CoachInvite[]>([])
   const [acceptingInviteId, setAcceptingInviteId] = useState('')
   const [coachSummary, setCoachSummary] = useState<CoachDashboardSummary | null>(null)
@@ -382,38 +379,6 @@ function Dashboard() {
   const openPlanningModal = (date: Date) => {
     if (!isTodayOrFutureDay(date)) return
     setPlanningDate(date)
-    setSelectedWorkout(activeWorkoutTypes.length ? String(activeWorkoutTypes[0].index) : 'other')
-    setCustomWorkoutName('')
-    setScheduleError('')
-  }
-
-  const closePlanningModal = () => {
-    if (scheduling) return
-    setPlanningDate(null)
-    setScheduleError('')
-  }
-
-  const submitPlannedWorkout = async () => {
-    if (!planningDate) return
-    setScheduling(true)
-    setScheduleError('')
-    try {
-      const payload = selectedWorkout === 'other'
-        ? { scheduledDate: dateKey(planningDate), title: customWorkoutName.trim() }
-        : { scheduledDate: dateKey(planningDate), dayIndex: Number(selectedWorkout) }
-      if (selectedWorkout === 'other' && !payload.title) {
-        setScheduleError('Add a workout name.')
-        return
-      }
-      const { data } = await scheduleSession(payload)
-      setSessions(current => [data, ...current])
-      setPlanningDate(null)
-      setCustomWorkoutName('')
-    } catch {
-      setScheduleError('Could not schedule this workout. Please try again.')
-    } finally {
-      setScheduling(false)
-    }
   }
 
   const acceptInvite = async (inviteId: string) => {
@@ -855,38 +820,18 @@ function Dashboard() {
               })}
             </div>
             {planningDate ? (
-              <div className="schedule-workout-modal" role="dialog" aria-modal="true" aria-label="Plan workout">
-                <h3>Plan Workout</h3>
-                <p>{planningDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                <label>
-                  Workout type
-                  <select value={selectedWorkout} onChange={event => setSelectedWorkout(event.target.value)}>
-                    {activeWorkoutTypes.map(({ day, index }) => (
-                      <option value={String(index)} key={`${day.focus}-${index}`}>
-                        {day.focus}
-                      </option>
-                    ))}
-                    <option value="other">Other</option>
-                  </select>
-                </label>
-                {selectedWorkout === 'other' ? (
-                  <label>
-                    Workout name
-                    <input
-                      value={customWorkoutName}
-                      onChange={event => setCustomWorkoutName(event.target.value)}
-                      placeholder="Recovery run, yoga, skills..."
-                    />
-                  </label>
-                ) : null}
-                {scheduleError ? <span className="schedule-workout-error">{scheduleError}</span> : null}
-                <div className="schedule-workout-actions">
-                  <Button variant="secondary" size="sm" onClick={closePlanningModal}>Cancel</Button>
-                  <Button size="sm" loading={scheduling} loadingLabel="Saving..." onClick={submitPlannedWorkout}>
-                    Save
-                  </Button>
-                </div>
-              </div>
+              activePlan ? (
+                <WorkoutSchedulerModal
+                  plan={activePlan}
+                  sessions={sessions}
+                  initialDate={planningDate}
+                  onClose={() => setPlanningDate(null)}
+                  onScheduled={session => {
+                    setSessions(current => [session, ...current])
+                    setPlanningDate(null)
+                  }}
+                />
+              ) : null
             ) : null}
           </section>
         </div>

@@ -5,7 +5,9 @@ import { listSessions, getOrCreateToday, Session } from '../api/sessions.api'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { useAuth } from '../context/AuthContext'
 import CoachWorkoutsView from '../components/CoachWorkoutsView'
-import { Dumbbell, History, Play } from 'lucide-react'
+import { CalendarPlus, Dumbbell, History, Play } from 'lucide-react'
+import { getMe } from '../api/users.api'
+import WorkoutSchedulerModal from '../components/WorkoutSchedulerModal'
 
 const startOfWeek = (d: Date): Date => {
   const x = new Date(d)
@@ -42,6 +44,8 @@ const WorkoutsPage = () => {
   const [showReplacePlanWarning, setShowReplacePlanWarning] = useState(false)
   const [showWorkoutChooser, setShowWorkoutChooser] = useState(false)
   const [selectedPlanDayIndex, setSelectedPlanDayIndex] = useState(0)
+  const [hasCoach, setHasCoach] = useState(Boolean(user?.coachId))
+  const [plannerDayIndex, setPlannerDayIndex] = useState<number | null | undefined>(undefined)
 
   useEffect(() => {
     Promise.all([
@@ -49,6 +53,9 @@ const WorkoutsPage = () => {
       getActivePlan()
         .then(({ data }) => setPlan(data))
         .catch(() => setPlan(null)),
+      getMe()
+        .then(({ data }) => setHasCoach(Boolean(data.coachId)))
+        .catch(() => setHasCoach(Boolean(user?.coachId))),
     ]).finally(() => setLoading(false))
   }, [])
 
@@ -72,11 +79,11 @@ const WorkoutsPage = () => {
       .filter(session => !session.completedAt && session.dayIndex >= 0 && isToday(session.scheduledDate))
       .map(session => session.dayIndex)
   )
-
   const titleFor = (session: Session) =>
     session.title ?? plan?.weeklyPlan?.[session.dayIndex]?.focus ?? `Day ${session.dayIndex + 1}`
 
   const openNewPlan = () => {
+    if (hasCoach) return
     if (plan?.isActive) {
       setShowReplacePlanWarning(true)
       return
@@ -103,25 +110,16 @@ const WorkoutsPage = () => {
       <PageHeader
         title="My Workouts"
         subtitle="Track and manage your training sessions"
-        actions={
-          <div className="workouts-header-actions">
-            <Button
-              className="start-workout-button"
-              leadingIcon={<Play size={16} fill="currentColor" />}
-              disabled={!plan}
-              onClick={() => setShowWorkoutChooser(true)}
-            >
-              Start Workout
-            </Button>
-            <Button variant="secondary" onClick={openNewPlan}>+ New Workout Plan</Button>
-          </div>
-        }
+        actions={!hasCoach ? <Button variant="secondary" onClick={openNewPlan}>+ New Workout Plan</Button> : undefined}
       />
 
       {error && (
         <Alert variant="error" style={{ marginBottom: 16 }}>
           {error}
         </Alert>
+      )}
+      {hasCoach && (
+        <Alert variant="info" style={{ marginBottom: 18 }}>Your workout plan is managed by your coach. Ask your coach if you would like changes to your program.</Alert>
       )}
 
       {loading ? null : plan && activeWorkoutTypes.length ? (
@@ -159,7 +157,10 @@ const WorkoutsPage = () => {
               <Card className="trainee-workout-preview" padding="none">
                 <div className="trainee-workout-preview-head">
                   <div><span>{selectedWorkout.workout.day}</span><h3>{selectedWorkout.workout.focus}</h3><p>{selectedWorkout.workout.exercises.length} exercises in this workout</p></div>
-                  <Button leadingIcon={<Play size={15} fill="currentColor" />} loading={startingDayIndex === selectedWorkout.dayIndex} loadingLabel="Starting..." onClick={() => startWorkout(selectedWorkout.dayIndex)}>Start This Workout</Button>
+                  <div className="trainee-workout-preview-actions">
+                    <Button variant="secondary" leadingIcon={<CalendarPlus size={15} />} onClick={() => setPlannerDayIndex(selectedWorkout.dayIndex)}>Plan This Workout</Button>
+                    <Button leadingIcon={<Play size={15} fill="currentColor" />} loading={startingDayIndex === selectedWorkout.dayIndex} loadingLabel="Starting..." onClick={() => startWorkout(selectedWorkout.dayIndex)}>Start This Workout</Button>
+                  </div>
                 </div>
                 <div className="trainee-workout-exercises">
                   <div className="trainee-workout-exercise-head"><span>Exercise</span><span>Sets</span><span>Reps</span></div>
@@ -181,7 +182,9 @@ const WorkoutsPage = () => {
             <Dumbbell size={26} />
             <strong>No active workout plan</strong>
             <span>Create a plan to see your weekly workouts and exercise overview here.</span>
-            <Button onClick={openNewPlan}>Create Workout Plan</Button>
+            {hasCoach
+              ? <span>Your coach has not assigned a workout plan yet.</span>
+              : <Button onClick={openNewPlan}>Create Workout Plan</Button>}
           </EmptyState>
         </Card>
       )}
@@ -269,6 +272,19 @@ const WorkoutsPage = () => {
             </div>
           </section>
         </div>
+      ) : null}
+
+      {plannerDayIndex !== undefined && plan ? (
+        <WorkoutSchedulerModal
+          plan={plan}
+          sessions={sessions}
+          initialDayIndex={plannerDayIndex ?? undefined}
+          onClose={() => setPlannerDayIndex(undefined)}
+          onScheduled={session => {
+            setSessions(current => [session, ...current])
+            setPlannerDayIndex(undefined)
+          }}
+        />
       ) : null}
 
       {showReplacePlanWarning ? (

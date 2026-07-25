@@ -1424,6 +1424,31 @@ button {
   gap: 10px;
 }
 
+.coach-modal.workout-planner-modal { width: min(760px, 100%); padding: 24px; }
+.workout-planner-modal .coach-modal-head { margin-bottom: 20px; }
+.workout-planner-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; margin-bottom: 20px; }
+.workout-planner-week button { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 10px 4px; border: 1px solid #e2e8f0; border-radius: 9px; background: #fff; color: #64748b; cursor: pointer; }
+.workout-planner-week button:hover { border-color: #fdba74; background: #fffaf5; }
+.workout-planner-week button.active { border-color: #f97316; background: #fff7ed; box-shadow: 0 0 0 2px rgba(249, 115, 22, .12); }
+.workout-planner-week button span { font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.workout-planner-week button strong { color: #111827; font-size: 18px; }
+.workout-planner-week button.active strong { color: #ea580c; }
+.workout-planner-week button small { overflow: hidden; max-width: 100%; color: #94a3b8; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.workout-planner-fields { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 14px; margin-bottom: 16px; }
+.workout-planner-fields label { display: grid; gap: 7px; color: #334155; font-size: 12px; font-weight: 750; }
+.workout-planner-fields select, .workout-planner-fields input { width: 100%; min-height: 42px; padding: 8px 11px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; }
+.workout-planner-fields select:focus, .workout-planner-fields input:focus { outline: 0; border-color: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, .14); }
+.workout-planner-existing { display: flex; grid-column: 1 / -1; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: #eff6ff; color: #1d4ed8; font-size: 12px; }
+.trainee-workout-preview-actions { display: flex; align-items: center; gap: 8px; }
+
+@media (max-width: 680px) {
+  .coach-modal.workout-planner-modal { padding: 18px; }
+  .workout-planner-week { display: flex; padding-bottom: 4px; overflow-x: auto; }
+  .workout-planner-week button { min-width: 72px; }
+  .workout-planner-fields { grid-template-columns: 1fr; }
+  .trainee-workout-preview-actions { align-items: stretch; flex-direction: column-reverse; }
+}
+
 .side-column {
   display: grid;
   gap: 22px;
@@ -2677,6 +2702,7 @@ button {
 .trainee-session-history-title p { color: #94a3b8; font-size: 11px; margin-top: 2px; }
 .trainee-plan-empty .gb-empty-state { display: grid; justify-items: center; gap: 8px; text-align: center; }
 .trainee-plan-empty .gb-empty-state > svg { color: #f97316; }
+.coach-managed-plan-message { display: grid; align-content: start; justify-items: start; gap: 16px; }
 
 @media (max-width: 780px) {
   .trainee-plan-summary { grid-template-columns: 1fr; gap: 18px; }
@@ -3447,6 +3473,42 @@ button {
   margin-top: 3px;
   color: #6b7280;
   font-size: 11px;
+}
+
+.achievement-history-button {
+  width: 100%;
+  margin-top: 12px;
+  border-top: 1px solid #f1f3f5;
+  border-radius: 0;
+  padding-top: 14px;
+}
+
+.achievement-history-modal {
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+  padding: 0;
+  overflow: hidden;
+}
+
+.achievement-history-head {
+  margin: 0;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.achievement-history-content {
+  max-height: calc(min(720px, 100vh - 48px) - 94px);
+  overflow-y: auto;
+  padding: 8px 24px 20px;
+}
+
+.achievement-history-list .achievement-row {
+  padding: 14px 0;
+}
+
+.achievement-history-list .achievement-row > div > span {
+  margin-top: 4px;
+  font-size: 12px;
 }
 
 /* Icon wrappers must retain centering even inside rows with text span rules. */
