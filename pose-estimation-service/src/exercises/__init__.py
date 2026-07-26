@@ -10,6 +10,8 @@ from .bench_press import BenchPress
 from .lat_pulldown import LatPulldown
 from .triceps_extension import TricepsExtension
 
+__all__ = ["BaseExercise", "FrameResult", "SUPPORTED_EXERCISES", "get_exercise"]
+
 _REGISTRY: dict = {
     "squat": Squat,
     "push-up": Pushup,

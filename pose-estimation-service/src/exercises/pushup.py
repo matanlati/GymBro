@@ -1,3 +1,4 @@
+from ..pose_detector import PoseFrame
 from .base import BaseExercise, FrameResult
 
 
@@ -16,48 +17,43 @@ class Pushup(BaseExercise):
       - Shallow depth, graded from the deepest elbow angle of the rep.
       - Hips sagging (lower back over-extends).
       - Hips piking up (cheating the range by bending at the hips).
-
-    Note: rep counting is unchanged -- a rep is counted once the elbow bends past
-    90 deg and re-opens past 100 deg.
     """
 
-    _LEFT = dict(shoulder=11, elbow=13, wrist=15, hip=23, knee=25)
-    _RIGHT = dict(shoulder=12, elbow=14, wrist=16, hip=24, knee=26)
+    _LEFT = dict(shoulder=5, elbow=7, wrist=9, hip=11, knee=13)
+    _RIGHT = dict(shoulder=6, elbow=8, wrist=10, hip=12, knee=14)
 
-    # Elbow-angle gates for rep detection (unchanged from the original logic):
-    # "down" once the elbow bends past 90 deg, rep closes when it re-opens past
-    # 100 deg. Depth is graded off the deepest elbow angle: below ~70 deg is a
-    # full-depth push-up.
-    _DOWN_GATE = 90.0
-    _UP_GATE = 100.0
-    _DEPTH_GOOD = 70.0
+    # AIGym measures the elbow angle (shoulder-elbow-wrist).
+    KPTS_LEFT = [5, 7, 9]
+    KPTS_RIGHT = [6, 8, 10]
+    # These used to be 90/100 -- a 10 deg band, narrow enough that elbow jitter
+    # around the threshold could manufacture reps. Widened and loosened so a
+    # partial push-up counts and is graded on depth instead.
+    DOWN_ANGLE = 120.0
+    UP_ANGLE = 155.0
+    _DEPTH_GOOD = 70.0  # deepest elbow angle of a full-depth push-up
 
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
+        landmarks = pose.keypoints
+        if landmarks is None or pose.angle is None:
+            return self._neutral_frame()
+
         idxs = self._LEFT if self.side == "left" else self._RIGHT
         if not self.visible(landmarks, idxs["shoulder"], idxs["elbow"], idxs["wrist"]):
             return self._neutral_frame()
 
         shoulder = self.lm(landmarks, idxs["shoulder"])
-        elbow = self.lm(landmarks, idxs["elbow"])
-        wrist = self.lm(landmarks, idxs["wrist"])
 
-        elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
+        elbow_angle = pose.angle
         self._track(elbow_angle)
         feedback = []
         positives = []
 
-        if elbow_angle > self._UP_GATE:
-            if self.stage == "down":
-                self._finish_rep(feedback, positives)
-            self.stage = "up"
-        elif elbow_angle < self._DOWN_GATE:
-            self.stage = "down"
+        self._sync_reps(pose, feedback, positives)
 
-        # Body line: with a roughly horizontal body, the hip should sit on the
-        # line between the shoulder and knee. y grows downward in image coords,
-        # so a hip below that midline means the hips are sagging; above it means
-        # they are piking. This distinguishes the two faults instead of lumping
-        # them into one vague "keep straight" cue.
+        # With a roughly horizontal body the hip should sit on the shoulder-knee
+        # line. y grows downward, so a hip below that midline is sagging and one
+        # above it is piking -- worth distinguishing rather than lumping into a
+        # vague "keep straight" cue.
         if self.visible(landmarks, idxs["hip"], idxs["knee"]):
             hip = self.lm(landmarks, idxs["hip"])
             knee = self.lm(landmarks, idxs["knee"])
@@ -74,8 +70,7 @@ class Pushup(BaseExercise):
         return self._frame(elbow_angle, feedback, positives)
 
     def _evaluate_rep(self, feedback: list, positives: list) -> None:
-        # Whether the plank held (no sag/pike faults fired during the descent).
-        solid_plank = not self._rep_faults
+        solid_plank = not self._rep_faults  # no sag/pike fault fired this rep
         depth = self.rep_min_angle
         if depth is None:
             return

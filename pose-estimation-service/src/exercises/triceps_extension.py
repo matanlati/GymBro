@@ -1,3 +1,4 @@
+from ..pose_detector import PoseFrame
 from .base import BaseExercise, FrameResult
 
 
@@ -19,18 +20,19 @@ class TricepsExtension(BaseExercise):
       - Elbows flaring / the upper arm drifting instead of staying fixed.
       - Dropping the weight too fast (very short rep duration).
 
-    Note: rep counting is deliberately FORGIVING here -- a rep is counted once the
-    elbow bends past 90 deg and re-extends past 150 deg. Even a partial extension
-    still counts; the missing range shows up in the score and cues, not by
-    dropping the rep.
+    Rep counting is deliberately FORGIVING here: even a partial extension counts
+    as a rep, with the missing range showing up in the score and cues rather than
+    by dropping the rep.
     """
 
-    _LEFT = dict(shoulder=11, elbow=13, wrist=15)
-    _RIGHT = dict(shoulder=12, elbow=14, wrist=16)
+    _LEFT = dict(shoulder=5, elbow=7, wrist=9)
+    _RIGHT = dict(shoulder=6, elbow=8, wrist=10)
 
-    # Elbow-angle gates for rep detection (forgiving - see the class note).
-    _DOWN_GATE = 90.0    # forearm lowered behind the head
-    _UP_GATE = 150.0     # arm extended toward lock-out
+    # AIGym measures the elbow angle (shoulder-elbow-wrist).
+    KPTS_LEFT = [5, 7, 9]
+    KPTS_RIGHT = [6, 8, 10]
+    DOWN_ANGLE = 115.0   # forearm lowered behind the head
+    UP_ANGLE = 150.0     # arm extended toward lock-out
     # Grading thresholds read off the whole rep:
     _LOCKOUT_GOOD = 165.0  # full extension overhead
     _STRETCH_GOOD = 80.0   # deep stretch behind the head
@@ -44,40 +46,42 @@ class TricepsExtension(BaseExercise):
         self._elbow_off_min = None
         self._elbow_off_max = None
 
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
+        landmarks = pose.keypoints
+        if landmarks is None or pose.angle is None:
+            return self._neutral_frame()
+
         idxs = self._LEFT if self.side == "left" else self._RIGHT
         if not self.visible(landmarks, idxs["shoulder"], idxs["elbow"], idxs["wrist"]):
             return self._neutral_frame()
 
         shoulder = self.lm(landmarks, idxs["shoulder"])
         elbow = self.lm(landmarks, idxs["elbow"])
-        wrist = self.lm(landmarks, idxs["wrist"])
 
-        elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
+        elbow_angle = pose.angle
         self._track(elbow_angle)
         feedback = []
         positives = []
 
-        # Track how far the elbow drifts horizontally from the shoulder so a
-        # moving/flaring upper arm can be judged over the whole rep.
+        # Accumulated so a flaring upper arm is judged over the whole rep.
         offset = elbow[0] - shoulder[0]
         self._elbow_off_min = offset if self._elbow_off_min is None else min(self._elbow_off_min, offset)
         self._elbow_off_max = offset if self._elbow_off_max is None else max(self._elbow_off_max, offset)
 
-        if elbow_angle > self._UP_GATE:
-            if self.stage == "down":
-                self._finish_rep(feedback, positives)
-            self.stage = "up"
-        elif elbow_angle < self._DOWN_GATE:
-            self.stage = "down"
+        self._sync_reps(pose, feedback, positives)
 
         return self._frame(elbow_angle, feedback, positives)
 
     def _evaluate_rep(self, feedback: list, positives: list) -> None:
         top = self.rep_max_angle
         stretch = self.rep_min_angle
-        flare = (self._elbow_off_min is not None and self._elbow_off_max is not None
-                 and self._elbow_off_max - self._elbow_off_min > self._FLARE_RANGE)
+        # None when the upper arm was never tracked this rep, which is not the
+        # same as "tracked and steady" -- see the flare verdict below.
+        flare_range = (
+            self._elbow_off_max - self._elbow_off_min
+            if self._elbow_off_min is not None and self._elbow_off_max is not None
+            else None
+        )
 
         if top is not None and top < self._LOCKOUT_GOOD:
             self._apply_penalty(feedback, 15, "Short lockout - fully extend and squeeze the triceps")
@@ -89,10 +93,12 @@ class TricepsExtension(BaseExercise):
         elif stretch is not None:
             self._praise(positives, "Nice deep stretch behind the head")
 
-        if flare:
-            self._apply_penalty(feedback, 10, "Keep your elbows in and pointing up")
-        else:
-            self._praise(positives, "Elbows locked in - clean isolation")
+        # Only judge the upper arm when we actually tracked it.
+        if flare_range is not None:
+            if flare_range > self._FLARE_RANGE:
+                self._apply_penalty(feedback, 10, "Keep your elbows in and pointing up")
+            else:
+                self._praise(positives, "Elbows locked in - clean isolation")
 
         rep_s = self.rep_frames / self.fps if (self.rep_frames and self.fps) else None
         if rep_s is not None and rep_s < 0.4:

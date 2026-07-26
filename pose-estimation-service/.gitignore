@@ -14,3 +14,6 @@ wheels/
 
 # Generated analysis output
 output_videos/
+
+# YOLO pose weights - Ultralytics downloads these on first use
+*.pt

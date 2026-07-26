@@ -7,6 +7,8 @@ export interface EvaluationIssue {
   severity: Severity
   explanation: string
   suggestion: string
+  // How many reps the fault touched; absent when the analyzer could not tell.
+  affected_reps?: number
 }
 
 export interface Evaluation {
@@ -17,7 +19,10 @@ export interface Evaluation {
   overallSummary: string
   positiveFeedback: string[]
   issues: EvaluationIssue[]
+  // Fixes for what went wrong in this set...
   recommendations: string[]
+  // ...versus general best-practice coaching for the lift.
+  techniqueTips?: string[]
   dataReliabilityNote?: string
   cameraView?: string
   ignoredMetrics?: string[]

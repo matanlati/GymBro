@@ -1,21 +1,16 @@
+"""Coaching overlay drawn on top of AIGym's annotated frame.
+
+AIGym owns the measurement layer of the render: it highlights the monitored joint
+and stamps the angle, rep count and stage next to it. None of that is redrawn
+here -- duplicating it would put two copies of the same numbers on the frame that
+could disagree, and AIGym's are the authoritative ones.
+
+This module draws only what AIGym has no notion of: the form quality score, the
+rep tempo, and the fault/praise coaching cues.
+"""
+
 import cv2
-from .pose_detector import POSE_CONNECTIONS
 from .exercises.base import FrameResult
-
-
-def draw_skeleton(frame, landmarks):
-    h, w, _ = frame.shape
-    for start_idx, end_idx in POSE_CONNECTIONS:
-        if start_idx < len(landmarks) and end_idx < len(landmarks):
-            s = landmarks[start_idx]
-            e = landmarks[end_idx]
-            cv2.line(frame,
-                     (int(s.x * w), int(s.y * h)),
-                     (int(e.x * w), int(e.y * h)),
-                     (0, 255, 0), 2)
-    for lm in landmarks:
-        cv2.circle(frame, (int(lm.x * w), int(lm.y * h)), 5, (0, 0, 255), -1)
-    return frame
 
 
 def _text_box(frame, text, position, font_scale=0.6, thickness=2,
@@ -29,15 +24,11 @@ def _text_box(frame, text, position, font_scale=0.6, thickness=2,
 
 
 def draw_metrics(frame, result: FrameResult):
-    h, w, _ = frame.shape
+    h, _, _ = frame.shape
     y = 30
 
-    y += _text_box(frame, f"Reps: {result.rep_count}", (10, y),
-                   font_scale=1.0, thickness=2, bg_color=(0, 100, 0))
-
-    y += _text_box(frame, f"Stage: {result.stage.upper()}", (10, y),
-                   font_scale=0.7, thickness=2)
-
+    # Reps, stage and the joint angle are AIGym's caption, drawn beside the
+    # monitored joint -- see the module docstring.
     if result.stage not in ("start", "error"):
         q = result.current_quality
         q_color = (0, 255, 0) if q >= 80 else (0, 165, 255) if q >= 60 else (0, 0, 255)
@@ -63,9 +54,5 @@ def draw_metrics(frame, result: FrameResult):
         _text_box(frame, pos, (10, feedback_y),
                   font_scale=0.6, thickness=2, bg_color=(0, 128, 0))
         feedback_y -= 30
-
-    if result.primary_angle is not None:
-        _text_box(frame, f"Angle: {int(result.primary_angle)}", (w - 160, 30),
-                  font_scale=0.7, thickness=2)
 
     return frame

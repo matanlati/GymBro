@@ -1,24 +1,25 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional
-import numpy as np
+
+from ..pose_detector import PoseFrame, estimate_pose_angle
 
 
 @dataclass
 class FrameResult:
+    """One frame's worth of coaching state, rendered by the overlay.
+
+    ``feedback`` holds faults and ``positives`` holds praise; they are kept apart
+    so the overlay can colour them differently and because praise is purely
+    informational -- it never changes the score.
+    """
+
     primary_angle: Optional[float]
     feedback: list
     stage: str
     rep_count: int
     current_quality: float
-    # Seconds elapsed in the rep currently in progress (frames / fps). Lets the
-    # overlay show live tempo so lifters can see whether they are grinding or
-    # bouncing through the movement.
     tempo_s: Optional[float] = None
-    # Positive coaching cues ("Great depth!", "Strong lockout") for things the
-    # lifter did *well* this frame/rep. Kept separate from ``feedback`` (which is
-    # faults) so the overlay can render praise in green and the LLM can ground its
-    # positive feedback. Purely informational: praise never changes the score.
     positives: list = field(default_factory=list)
 
 
@@ -26,11 +27,8 @@ class FrameResult:
 class RepDetail:
     """Per-rep summary produced the moment a rep completes.
 
-    These are the facts a coach reads off a single repetition: how deep it went
-    (``min_angle``), how far it locked out (``max_angle``), the range of motion,
-    how long it took, and which faults fired during it. They are surfaced to the
-    LLM so feedback can talk about *specific* reps ("rep 3 was shallow and fast")
-    instead of only whole-set averages.
+    Surfaced to the LLM so feedback can talk about *specific* reps ("rep 3 was
+    shallow and fast") instead of only whole-set averages.
     """
 
     index: int
@@ -40,54 +38,89 @@ class RepDetail:
     rom: Optional[float] = None
     duration_s: Optional[float] = None
     faults: list = field(default_factory=list)
-    # Positive cues that fired on this rep (the praise twin of ``faults``), so the
-    # LLM can call out specific reps done well ("rep 2 hit full depth and locked out").
     praises: list = field(default_factory=list)
 
 
 class BaseExercise(ABC):
-    # Minimum per-landmark visibility for a joint to be trusted this frame.
-    # Below this the joint is likely occluded / out of frame, so we skip the
+    """Form scoring for one exercise, on top of AIGym's angle/stage/rep counter.
+
+    The division of labour: ``solutions.AIGym`` measures the movement (primary
+    joint angle, up/down stage, rep count) and this class judges it (technique
+    faults, per-rep grading, a 0-100 quality score). Subclasses therefore never
+    compute the primary angle or run a rep state machine -- they declare which
+    three keypoints AIGym should watch and at which angles a rep turns over, then
+    read the answers off the ``PoseFrame``.
+    """
+
+    # Below this confidence a joint is likely occluded, so we skip the
     # measurement rather than fabricate a fault from a guessed position.
     VIS_THRESHOLD: float = 0.5
-    # Exponential-moving-average factor for landmark smoothing. Higher = more
-    # responsive (less smoothing); lower = smoother but laggier. 0.5 halves the
-    # frame-to-frame jitter that otherwise inflates the fault counts.
+    # Landmark smoothing factor. Higher = more responsive, lower = smoother.
+    # 0.5 halves the frame-to-frame jitter that otherwise inflates fault counts.
     EMA_ALPHA: float = 0.5
+
+    # --- AIGym configuration, overridden by every subclass ------------------
+    # The COCO-17 keypoint triplet whose angle defines this movement, per side.
+    KPTS_LEFT: list = []
+    KPTS_RIGHT: list = []
+    # Rep turnover gates in degrees. AIGym counts a rep when the angle drops
+    # below DOWN_ANGLE having previously been above UP_ANGLE, so DOWN_ANGLE is
+    # always the smaller of the two regardless of which end of the movement the
+    # exercise itself calls "down".
+    #
+    # COUNT GENEROUSLY, GRADE HONESTLY. These gates decide only whether a rep
+    # *happened*, so they are set forgivingly: a lifter who stops a little short,
+    # or whose angle reads shallow because of camera foreshortening, should still
+    # see their rep counted. Judging the range is the grading thresholds' job
+    # (``_DEPTH_GOOD`` and friends), and a short rep gets a fault there rather
+    # than silently vanishing from the count -- a missing rep is confusing, a
+    # counted-but-faulted rep is coaching. Two rules follow:
+    #
+    #   * Every gate must be LOOSER than the grade target it feeds, or the grade
+    #     can never fail: if DOWN_ANGLE <= a min-angle target, every counted rep
+    #     satisfies it and its praise fires unconditionally.
+    #   * Keep at least ~30 deg of hysteresis between the two gates. The angle
+    #     has to cross both to count, so a narrow band lets keypoint jitter
+    #     oscillate across it and manufacture phantom reps.
+    UP_ANGLE: float = 160.0
+    DOWN_ANGLE: float = 90.0
+    # The resting end of the movement, where the lifter starts and returns to,
+    # and therefore where a rep is complete enough to grade. See ``_sync_reps``
+    # for why grading waits for it. "up" suits everything that starts extended;
+    # movements that rest closed, like a lateral raise, override to "down".
+    REP_CLOSES_AT: str = "up"
 
     def __init__(self, side: str = "left"):
         self.side = side.lower()
-        # Frame rate of the source clip; the pipeline overwrites this before
-        # processing so per-rep durations come out in real seconds, not frames.
+        # Overwritten by the pipeline so per-rep durations come out in seconds.
         self.fps: float = 30.0
         self.rep_count: int = 0
         self.stage: Optional[str] = None
         self.current_quality: float = 100.0
-        self.current_rep_feedback: list = []
         self.all_qualities: list = []
+        # Whole-set tallies, surfaced to the LLM as "detected_faults" / "detected_strengths".
         self.issue_counts: dict = {}
-        # Tally of positive cues across the whole set (the praise twin of
-        # ``issue_counts``); surfaced to the LLM as "detected_strengths".
         self.praise_counts: dict = {}
         self.rep_details: list = []
         self._ema: dict = {}
-        # Extrema and frame tally accumulated across the rep in progress. Depth,
-        # lock-out and tempo are properties of the *whole* rep, so we evaluate
-        # them from these at the moment the rep closes (see ``_evaluate_rep``),
-        # not from a single mid-movement frame.
+        # Accumulated across the rep in progress. Depth, lock-out and tempo are
+        # properties of the *whole* rep, so ``_evaluate_rep`` grades them from
+        # these rather than from a single mid-movement frame.
         self.rep_min_angle: Optional[float] = None
         self.rep_max_angle: Optional[float] = None
         self.rep_frames: int = 0
         self._rep_faults: list = []
         self._rep_praises: list = []
+        self._last_count: int = 0
+        self._pending_reps: int = 0
 
-    @staticmethod
-    def calculate_angle(a, b, c) -> float:
-        a, b, c = np.array(a), np.array(b), np.array(c)
-        radians = (np.arctan2(c[1] - b[1], c[0] - b[0])
-                   - np.arctan2(a[1] - b[1], a[0] - b[0]))
-        angle = np.abs(np.degrees(radians))
-        return 360.0 - angle if angle > 180.0 else angle
+    def kpts(self) -> list:
+        """The keypoint triplet AIGym should measure for the analyzed side."""
+        return self.KPTS_LEFT if self.side == "left" else self.KPTS_RIGHT
+
+    # Ultralytics' three-point angle, re-exported so subclasses can measure the
+    # *secondary* angles AIGym does not provide -- it computes exactly one.
+    calculate_angle = staticmethod(estimate_pose_angle)
 
     def lm(self, landmarks, idx) -> list:
         """Return an EMA-smoothed ``[x, y]`` for a landmark index."""
@@ -111,35 +144,64 @@ class BaseExercise(ABC):
         """True only when every given landmark clears VIS_THRESHOLD."""
         return all(self.visibility(landmarks, i) >= self.VIS_THRESHOLD for i in idxs)
 
-    # MediaPipe indices used only for orientation, not for any exercise's
-    # primary angle: nose, and the left/right ankle + foot-index (toe).
     _NOSE = 0
-    _ANKLE = {"left": 27, "right": 28}
-    _TOE = {"left": 31, "right": 32}
 
     def _facing_sign(self, landmarks) -> int:
         """Which way the athlete faces the camera, as +1 (toward +x) or -1.
 
-        Every left/right check ("knee past toes", "torso pitching forward")
-        is a statement about the *forward* direction, which flips depending on
-        whether the lifter is filmed from their left or right and which way they
-        point. We infer it from the toe relative to the ankle (feet point the way
-        you face), falling back to the nose relative to the mid-hip. Defaults to
-        +1 when neither is usable, matching the original left-facing assumption.
+        Every left/right check ("knee past toes", "torso pitching forward") is a
+        statement about the *forward* direction, which flips with the filming
+        side. COCO-17 has no toe keypoints, so we infer it from the nose relative
+        to the hip -- weakest when the lifter faces squarely toward or away from
+        the camera. Defaults to +1, the left-facing assumption.
         """
-        toe_idx, ankle_idx = self._TOE[self.side], self._ANKLE[self.side]
-        if self.visible(landmarks, toe_idx, ankle_idx):
-            toe = self.lm(landmarks, toe_idx)
-            ankle = self.lm(landmarks, ankle_idx)
-            if abs(toe[0] - ankle[0]) > 0.02:
-                return 1 if toe[0] >= ankle[0] else -1
-        hip_idx = 23 if self.side == "left" else 24
+        hip_idx = 11 if self.side == "left" else 12
         if self.visible(landmarks, self._NOSE, hip_idx):
             nose = self.lm(landmarks, self._NOSE)
             hip = self.lm(landmarks, hip_idx)
             if abs(nose[0] - hip[0]) > 0.02:
                 return 1 if nose[0] >= hip[0] else -1
         return 1
+
+    def _sync_reps(self, pose: PoseFrame, feedback: list, positives: list) -> None:
+        """Mirror AIGym's counter, grading each rep once the movement completes.
+
+        AIGym is the single source of truth for *how many* reps happened -- we
+        never second-guess its counter. What we do choose is *when* to grade one:
+        its increment lands mid-movement at the DOWN_ANGLE crossing, so grading
+        there would measure range-of-motion at the gate rather than at the real
+        extremum. Instead we bank the increment and grade it when the lifter
+        returns to ``REP_CLOSES_AT``, so each graded window spans one full
+        rest-to-rest rep and ``_evaluate_rep`` sees the true depth, lock-out and
+        duration.
+        """
+        # Add the delta rather than assume a single step: a dropped frame can
+        # advance the count by more than one, and each rep deserves grading.
+        if pose.count > self._last_count:
+            self._pending_reps += pose.count - self._last_count
+            self._last_count = pose.count
+
+        if pose.stage != "-" and pose.stage != self.stage:
+            self.stage = pose.stage
+            if self.stage == self.REP_CLOSES_AT:
+                self._close_pending(feedback, positives)
+
+    def _close_pending(self, feedback: Optional[list] = None,
+                       positives: Optional[list] = None) -> None:
+        """Grade every rep AIGym has counted but we have not scored yet."""
+        while self._pending_reps > 0:
+            self._pending_reps -= 1
+            self._finish_rep(feedback, positives)
+
+    def finish_set(self) -> None:
+        """Grade a trailing rep the clip ended before completing.
+
+        A video that cuts out at the bottom of the last rep leaves it banked but
+        ungraded. Flushing here keeps our rep total equal to AIGym's count; the
+        cost is that this final rep is graded on a partial window, which is
+        strictly better than dropping it from the set.
+        """
+        self._close_pending()
 
     def _track(self, angle: Optional[float]) -> None:
         """Fold a measured primary angle into the current rep's extrema/tempo."""
@@ -181,11 +243,9 @@ class BaseExercise(ABC):
     ) -> "FrameResult":
         """Build the per-frame result, stamping live stage/quality/tempo.
 
-        ``positives`` are praise cues for what went right this frame; they are
-        optional so exercises that only track faults need not pass them.
+        ``positives`` are optional so exercises that only track faults need not
+        pass them.
         """
-        if feedback:
-            self.current_rep_feedback = feedback
         return FrameResult(
             primary_angle=primary_angle,
             feedback=feedback,
@@ -223,8 +283,6 @@ class BaseExercise(ABC):
             feedback.extend(end_feedback)
         if positives is not None:
             positives.extend(end_positives)
-        if end_feedback:
-            self.current_rep_feedback = end_feedback
 
         self.rep_count += 1
         self.all_qualities.append(self.current_quality)
@@ -245,7 +303,6 @@ class BaseExercise(ABC):
 
         # Reset per-rep accumulators for the next repetition.
         self.current_quality = 100.0
-        self.current_rep_feedback = []
         self._rep_faults = []
         self._rep_praises = []
         self.rep_min_angle = None
@@ -273,7 +330,6 @@ class BaseExercise(ABC):
         self.rep_count = 0
         self.stage = None
         self.current_quality = 100.0
-        self.current_rep_feedback = []
         self.all_qualities = []
         self.issue_counts = {}
         self.praise_counts = {}
@@ -284,9 +340,11 @@ class BaseExercise(ABC):
         self.rep_frames = 0
         self._rep_faults = []
         self._rep_praises = []
+        self._last_count = 0
+        self._pending_reps = 0
 
     @abstractmethod
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
         ...
 
     @abstractmethod

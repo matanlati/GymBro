@@ -80,14 +80,19 @@ const prettifyExercise = (s: string): string =>
 
 const IssueRow = ({ issue }: { issue: EvaluationIssue }) => {
   const severity = ['low', 'medium', 'high'].includes(issue.severity) ? issue.severity : 'medium'
+  const reps = issue.affected_reps
   return (
     <div className={`issue-row ${severity}`}>
       <div className="issue-head">
         <span className="issue-title"><Icon name="alert" /> {issue.title}</span>
-        <Badge tone={severityTone(severity)}>{severity}</Badge>
+        <Badge tone={severityTone(severity)}>
+          {reps ? `${severity} · ${reps} ${reps === 1 ? 'rep' : 'reps'}` : severity}
+        </Badge>
       </div>
-      <p className="issue-explanation">{issue.explanation}</p>
-      <p className="issue-suggestion"><strong>Fix:</strong> {issue.suggestion}</p>
+      {issue.explanation && <p className="issue-explanation">{issue.explanation}</p>}
+      {issue.suggestion && (
+        <p className="issue-suggestion"><strong>Fix:</strong> {issue.suggestion}</p>
+      )}
     </div>
   )
 }
@@ -150,6 +155,17 @@ const ResultsPanel = ({ evaluation, onAnalyzeAnother }: { evaluation: Evaluation
           <h3>Recommendations</h3>
           <ul className="recommend-list">
             {evaluation.recommendations.map(item => <li key={item}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* General best practice for the lift, as opposed to findings about this
+          set — kept in its own block so the two are never confused. */}
+      {(evaluation.techniqueTips?.length ?? 0) > 0 && (
+        <div className="results-block">
+          <h3>Technique tips for {prettifyExercise(evaluation.exerciseType).toLowerCase()}</h3>
+          <ul className="recommend-list">
+            {evaluation.techniqueTips!.map(item => <li key={item}>{item}</li>)}
           </ul>
         </div>
       )}
