@@ -32,9 +32,16 @@ const navItems: { id: string; label: string; icon: IconName; path: string }[] = 
 ]
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const visibleNavItems = user?.role === 'coach'
+    ? [
+        ...navItems.slice(0, 1),
+        { id: '/coach/trainees', label: 'Trainees', icon: 'user' as IconName, path: '/coach/trainees' },
+        ...navItems.slice(1).filter(item => item.id !== '/ai-coach'),
+      ]
+    : navItems
 
   function handleLogout() {
     logout()
@@ -50,7 +57,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </button>
 
         <nav className="nav-tabs" aria-label="Primary navigation">
-          {navItems.map(item => (
+          {visibleNavItems.map(item => (
             <button
               key={item.id}
               className={pathname === item.path ? 'nav-tab active' : 'nav-tab'}

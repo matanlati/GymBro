@@ -30,6 +30,9 @@ Instructions:
 - Consider the user's training level, injuries, and available equipment.
 - Include warm-up and cool-down if appropriate.
 - Provide sets and reps appropriate for their level.
+- For duration-based exercises such as warm-ups, cooldowns, cardio, and mobility, add
+  "durationMinutes" (for example "5" or "5-10"). Use "sets": "1" and "reps": "N/A"
+  for these exercises.
 - Ensure progressive overload principles.
 - Return the response as valid JSON with this exact structure:
 
@@ -44,6 +47,7 @@ Instructions:
           "name": "Exercise name",
           "sets": "3",
           "reps": "10-12",
+          "durationMinutes": "Only for duration-based exercises, otherwise omit",
           "notes": "Any specific notes"
         }
       ]

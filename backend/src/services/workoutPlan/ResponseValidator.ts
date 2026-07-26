@@ -18,6 +18,9 @@ export class ResponseValidator {
         if (!day.day || !day.focus || !Array.isArray(day.exercises)) throw new Error('Invalid day structure')
         day.exercises.forEach(exercise => {
           if (!exercise.name || !exercise.sets || !exercise.reps) throw new Error('Invalid exercise structure')
+          if (exercise.durationMinutes !== undefined && (
+            typeof exercise.durationMinutes !== 'string' || !exercise.durationMinutes.trim()
+          )) throw new Error('Invalid exercise duration')
         })
       })
 
