@@ -3,21 +3,17 @@
 AIGym owns the parts of the problem it already solves well: running the YOLO26
 pose model, tracking people across frames, computing the primary joint angle and
 running the up/down rep counter. This module is a thin adapter over it, so the
-exercise modules never re-derive any of that -- they read ``PoseFrame.angle`` /
-``.stage`` / ``.count`` straight off AIGym's ``SolutionResults`` and spend their
-logic budget on form faults instead.
+exercise modules never re-derive any of that.
 
-What this module adds on top of AIGym:
+What it adds on top of AIGym:
 
-* **Lifter locking** -- AIGym reports one entry per tracked person. A bystander
-  walking through frame would otherwise shift list indices and mix two people's
-  rep counts, so we lock onto a single track id (largest box on first sight) and
-  follow it.
+* **Lifter locking** -- AIGym reports one entry per tracked person, so a
+  bystander walking through frame would shift list indices and mix two people's
+  rep counts. We lock onto one track id and follow it.
 * **Normalized keypoints** -- AIGym works in pixels; every fault threshold in
   ``exercises/`` is a fraction of frame width, so we surface ``xyn`` instead.
-* **A landmark shape the exercises already understand** -- ``Keypoint`` mirrors
-  the ``.x`` / ``.y`` / ``.visibility`` attribute access that ``BaseExercise``'s
-  ``lm()`` and ``visibility()`` helpers were already written against.
+* **A landmark shape the exercises understand** -- ``Keypoint`` mirrors the
+  attribute access ``BaseExercise.lm()`` and ``.visibility()`` expect.
 """
 
 import logging
@@ -34,15 +30,13 @@ from ultralytics.utils import LOGGER as _ULTRALYTICS_LOGGER
 # lines per request. Errors still surface.
 _ULTRALYTICS_LOGGER.setLevel(logging.ERROR)
 
-# The one angle function for the whole service. Ultralytics' implementation is
-# mathematically identical to the hand-rolled one this module used to carry
-# (atan2 difference -> abs degrees -> 360-a when reflex), so we use theirs and
-# keep a single definition. Accepts plain [x, y] lists as well as numpy/torch.
+# The one angle function for the whole service. Accepts plain [x, y] lists as
+# well as numpy/torch.
 estimate_pose_angle = SolutionAnnotator.estimate_pose_angle
 
-# Model size knob: n | s | m | l | x. Nano is the default -- it is the variant
-# Ultralytics' own workout-monitoring examples use and is fast enough to keep
-# whole-video analysis interactive. Weights download automatically on first use.
+# Model size knob: n | s | m | l | x. Nano is the variant Ultralytics' own
+# workout-monitoring examples use and is fast enough to keep whole-video
+# analysis interactive. Weights download automatically on first use.
 _MODEL_VARIANT = os.getenv("POSE_MODEL_VARIANT", "n").lower()
 MODEL_NAME = f"yolo26{_MODEL_VARIANT}-pose.pt"
 
@@ -62,12 +56,9 @@ LEFT_ANKLE, RIGHT_ANKLE = 15, 16
 def _resolve_device() -> str:
     """Inference device from POSE_DELEGATE ("cpu" | "gpu").
 
-    Dev machines set POSE_DELEGATE=cpu; the production GPU server leaves it at
-    the default. Ultralytics forwards this straight through to ``model.track``.
-
     Falls back to CPU when a GPU is asked for but CUDA is unavailable, so a
-    developer running the default config on a laptop gets slow analysis instead
-    of a hard failure mid-request.
+    laptop running the default config gets slow analysis rather than a hard
+    failure mid-request.
     """
     if os.getenv("POSE_DELEGATE", "gpu").lower() != "gpu":
         return "cpu"
@@ -86,9 +77,8 @@ def _resolve_device() -> str:
 class Keypoint:
     """One body landmark in normalized [0, 1] frame coordinates.
 
-    ``visibility`` is the model's per-keypoint confidence. It plays the role
-    MediaPipe's ``visibility`` used to: ``BaseExercise`` gates measurements on it
-    so an occluded joint is skipped rather than guessed at.
+    ``visibility`` is the model's per-keypoint confidence; ``BaseExercise`` gates
+    measurements on it so an occluded joint is skipped rather than guessed at.
     """
 
     x: float
@@ -122,15 +112,7 @@ class PoseTracker:
             up_angle=exercise.UP_ANGLE,
             down_angle=exercise.DOWN_ANGLE,
             device=_resolve_device(),
-            # Headless service: never try to open a window.
-            show=False,
-            # Silences the per-frame log line AIGym emits for every frame.
             verbose=False,
-            # Drop AIGym's own angle/count/stage caption. It would duplicate the
-            # values overlay_renderer already prints in a fixed corner alongside
-            # the quality, tempo and coaching cues. The monitored joint is still
-            # drawn -- only the caption is gated on this flag.
-            show_labels=False,
             line_width=2,
         )
         self._locked_id: Optional[int] = None
@@ -139,11 +121,11 @@ class PoseTracker:
     def _select_index(self) -> Optional[int]:
         """Index of the lifter we are following within this frame's track lists.
 
-        Locks onto the largest bounding box the first time anyone is seen (the
-        prominent, closest subject -- the person filming their set) and sticks
-        with that track id afterwards. If that id leaves the frame we re-lock,
-        which is the best available recovery: AIGym keys its rep state by track
-        id, so a lost track restarts counting either way.
+        Locks onto the largest bounding box the first time anyone is seen -- the
+        closest subject, i.e. the person filming their set -- and sticks with
+        that track id. If it leaves the frame we re-lock, which is the best
+        available recovery: AIGym keys its rep state by track id, so a lost
+        track restarts counting either way.
         """
         track_ids = self.gym.track_ids
         if not track_ids:

@@ -1,8 +1,12 @@
 """Coaching overlay drawn on top of AIGym's annotated frame.
 
-AIGym already draws the monitored joint and stamps the angle/count/stage beside
-it, so there is no skeleton drawing here. What it does not know about -- the form
-quality score, rep tempo, and the fault/praise cues -- is what this module adds.
+AIGym owns the measurement layer of the render: it highlights the monitored joint
+and stamps the angle, rep count and stage next to it. None of that is redrawn
+here -- duplicating it would put two copies of the same numbers on the frame that
+could disagree, and AIGym's are the authoritative ones.
+
+This module draws only what AIGym has no notion of: the form quality score, the
+rep tempo, and the fault/praise coaching cues.
 """
 
 import cv2
@@ -20,15 +24,11 @@ def _text_box(frame, text, position, font_scale=0.6, thickness=2,
 
 
 def draw_metrics(frame, result: FrameResult):
-    h, w, _ = frame.shape
+    h, _, _ = frame.shape
     y = 30
 
-    y += _text_box(frame, f"Reps: {result.rep_count}", (10, y),
-                   font_scale=1.0, thickness=2, bg_color=(0, 100, 0))
-
-    y += _text_box(frame, f"Stage: {result.stage.upper()}", (10, y),
-                   font_scale=0.7, thickness=2)
-
+    # Reps, stage and the joint angle are AIGym's caption, drawn beside the
+    # monitored joint -- see the module docstring.
     if result.stage not in ("start", "error"):
         q = result.current_quality
         q_color = (0, 255, 0) if q >= 80 else (0, 165, 255) if q >= 60 else (0, 0, 255)
@@ -54,9 +54,5 @@ def draw_metrics(frame, result: FrameResult):
         _text_box(frame, pos, (10, feedback_y),
                   font_scale=0.6, thickness=2, bg_color=(0, 128, 0))
         feedback_y -= 30
-
-    if result.primary_angle is not None:
-        _text_box(frame, f"Angle: {int(result.primary_angle)}", (w - 160, 30),
-                  font_scale=0.7, thickness=2)
 
     return frame

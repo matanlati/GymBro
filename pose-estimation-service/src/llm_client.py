@@ -171,7 +171,7 @@ class LLMClient:
                 )
 
                 if not response.ok:
-                    self._handle_error_response(response, attempt)
+                    self._raise_for_error_response(response)
 
                 try:
                     return response.json()
@@ -205,27 +205,25 @@ class LLMClient:
                     self.config.max_retries,
                     last_error,
                 )
-                self._delay(2**attempt)
+                time.sleep(2**attempt)  # exponential backoff
             else:
                 if last_error is not None:
                     raise last_error
 
         raise LLMServiceError("Max retries exceeded")
 
-    def _handle_error_response(self, response: requests.Response, attempt: int) -> None:
+    @staticmethod
+    def _raise_for_error_response(response: requests.Response) -> None:
+        """Translate a non-2xx response into the matching typed error."""
+        if response.status_code == 401:
+            raise LLMAuthenticationError("Authentication failed. Check credentials.")
+
         try:
             error_text = response.text
         except Exception:  # noqa: BLE001
             error_text = "No error details"
 
-        if response.status_code == 401:
-            raise LLMAuthenticationError("Authentication failed. Check credentials.")
-
         raise LLMServiceError(
             f"HTTP {response.status_code}: {error_text}",
             status_code=response.status_code,
         )
-
-    @staticmethod
-    def _delay(seconds: float) -> None:
-        time.sleep(seconds)

@@ -1,14 +1,16 @@
 import os
+import uuid
+from contextlib import contextmanager
+from typing import Optional
+
 import requests as http_requests
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.staticfiles import StaticFiles
-from typing import Optional
 
 from .models import AnalysisResponse, VideoRequest
 from .exercises import SUPPORTED_EXERCISES
-from .video_processor import process_video, process_upload, OUTPUT_DIR
+from .video_processor import ProcessingResult, process_video, process_upload, OUTPUT_DIR
 from .post_processor import enrich_analysis
-import uuid
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -16,15 +18,13 @@ app = FastAPI(title="Exercise Form Analysis API")
 app.mount("/videos", StaticFiles(directory=OUTPUT_DIR), name="videos")
 
 
-@app.post("/analyze", response_model=AnalysisResponse)
-async def analyze_exercise(request: VideoRequest, http_request: Request):
+@contextmanager
+def _analysis_errors():
+    """Map the pipeline's exceptions onto HTTP status codes."""
     try:
-        result = process_video(
-            video_url=str(request.video_url),
-            exercise_type=request.exercise_type,
-            side=request.side,
-            output_filename=request.output_filename,
-        )
+        yield
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except http_requests.HTTPError as e:
@@ -32,12 +32,25 @@ async def analyze_exercise(request: VideoRequest, http_request: Request):
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
 
+
+def _respond(result: ProcessingResult, http_request: Request) -> AnalysisResponse:
     filename = os.path.basename(result.output_path)
-    video_url = str(http_request.base_url) + f"videos/{filename}"
-
+    video_url = f"{http_request.base_url}videos/{filename}"
     return enrich_analysis(result, video_url)
+
+
+@app.post("/analyze", response_model=AnalysisResponse)
+async def analyze_exercise(request: VideoRequest, http_request: Request):
+    with _analysis_errors():
+        result = process_video(
+            video_url=str(request.video_url),
+            exercise_type=request.exercise_type,
+            side=request.side,
+            output_filename=request.output_filename,
+        )
+    return _respond(result, http_request)
 
 
 @app.post("/analyze/upload", response_model=AnalysisResponse)
@@ -46,12 +59,16 @@ async def analyze_exercise_upload(
     file: UploadFile = File(...),
     exercise_type: str = Form("squat"),
     side: str = Form("left"),
-    output_filename: Optional[str] = Form(uuid.uuid4().hex + ".mp4"),
+    output_filename: Optional[str] = Form(None),
 ):
     if not file.content_type or not file.content_type.startswith("video/"):
         raise HTTPException(status_code=422, detail="Uploaded file must be a video")
 
-    try:
+    # Default per request, not per process: a default evaluated at import time
+    # would hand every upload the same filename and overwrite the last one.
+    output_filename = output_filename or f"{uuid.uuid4().hex}.mp4"
+
+    with _analysis_errors():
         data = await file.read()
         result = process_upload(
             file_data=data,
@@ -59,17 +76,7 @@ async def analyze_exercise_upload(
             side=side,
             output_filename=output_filename,
         )
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-
-    filename = os.path.basename(result.output_path)
-    video_url = str(http_request.base_url) + f"videos/{filename}"
-
-    return enrich_analysis(result, video_url)
+    return _respond(result, http_request)
 
 
 @app.get("/")
