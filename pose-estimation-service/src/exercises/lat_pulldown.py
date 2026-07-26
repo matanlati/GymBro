@@ -20,22 +20,19 @@ class LatPulldown(BaseExercise):
         rocking horizontally across the rep).
       - Jerky, too-fast reps (very short rep duration).
 
-    Note: rep counting is deliberately FORGIVING here -- a rep is counted once the
-    elbow bends past 100 deg on the pull and re-extends past 150 deg at the top.
-    Even a partial pull still counts; the missing range shows up in the score and
-    cues, not by dropping the rep.
+    Rep counting is deliberately FORGIVING here: even a partial pull counts as a
+    rep, with the missing range showing up in the score and cues rather than by
+    dropping the rep.
     """
 
     _LEFT = dict(shoulder=5, elbow=7, wrist=9, hip=11)
     _RIGHT = dict(shoulder=6, elbow=8, wrist=10, hip=12)
 
-    # AIGym measures the elbow angle (shoulder-elbow-wrist) and turns a rep over
-    # on it (forgiving gates - see the class note). This is the one exercise
-    # whose rep phase already matched AIGym's: the count lands on the pull.
+    # AIGym measures the elbow angle (shoulder-elbow-wrist).
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    DOWN_ANGLE = 100.0   # bar pulled down to the chest
-    UP_ANGLE = 150.0     # arms extended back to the stretch
+    DOWN_ANGLE = 115.0   # bar pulled down toward the chest
+    UP_ANGLE = 145.0     # arms extended back toward the stretch
     # Grading thresholds read off the whole rep:
     _PULL_GOOD = 90.0     # elbow this closed = a full pull to the chest
     _STRETCH_GOOD = 155.0  # elbow this open = a full stretch at the top
@@ -65,8 +62,7 @@ class LatPulldown(BaseExercise):
         feedback = []
         positives = []
 
-        # Track how far the shoulder rocks in front of / behind the hip so swing
-        # can be judged over the whole rep in _evaluate_rep.
+        # Accumulated so swing can be judged over the whole rep, not per frame.
         if self.visible(landmarks, idxs["hip"]):
             hip = self.lm(landmarks, idxs["hip"])
             sway = shoulder[0] - hip[0]
@@ -80,8 +76,13 @@ class LatPulldown(BaseExercise):
     def _evaluate_rep(self, feedback: list, positives: list) -> None:
         pull = self.rep_min_angle
         stretch = self.rep_max_angle
-        swing = (self._sway_min is not None and self._sway_max is not None
-                 and self._sway_max - self._sway_min > self._SWAY_RANGE)
+        # None when the hip was never visible this rep, which is different from
+        # "measured and steady" -- see the sway verdict below.
+        sway_range = (
+            self._sway_max - self._sway_min
+            if self._sway_min is not None and self._sway_max is not None
+            else None
+        )
 
         if pull is not None and pull > self._PULL_GOOD:
             self._apply_penalty(feedback, 15, "Short pull - bring the bar to your chest")
@@ -93,10 +94,13 @@ class LatPulldown(BaseExercise):
         elif stretch is not None:
             self._praise(positives, "Nice full stretch at the top")
 
-        if swing:
-            self._apply_penalty(feedback, 15, "Stop leaning back - pull with your lats, not momentum")
-        else:
-            self._praise(positives, "Solid torso, no swinging")
+        # Stay silent when the hip was never visible: claiming a solid torso we
+        # never saw is worse than saying nothing about it.
+        if sway_range is not None:
+            if sway_range > self._SWAY_RANGE:
+                self._apply_penalty(feedback, 15, "Stop leaning back - pull with your lats, not momentum")
+            else:
+                self._praise(positives, "Solid torso, no swinging")
 
         rep_s = self.rep_frames / self.fps if (self.rep_frames and self.fps) else None
         if rep_s is not None and rep_s < 0.4:

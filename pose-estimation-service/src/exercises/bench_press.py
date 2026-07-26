@@ -20,21 +20,19 @@ class BenchPress(BaseExercise):
       - Bouncing / pressing too fast (very short rep duration).
       - Bar drifting off the vertical - wrist not stacked over the elbow.
 
-    Note: rep counting is deliberately FORGIVING here -- a rep is counted once the
-    elbow bends past 110 deg and re-extends past 150 deg. Even a partial press
-    still counts as a rep; the missing range is reflected in the score and cues,
-    not by dropping the rep.
+    Rep counting is deliberately FORGIVING here: even a partial press counts as
+    a rep, with the missing range reflected in the score and cues rather than by
+    dropping the rep.
     """
 
     _LEFT = dict(shoulder=5, elbow=7, wrist=9)
     _RIGHT = dict(shoulder=6, elbow=8, wrist=10)
 
-    # AIGym measures the elbow angle (shoulder-elbow-wrist) and turns a rep over
-    # on it. Wider gates than the push-up (90/100) so a partial-range bench rep
-    # still registers - see the class note.
+    # AIGym measures the elbow angle (shoulder-elbow-wrist). Wider gates than
+    # the push-up so a partial-range rep still registers - see the class note.
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    DOWN_ANGLE = 110.0
+    DOWN_ANGLE = 120.0
     UP_ANGLE = 150.0
     # Grading thresholds (read off the whole rep, not one frame):
     _DEPTH_GOOD = 95.0     # bar reached the chest
@@ -60,8 +58,8 @@ class BenchPress(BaseExercise):
 
         self._sync_reps(pose, feedback, positives)
 
-        # Bar path: the wrist should stay stacked over the elbow. A large
-        # horizontal offset means the bar is drifting toward the face or belly.
+        # A large wrist-over-elbow offset means the bar is drifting toward the
+        # face or the belly rather than travelling straight.
         if self.stage == "down" and abs(wrist[0] - elbow[0]) > self._BAR_DRIFT:
             self._apply_penalty(feedback, 10, "Bar drifting - stack the wrist over your elbow")
 

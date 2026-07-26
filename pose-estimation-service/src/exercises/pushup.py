@@ -17,23 +17,20 @@ class Pushup(BaseExercise):
       - Shallow depth, graded from the deepest elbow angle of the rep.
       - Hips sagging (lower back over-extends).
       - Hips piking up (cheating the range by bending at the hips).
-
-    Note: rep counting is unchanged -- a rep is counted once the elbow bends past
-    90 deg and re-opens past 100 deg.
     """
 
     _LEFT = dict(shoulder=5, elbow=7, wrist=9, hip=11, knee=13)
     _RIGHT = dict(shoulder=6, elbow=8, wrist=10, hip=12, knee=14)
 
-    # AIGym measures the elbow angle (shoulder-elbow-wrist) and turns a rep over
-    # on it: "down" once the elbow bends past 90 deg, "up" when it re-opens past
-    # 100 deg. Depth is graded off the deepest elbow angle: below ~70 deg is a
-    # full-depth push-up.
+    # AIGym measures the elbow angle (shoulder-elbow-wrist).
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    DOWN_ANGLE = 90.0
-    UP_ANGLE = 100.0
-    _DEPTH_GOOD = 70.0
+    # These used to be 90/100 -- a 10 deg band, narrow enough that elbow jitter
+    # around the threshold could manufacture reps. Widened and loosened so a
+    # partial push-up counts and is graded on depth instead.
+    DOWN_ANGLE = 120.0
+    UP_ANGLE = 155.0
+    _DEPTH_GOOD = 70.0  # deepest elbow angle of a full-depth push-up
 
     def analyze_frame(self, pose: PoseFrame) -> FrameResult:
         landmarks = pose.keypoints
@@ -53,11 +50,10 @@ class Pushup(BaseExercise):
 
         self._sync_reps(pose, feedback, positives)
 
-        # Body line: with a roughly horizontal body, the hip should sit on the
-        # line between the shoulder and knee. y grows downward in image coords,
-        # so a hip below that midline means the hips are sagging; above it means
-        # they are piking. This distinguishes the two faults instead of lumping
-        # them into one vague "keep straight" cue.
+        # With a roughly horizontal body the hip should sit on the shoulder-knee
+        # line. y grows downward, so a hip below that midline is sagging and one
+        # above it is piking -- worth distinguishing rather than lumping into a
+        # vague "keep straight" cue.
         if self.visible(landmarks, idxs["hip"], idxs["knee"]):
             hip = self.lm(landmarks, idxs["hip"])
             knee = self.lm(landmarks, idxs["knee"])
@@ -74,8 +70,7 @@ class Pushup(BaseExercise):
         return self._frame(elbow_angle, feedback, positives)
 
     def _evaluate_rep(self, feedback: list, positives: list) -> None:
-        # Whether the plank held (no sag/pike faults fired during the descent).
-        solid_plank = not self._rep_faults
+        solid_plank = not self._rep_faults  # no sag/pike fault fired this rep
         depth = self.rep_min_angle
         if depth is None:
             return

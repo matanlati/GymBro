@@ -13,26 +13,25 @@ class BicepCurl(BaseExercise):
       - Controlled lift, slow (~2-3 s) lowering.
 
     COMMON FAULTS (what we score)
+      - Short curl: not reaching a hard squeeze at the top.
       - Elbows drifting forward away from the torso.
       - Swinging / using momentum: the elbow sweeps horizontally across the rep
         as the body heaves the weight up.
 
-    Note: a rep only counts once the arm reaches near-full flexion (~40 deg) and
-    re-extends (~160 deg), so partial-range curls simply do not register as reps.
+    Only a curl that barely bends the arm fails to register; a partial-range curl
+    counts and is graded on how hard it squeezed at the top.
     """
 
     _LEFT = dict(shoulder=5, elbow=7, wrist=9)
     _RIGHT = dict(shoulder=6, elbow=8, wrist=10)
 
-    # AIGym measures the elbow angle (shoulder-elbow-wrist) and turns a rep over
-    # on it: the top of the curl is reached under 40 deg and the arm re-extends
-    # past 160 deg at the bottom. Note AIGym names the *flexed* end "down" (it
-    # goes by the joint angle, not by where the weight is), so the overlay reads
-    # "DOWN" at the top of a curl. Nothing here keys off that label.
+    # AIGym measures the elbow angle (shoulder-elbow-wrist). It names the
+    # *flexed* end "down", going by joint angle rather than where the weight is,
+    # so its caption reads "down" at the top of a curl. Nothing keys off that.
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    DOWN_ANGLE = 40.0
-    UP_ANGLE = 160.0
+    DOWN_ANGLE = 70.0
+    UP_ANGLE = 150.0
     _TOP_GATE = 40.0  # full-squeeze grade in _evaluate_rep
     _SWING_RANGE = 0.12  # horizontal elbow travel (frac of frame) that reads as swing
 
@@ -61,8 +60,7 @@ class BicepCurl(BaseExercise):
         feedback = []
         positives = []
 
-        # Accumulate how far the elbow sits in front of / behind the shoulder so
-        # we can judge swing over the whole rep in _evaluate_rep.
+        # Accumulated so swing can be judged over the whole rep, not per frame.
         offset = elbow[0] - shoulder[0]
         self._elbow_off_min = offset if self._elbow_off_min is None else min(self._elbow_off_min, offset)
         self._elbow_off_max = offset if self._elbow_off_max is None else max(self._elbow_off_max, offset)
@@ -77,16 +75,26 @@ class BicepCurl(BaseExercise):
     def _evaluate_rep(self, feedback: list, positives: list) -> None:
         clean_form = not self._rep_faults  # no elbow-drift fault during the rep
         # Swing / momentum: the elbow sweeping horizontally across the rep means
-        # the body heaved the weight up rather than the biceps curling it.
-        swing = (self._elbow_off_min is not None and self._elbow_off_max is not None
-                 and self._elbow_off_max - self._elbow_off_min > self._SWING_RANGE)
+        # the body heaved the weight up rather than the biceps curling it. None
+        # when the elbow was never tracked, so we neither fault nor praise it.
+        swing_range = (
+            self._elbow_off_max - self._elbow_off_min
+            if self._elbow_off_min is not None and self._elbow_off_max is not None
+            else None
+        )
+        swing = swing_range is not None and swing_range > self._SWING_RANGE
         if swing:
             self._apply_penalty(feedback, 15, "Swinging - kill the momentum, control the weight")
 
-        # Full squeeze at the top: a counted rep already passed _TOP_GATE (40 deg).
-        if self.rep_min_angle is not None and self.rep_min_angle <= self._TOP_GATE:
-            self._praise(positives, "Full squeeze at the top")
-        if clean_form and not swing:
+        # The rep gate is deliberately forgiving, so a partial curl gets counted;
+        # this is what tells the lifter it was partial. Without it a short curl
+        # would simply miss out on praise and be given no reason why.
+        if self.rep_min_angle is not None:
+            if self.rep_min_angle <= self._TOP_GATE:
+                self._praise(positives, "Full squeeze at the top")
+            else:
+                self._apply_penalty(feedback, 10, "Short curl - bring it all the way up and squeeze")
+        if clean_form and swing_range is not None and not swing:
             self._praise(positives, "Elbows pinned, clean strict curl")
         self._reset_swing()
 

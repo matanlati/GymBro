@@ -19,21 +19,21 @@ class Deadlift(BaseExercise):
         folded over, dumping the load onto the lower back.
       - Bar/knees drifting forward away from the body.
 
-    Note: rep counting is unchanged -- a rep is counted once the hip bends past
-    90 deg at the bottom and re-extends past 160 deg at the top, so a partial pull
-    that never breaks 90 deg simply does not register as a rep.
+    Only a pull that barely breaks 115 deg of hip bend fails to register; partial
+    pulls count and are graded on their lockout.
     """
 
     _LEFT = dict(shoulder=5, hip=11, knee=13, ankle=15)
     _RIGHT = dict(shoulder=6, hip=12, knee=14, ankle=16)
 
-    # AIGym measures hip extension (shoulder-hip-knee) and turns a rep over on
-    # it: "down" at the bottom under 90 deg, "up" at the top past 160 deg.
+    # AIGym measures hip extension (shoulder-hip-knee).
     KPTS_LEFT = [5, 11, 13]
     KPTS_RIGHT = [6, 12, 14]
-    UP_ANGLE = 160.0
-    DOWN_ANGLE = 90.0
-    _LOCKOUT_GOOD = 165.0
+    # Loose enough that a partial or rack pull still counts; the lockout grade
+    # below is what judges whether the hips actually finished.
+    UP_ANGLE = 155.0
+    DOWN_ANGLE = 115.0
+    _LOCKOUT_GOOD = 165.0  # hips fully extended at the top
 
     def analyze_frame(self, pose: PoseFrame) -> FrameResult:
         landmarks = pose.keypoints
@@ -49,7 +49,6 @@ class Deadlift(BaseExercise):
         knee = self.lm(landmarks, idxs["knee"])
         ankle = self.lm(landmarks, idxs["ankle"])
 
-        # Primary angle: hip extension (shoulder-hip-knee), measured by AIGym.
         hip_angle = pose.angle
         self._track(hip_angle)
         sign = self._facing_sign(landmarks)
@@ -58,22 +57,19 @@ class Deadlift(BaseExercise):
 
         self._sync_reps(pose, feedback, positives)
 
-        # Hips shooting up early: knees already locked while the torso is still
-        # folded over. Needs the knee angle too, so we compute it when the ankle
-        # is visible.
         if self.stage == "down" and self.visible(landmarks, idxs["ankle"]):
+            # Hips shooting up early: knees already locked while the torso is
+            # still folded over.
             knee_angle = self.calculate_angle(hip, knee, ankle)
             if knee_angle > 160 and hip_angle < 130:
                 self._apply_penalty(feedback, 15, "Hips shooting up - drive the floor with your legs")
-            # Bar path: knees/bar drifting forward, away from the body.
             if sign * (knee[0] - ankle[0]) > 0.08:
                 self._apply_penalty(feedback, 10, "Bar drifting out - keep it close to your body")
 
         return self._frame(hip_angle, feedback, positives)
 
     def _evaluate_rep(self, feedback: list, positives: list) -> None:
-        # No "hips shooting up" / "bar drifting" faults fired during the pull.
-        clean_pull = not self._rep_faults
+        clean_pull = not self._rep_faults  # no hips-shooting-up / bar-drift fault
         if self.rep_max_angle is not None and self.rep_max_angle < self._LOCKOUT_GOOD:
             self._apply_penalty(feedback, 15, "Short lockout - fully extend your hips at the top")
         elif self.rep_max_angle is not None:

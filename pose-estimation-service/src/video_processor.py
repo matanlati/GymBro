@@ -6,7 +6,7 @@ import requests
 import imageio_ffmpeg
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 from . import pose_detector
 from . import overlay_renderer
@@ -26,8 +26,6 @@ class ProcessingResult:
     side: str = "left"
     per_rep_qualities: list = field(default_factory=list)
     issue_counts: dict = field(default_factory=dict)
-    # Tally of positive cues across the set (the praise twin of issue_counts),
-    # surfaced to the LLM as "detected_strengths".
     praise_counts: dict = field(default_factory=dict)
     frames_total: int = 0
     frames_with_pose: int = 0
@@ -117,19 +115,20 @@ def _run_pipeline(
 
             frames_total += 1
             pose = tracker.step(frame)
-            # AIGym annotates the frame it was given (monitored joint + angle,
-            # count and stage); our coaching cues go on top of that.
             frame = pose.plot_im if pose.plot_im is not None else frame
 
             result = exercise.analyze_frame(pose)
-            # Count only frames the exercise could actually measure (required
-            # joints visible => a primary angle was produced), so coverage
+            # Count only frames the exercise could actually measure, so coverage
             # reflects measurable movement, not just a detected silhouette.
             if result.primary_angle is not None:
                 frames_with_pose += 1
             frame = overlay_renderer.draw_metrics(frame, result)
 
             writer.write(frame)
+
+        # Grade a last rep that AIGym counted but the clip ended before the
+        # lifter completed, so our rep total matches AIGym's.
+        exercise.finish_set()
 
         cap.release()
         writer.release()
@@ -199,18 +198,22 @@ def _build_result(
     )
 
 
-def process_video(
-    video_url: str,
+def _process(
+    fetch_source: Callable[[], str],
     exercise_type: str,
-    side: str = "left",
-    output_filename: Optional[str] = None,
+    side: str,
+    output_filename: Optional[str],
 ) -> ProcessingResult:
+    """Analyze a clip that ``fetch_source`` materializes as a local temp file.
+
+    The temp file is always removed, including when analysis raises.
+    """
     exercise = get_exercise(exercise_type, side)
     out_path = _output_path(exercise_type, output_filename)
     video_path = None
     frames_total = frames_with_pose = 0
     try:
-        video_path = download_video(video_url)
+        video_path = fetch_source()
         frames_total, frames_with_pose = _run_pipeline(video_path, exercise, out_path)
     finally:
         if video_path:
@@ -223,25 +226,23 @@ def process_video(
     )
 
 
+def process_video(
+    video_url: str,
+    exercise_type: str,
+    side: str = "left",
+    output_filename: Optional[str] = None,
+) -> ProcessingResult:
+    return _process(
+        lambda: download_video(video_url), exercise_type, side, output_filename
+    )
+
+
 def process_upload(
     file_data: bytes,
     exercise_type: str,
     side: str = "left",
     output_filename: Optional[str] = None,
 ) -> ProcessingResult:
-    exercise = get_exercise(exercise_type, side)
-    out_path = _output_path(exercise_type, output_filename)
-    video_path = None
-    frames_total = frames_with_pose = 0
-    try:
-        video_path = save_upload(file_data)
-        frames_total, frames_with_pose = _run_pipeline(video_path, exercise, out_path)
-    finally:
-        if video_path:
-            try:
-                os.unlink(video_path)
-            except OSError:
-                pass
-    return _build_result(
-        exercise, out_path, exercise_type, side, frames_total, frames_with_pose
+    return _process(
+        lambda: save_upload(file_data), exercise_type, side, output_filename
     )

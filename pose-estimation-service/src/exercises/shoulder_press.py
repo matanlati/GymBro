@@ -17,22 +17,23 @@ class ShoulderPress(BaseExercise):
       - Short range at the bottom, not lowering to shoulder height (min angle).
       - Arching the lower back (head/ear travelling away from over the shoulder).
 
-    Note: rep counting is unchanged -- a rep is counted once the elbow bends under
-    100 deg at the bottom and re-extends past 160 deg at lock-out, so a partial
-    press that never locks out simply does not register as a rep.
+    A partial press still counts as a rep; the missing lockout or short bottom
+    range shows up in the score and cues rather than by dropping the rep.
     """
 
     _LEFT = dict(shoulder=5, elbow=7, wrist=9, ear=3)
     _RIGHT = dict(shoulder=6, elbow=8, wrist=10, ear=4)
 
-    # AIGym measures the elbow angle (shoulder-elbow-wrist) and turns a rep over
-    # on it: "up" at lock-out past 160 deg, "down" once the elbow bends under 100.
+    # AIGym measures the elbow angle (shoulder-elbow-wrist).
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    UP_ANGLE = 160.0
-    DOWN_ANGLE = 100.0
-    _LOCKOUT_GOOD = 165.0
-    _BOTTOM_GOOD = 110.0
+    # DOWN_ANGLE was 100, stricter than the 110 deg bottom grade below, so every
+    # counted rep passed that grade and its praise fired unconditionally. The
+    # gate now sits above the grade, which is the rule for all of these.
+    UP_ANGLE = 150.0
+    DOWN_ANGLE = 120.0
+    _LOCKOUT_GOOD = 165.0  # locked out overhead
+    _BOTTOM_GOOD = 110.0   # lowered to shoulder height
 
     def analyze_frame(self, pose: PoseFrame) -> FrameResult:
         landmarks = pose.keypoints
@@ -52,8 +53,8 @@ class ShoulderPress(BaseExercise):
 
         self._sync_reps(pose, feedback, positives)
 
-        # Lumbar arch: the ear/head drifting off from over the shoulder is the
-        # side-view signature of leaning back to heave the weight overhead.
+        # The ear drifting off from over the shoulder is the side-view signature
+        # of leaning back to heave the weight overhead.
         if self.visible(landmarks, idxs["ear"]):
             ear = self.lm(landmarks, idxs["ear"])
             if abs(ear[0] - shoulder[0]) > 0.08:
@@ -62,7 +63,7 @@ class ShoulderPress(BaseExercise):
         return self._frame(elbow_angle, feedback, positives)
 
     def _evaluate_rep(self, feedback: list, positives: list) -> None:
-        no_arch = not self._rep_faults  # no lower-back arch fault during the press
+        no_arch = not self._rep_faults  # no lower-back arch fault this rep
         if self.rep_max_angle is not None and self.rep_max_angle < self._LOCKOUT_GOOD:
             self._apply_penalty(feedback, 15, "Short lockout - press fully overhead")
         elif self.rep_max_angle is not None:
