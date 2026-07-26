@@ -1,3 +1,4 @@
+from ..pose_detector import PoseFrame
 from .base import BaseExercise, FrameResult
 
 
@@ -21,36 +22,35 @@ class ShoulderPress(BaseExercise):
     press that never locks out simply does not register as a rep.
     """
 
-    _LEFT = dict(shoulder=11, elbow=13, wrist=15, ear=7)
-    _RIGHT = dict(shoulder=12, elbow=14, wrist=16, ear=8)
+    _LEFT = dict(shoulder=5, elbow=7, wrist=9, ear=3)
+    _RIGHT = dict(shoulder=6, elbow=8, wrist=10, ear=4)
 
-    # Elbow-angle gates for rep detection (unchanged from the original logic):
-    # rep closes at lock-out past 160 deg, "down" once the elbow bends under 100.
-    _UP_GATE = 160.0
-    _DOWN_GATE = 100.0
+    # AIGym measures the elbow angle (shoulder-elbow-wrist) and turns a rep over
+    # on it: "up" at lock-out past 160 deg, "down" once the elbow bends under 100.
+    KPTS_LEFT = [5, 7, 9]
+    KPTS_RIGHT = [6, 8, 10]
+    UP_ANGLE = 160.0
+    DOWN_ANGLE = 100.0
     _LOCKOUT_GOOD = 165.0
     _BOTTOM_GOOD = 110.0
 
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
+        landmarks = pose.keypoints
+        if landmarks is None or pose.angle is None:
+            return self._neutral_frame()
+
         idxs = self._LEFT if self.side == "left" else self._RIGHT
         if not self.visible(landmarks, idxs["shoulder"], idxs["elbow"], idxs["wrist"]):
             return self._neutral_frame()
 
         shoulder = self.lm(landmarks, idxs["shoulder"])
-        elbow = self.lm(landmarks, idxs["elbow"])
-        wrist = self.lm(landmarks, idxs["wrist"])
 
-        elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
+        elbow_angle = pose.angle
         self._track(elbow_angle)
         feedback = []
         positives = []
 
-        if elbow_angle > self._UP_GATE:
-            if self.stage == "down":
-                self._finish_rep(feedback, positives)
-            self.stage = "up"
-        elif elbow_angle < self._DOWN_GATE:
-            self.stage = "down"
+        self._sync_reps(pose, feedback, positives)
 
         # Lumbar arch: the ear/head drifting off from over the shoulder is the
         # side-view signature of leaning back to heave the weight overhead.

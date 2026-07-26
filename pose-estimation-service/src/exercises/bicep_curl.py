@@ -1,3 +1,4 @@
+from ..pose_detector import PoseFrame
 from .base import BaseExercise, FrameResult
 
 
@@ -20,14 +21,19 @@ class BicepCurl(BaseExercise):
     re-extends (~160 deg), so partial-range curls simply do not register as reps.
     """
 
-    _LEFT = dict(shoulder=11, elbow=13, wrist=15)
-    _RIGHT = dict(shoulder=12, elbow=14, wrist=16)  # right wrist = 16, not 15
+    _LEFT = dict(shoulder=5, elbow=7, wrist=9)
+    _RIGHT = dict(shoulder=6, elbow=8, wrist=10)
 
-    # Elbow-angle gates for rep detection (unchanged from the original logic):
-    # the top of the curl is reached under 40 deg and the rep closes when the arm
-    # re-extends past 160 deg.
-    _TOP_GATE = 40.0
-    _BOTTOM_GATE = 160.0
+    # AIGym measures the elbow angle (shoulder-elbow-wrist) and turns a rep over
+    # on it: the top of the curl is reached under 40 deg and the arm re-extends
+    # past 160 deg at the bottom. Note AIGym names the *flexed* end "down" (it
+    # goes by the joint angle, not by where the weight is), so the overlay reads
+    # "DOWN" at the top of a curl. Nothing here keys off that label.
+    KPTS_LEFT = [5, 7, 9]
+    KPTS_RIGHT = [6, 8, 10]
+    DOWN_ANGLE = 40.0
+    UP_ANGLE = 160.0
+    _TOP_GATE = 40.0  # full-squeeze grade in _evaluate_rep
     _SWING_RANGE = 0.12  # horizontal elbow travel (frac of frame) that reads as swing
 
     def __init__(self, side: str = "left"):
@@ -38,16 +44,19 @@ class BicepCurl(BaseExercise):
         self._elbow_off_min = None
         self._elbow_off_max = None
 
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
+        landmarks = pose.keypoints
+        if landmarks is None or pose.angle is None:
+            return self._neutral_frame()
+
         idxs = self._LEFT if self.side == "left" else self._RIGHT
         if not self.visible(landmarks, idxs["shoulder"], idxs["elbow"], idxs["wrist"]):
             return self._neutral_frame()
 
         shoulder = self.lm(landmarks, idxs["shoulder"])
         elbow = self.lm(landmarks, idxs["elbow"])
-        wrist = self.lm(landmarks, idxs["wrist"])
 
-        elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
+        elbow_angle = pose.angle
         self._track(elbow_angle)
         feedback = []
         positives = []
@@ -58,12 +67,7 @@ class BicepCurl(BaseExercise):
         self._elbow_off_min = offset if self._elbow_off_min is None else min(self._elbow_off_min, offset)
         self._elbow_off_max = offset if self._elbow_off_max is None else max(self._elbow_off_max, offset)
 
-        if elbow_angle > self._BOTTOM_GATE:
-            if self.stage == "up":
-                self._finish_rep(feedback, positives)
-            self.stage = "down"
-        elif elbow_angle < self._TOP_GATE:
-            self.stage = "up"
+        self._sync_reps(pose, feedback, positives)
 
         if abs(offset) > 0.15:
             self._apply_penalty(feedback, 10, "Elbow drifting forward - pin it to your side")

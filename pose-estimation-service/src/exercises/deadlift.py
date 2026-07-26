@@ -1,3 +1,4 @@
+from ..pose_detector import PoseFrame
 from .base import BaseExercise, FrameResult
 
 
@@ -23,16 +24,22 @@ class Deadlift(BaseExercise):
     that never breaks 90 deg simply does not register as a rep.
     """
 
-    _LEFT = dict(shoulder=11, hip=23, knee=25, ankle=27)
-    _RIGHT = dict(shoulder=12, hip=24, knee=26, ankle=28)
+    _LEFT = dict(shoulder=5, hip=11, knee=13, ankle=15)
+    _RIGHT = dict(shoulder=6, hip=12, knee=14, ankle=16)
 
-    # Hip-angle gates for rep detection (unchanged from the original logic):
-    # "down" at the bottom under 90 deg, rep closes at the top past 160 deg.
-    _UP_GATE = 160.0
-    _DOWN_GATE = 90.0
+    # AIGym measures hip extension (shoulder-hip-knee) and turns a rep over on
+    # it: "down" at the bottom under 90 deg, "up" at the top past 160 deg.
+    KPTS_LEFT = [5, 11, 13]
+    KPTS_RIGHT = [6, 12, 14]
+    UP_ANGLE = 160.0
+    DOWN_ANGLE = 90.0
     _LOCKOUT_GOOD = 165.0
 
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
+        landmarks = pose.keypoints
+        if landmarks is None or pose.angle is None:
+            return self._neutral_frame()
+
         idxs = self._LEFT if self.side == "left" else self._RIGHT
         if not self.visible(landmarks, idxs["shoulder"], idxs["hip"], idxs["knee"]):
             return self._neutral_frame()
@@ -42,19 +49,14 @@ class Deadlift(BaseExercise):
         knee = self.lm(landmarks, idxs["knee"])
         ankle = self.lm(landmarks, idxs["ankle"])
 
-        # Primary angle: hip extension (shoulder-hip-knee).
-        hip_angle = self.calculate_angle(shoulder, hip, knee)
+        # Primary angle: hip extension (shoulder-hip-knee), measured by AIGym.
+        hip_angle = pose.angle
         self._track(hip_angle)
         sign = self._facing_sign(landmarks)
         feedback = []
         positives = []
 
-        if hip_angle > self._UP_GATE:
-            if self.stage == "down":
-                self._finish_rep(feedback, positives)
-            self.stage = "up"
-        elif hip_angle < self._DOWN_GATE:
-            self.stage = "down"
+        self._sync_reps(pose, feedback, positives)
 
         # Hips shooting up early: knees already locked while the torso is still
         # folded over. Needs the knee angle too, so we compute it when the ankle

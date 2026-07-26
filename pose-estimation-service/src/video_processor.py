@@ -102,36 +102,34 @@ def _run_pipeline(
     raw.close()
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     writer = cv2.VideoWriter(raw.name, fourcc, fps, (width, height))
-    model_path = pose_detector.ensure_model()
+
+    # One AIGym for the whole clip: it tracks the lifter across frames and keeps
+    # the rep counter, so it must outlive the loop rather than be rebuilt per frame.
+    tracker = pose_detector.PoseTracker(exercise)
 
     frames_total = 0
     frames_with_pose = 0
     try:
-        with pose_detector.create_landmarker(model_path) as landmarker:
-            frame_idx = 0
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-                frames_total += 1
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                timestamp_ms = int((frame_idx / fps) * 1000)
-                landmarks = pose_detector.detect(landmarker, rgb, timestamp_ms)
+            frames_total += 1
+            pose = tracker.step(frame)
+            # AIGym annotates the frame it was given (monitored joint + angle,
+            # count and stage); our coaching cues go on top of that.
+            frame = pose.plot_im if pose.plot_im is not None else frame
 
-                if landmarks is not None:
-                    frame = overlay_renderer.draw_skeleton(frame, landmarks)
-                    result = exercise.analyze_frame(landmarks)
-                    # Count only frames the exercise could actually measure
-                    # (required joints visible => a primary angle was produced),
-                    # so coverage reflects measurable movement, not just a
-                    # detected silhouette.
-                    if result.primary_angle is not None:
-                        frames_with_pose += 1
-                    frame = overlay_renderer.draw_metrics(frame, result)
+            result = exercise.analyze_frame(pose)
+            # Count only frames the exercise could actually measure (required
+            # joints visible => a primary angle was produced), so coverage
+            # reflects measurable movement, not just a detected silhouette.
+            if result.primary_angle is not None:
+                frames_with_pose += 1
+            frame = overlay_renderer.draw_metrics(frame, result)
 
-                writer.write(frame)
-                frame_idx += 1
+            writer.write(frame)
 
         cap.release()
         writer.release()

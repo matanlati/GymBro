@@ -1,3 +1,4 @@
+from ..pose_detector import PoseFrame
 from .base import BaseExercise, FrameResult
 
 
@@ -21,37 +22,36 @@ class Pushup(BaseExercise):
     90 deg and re-opens past 100 deg.
     """
 
-    _LEFT = dict(shoulder=11, elbow=13, wrist=15, hip=23, knee=25)
-    _RIGHT = dict(shoulder=12, elbow=14, wrist=16, hip=24, knee=26)
+    _LEFT = dict(shoulder=5, elbow=7, wrist=9, hip=11, knee=13)
+    _RIGHT = dict(shoulder=6, elbow=8, wrist=10, hip=12, knee=14)
 
-    # Elbow-angle gates for rep detection (unchanged from the original logic):
-    # "down" once the elbow bends past 90 deg, rep closes when it re-opens past
+    # AIGym measures the elbow angle (shoulder-elbow-wrist) and turns a rep over
+    # on it: "down" once the elbow bends past 90 deg, "up" when it re-opens past
     # 100 deg. Depth is graded off the deepest elbow angle: below ~70 deg is a
     # full-depth push-up.
-    _DOWN_GATE = 90.0
-    _UP_GATE = 100.0
+    KPTS_LEFT = [5, 7, 9]
+    KPTS_RIGHT = [6, 8, 10]
+    DOWN_ANGLE = 90.0
+    UP_ANGLE = 100.0
     _DEPTH_GOOD = 70.0
 
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
+        landmarks = pose.keypoints
+        if landmarks is None or pose.angle is None:
+            return self._neutral_frame()
+
         idxs = self._LEFT if self.side == "left" else self._RIGHT
         if not self.visible(landmarks, idxs["shoulder"], idxs["elbow"], idxs["wrist"]):
             return self._neutral_frame()
 
         shoulder = self.lm(landmarks, idxs["shoulder"])
-        elbow = self.lm(landmarks, idxs["elbow"])
-        wrist = self.lm(landmarks, idxs["wrist"])
 
-        elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
+        elbow_angle = pose.angle
         self._track(elbow_angle)
         feedback = []
         positives = []
 
-        if elbow_angle > self._UP_GATE:
-            if self.stage == "down":
-                self._finish_rep(feedback, positives)
-            self.stage = "up"
-        elif elbow_angle < self._DOWN_GATE:
-            self.stage = "down"
+        self._sync_reps(pose, feedback, positives)
 
         # Body line: with a roughly horizontal body, the hip should sit on the
         # line between the shoulder and knee. y grows downward in image coords,

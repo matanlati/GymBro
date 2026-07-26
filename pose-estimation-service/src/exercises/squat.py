@@ -1,3 +1,4 @@
+from ..pose_detector import PoseFrame
 from .base import BaseExercise, FrameResult
 
 
@@ -26,19 +27,24 @@ class Squat(BaseExercise):
     that far simply does not register as a rep.
     """
 
-    _LEFT = dict(hip=23, knee=25, ankle=27, shoulder=11)
-    _RIGHT = dict(hip=24, knee=26, ankle=28, shoulder=12)
+    _LEFT = dict(hip=11, knee=13, ankle=15, shoulder=5)
+    _RIGHT = dict(hip=12, knee=14, ankle=16, shoulder=6)
 
-    # Knee-angle gates for rep detection (unchanged from the original logic):
-    # the athlete is "down" once the knee bends past 100 deg and the rep closes
-    # when the knee re-extends past 160 deg.
-    _DOWN_GATE = 100.0
-    _UP_GATE = 160.0
+    # AIGym measures the knee angle (hip-knee-ankle) and turns a rep over on it:
+    # "down" once the knee bends past 100 deg, "up" once it re-extends past 160.
+    KPTS_LEFT = [11, 13, 15]
+    KPTS_RIGHT = [12, 14, 16]
+    DOWN_ANGLE = 100.0
+    UP_ANGLE = 160.0
     # Depth grade read off the deepest knee angle of the rep. A counted rep has
     # already broken 100 deg; below ~90 is at/below parallel (ideal).
     _DEPTH_GOOD = 90.0
 
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
+        landmarks = pose.keypoints
+        if landmarks is None or pose.angle is None:
+            return self._neutral_frame()
+
         idxs = self._LEFT if self.side == "left" else self._RIGHT
         # Core joints for the knee angle must be visible or we skip the frame.
         if not self.visible(landmarks, idxs["hip"], idxs["knee"], idxs["ankle"]):
@@ -49,18 +55,13 @@ class Squat(BaseExercise):
         ankle = self.lm(landmarks, idxs["ankle"])
         shoulder = self.lm(landmarks, idxs["shoulder"])
 
-        knee_angle = self.calculate_angle(hip, knee, ankle)
+        knee_angle = pose.angle
         self._track(knee_angle)
         sign = self._facing_sign(landmarks)
         feedback = []
         positives = []
 
-        if knee_angle > self._UP_GATE:
-            if self.stage == "down":
-                self._finish_rep(feedback, positives)
-            self.stage = "up"
-        elif knee_angle < self._DOWN_GATE:
-            self.stage = "down"
+        self._sync_reps(pose, feedback, positives)
 
         # Frontal/sagittal faults only make sense once the athlete is actually
         # descending, so we gate them on the "down" phase to avoid flagging the

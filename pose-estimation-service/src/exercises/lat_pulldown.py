@@ -1,3 +1,4 @@
+from ..pose_detector import PoseFrame
 from .base import BaseExercise, FrameResult
 
 
@@ -25,12 +26,16 @@ class LatPulldown(BaseExercise):
     cues, not by dropping the rep.
     """
 
-    _LEFT = dict(shoulder=11, elbow=13, wrist=15, hip=23)
-    _RIGHT = dict(shoulder=12, elbow=14, wrist=16, hip=24)
+    _LEFT = dict(shoulder=5, elbow=7, wrist=9, hip=11)
+    _RIGHT = dict(shoulder=6, elbow=8, wrist=10, hip=12)
 
-    # Elbow-angle gates for rep detection (forgiving - see the class note).
-    _DOWN_GATE = 100.0   # bar pulled down to the chest
-    _UP_GATE = 150.0     # arms extended back to the stretch
+    # AIGym measures the elbow angle (shoulder-elbow-wrist) and turns a rep over
+    # on it (forgiving gates - see the class note). This is the one exercise
+    # whose rep phase already matched AIGym's: the count lands on the pull.
+    KPTS_LEFT = [5, 7, 9]
+    KPTS_RIGHT = [6, 8, 10]
+    DOWN_ANGLE = 100.0   # bar pulled down to the chest
+    UP_ANGLE = 150.0     # arms extended back to the stretch
     # Grading thresholds read off the whole rep:
     _PULL_GOOD = 90.0     # elbow this closed = a full pull to the chest
     _STRETCH_GOOD = 155.0  # elbow this open = a full stretch at the top
@@ -44,16 +49,18 @@ class LatPulldown(BaseExercise):
         self._sway_min = None
         self._sway_max = None
 
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
+        landmarks = pose.keypoints
+        if landmarks is None or pose.angle is None:
+            return self._neutral_frame()
+
         idxs = self._LEFT if self.side == "left" else self._RIGHT
         if not self.visible(landmarks, idxs["shoulder"], idxs["elbow"], idxs["wrist"]):
             return self._neutral_frame()
 
         shoulder = self.lm(landmarks, idxs["shoulder"])
-        elbow = self.lm(landmarks, idxs["elbow"])
-        wrist = self.lm(landmarks, idxs["wrist"])
 
-        elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
+        elbow_angle = pose.angle
         self._track(elbow_angle)
         feedback = []
         positives = []
@@ -66,12 +73,7 @@ class LatPulldown(BaseExercise):
             self._sway_min = sway if self._sway_min is None else min(self._sway_min, sway)
             self._sway_max = sway if self._sway_max is None else max(self._sway_max, sway)
 
-        if elbow_angle < self._DOWN_GATE:
-            if self.stage == "up":
-                self._finish_rep(feedback, positives)
-            self.stage = "down"
-        elif elbow_angle > self._UP_GATE:
-            self.stage = "up"
+        self._sync_reps(pose, feedback, positives)
 
         return self._frame(elbow_angle, feedback, positives)
 

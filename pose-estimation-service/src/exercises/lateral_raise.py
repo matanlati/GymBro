@@ -1,3 +1,4 @@
+from ..pose_detector import PoseFrame
 from .base import BaseExercise, FrameResult
 
 
@@ -21,36 +22,36 @@ class LateralRaise(BaseExercise):
     that fall short simply do not register as reps.
     """
 
-    _LEFT = dict(hip=23, shoulder=11, elbow=13, wrist=15)
-    _RIGHT = dict(hip=24, shoulder=12, elbow=14, wrist=16)
+    _LEFT = dict(hip=11, shoulder=5, elbow=7, wrist=9)
+    _RIGHT = dict(hip=12, shoulder=6, elbow=8, wrist=10)
 
-    # Abduction gates for rep detection (unchanged from the original logic):
-    # "up" once the arm passes 80 deg, "down" back under 30 deg.
-    _UP_GATE = 80.0
-    _DOWN_GATE = 30.0
+    # AIGym measures the abduction angle (hip-shoulder-elbow) and turns a rep
+    # over on it: "up" once the arm passes 80 deg, "down" back under 30 deg.
+    KPTS_LEFT = [11, 5, 7]
+    KPTS_RIGHT = [12, 6, 8]
+    UP_ANGLE = 80.0
+    DOWN_ANGLE = 30.0
     _HEIGHT_HIGH = 110.0   # above this = raising too high / shrugging
 
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
+        landmarks = pose.keypoints
+        if landmarks is None or pose.angle is None:
+            return self._neutral_frame()
+
         idxs = self._LEFT if self.side == "left" else self._RIGHT
         if not self.visible(landmarks, idxs["hip"], idxs["shoulder"], idxs["elbow"]):
             return self._neutral_frame()
 
-        hip = self.lm(landmarks, idxs["hip"])
         shoulder = self.lm(landmarks, idxs["shoulder"])
         elbow = self.lm(landmarks, idxs["elbow"])
 
-        # Abduction angle: hip-shoulder-elbow.
-        raise_angle = self.calculate_angle(hip, shoulder, elbow)
+        # Abduction angle: hip-shoulder-elbow, measured by AIGym.
+        raise_angle = pose.angle
         self._track(raise_angle)
         feedback = []
         positives = []
 
-        if raise_angle > self._UP_GATE:
-            if self.stage == "down":
-                self._finish_rep(feedback, positives)
-            self.stage = "up"
-        elif raise_angle < self._DOWN_GATE:
-            self.stage = "down"
+        self._sync_reps(pose, feedback, positives)
 
         # Bent elbow during the raise = using momentum / turning it into a curl.
         if raise_angle > 50 and self.visible(landmarks, idxs["wrist"]):

@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional
-import numpy as np
+
+from ..pose_detector import PoseFrame, estimate_pose_angle
 
 
 @dataclass
@@ -46,6 +47,16 @@ class RepDetail:
 
 
 class BaseExercise(ABC):
+    """Form scoring for one exercise, on top of AIGym's angle/stage/rep counter.
+
+    The division of labour: ``solutions.AIGym`` measures the movement (primary
+    joint angle, up/down stage, rep count) and this class judges it (technique
+    faults, per-rep grading, a 0-100 quality score). Subclasses therefore never
+    compute the primary angle or run a rep state machine -- they declare which
+    three keypoints AIGym should watch and at which angles a rep turns over, then
+    read the answers off the ``PoseFrame``.
+    """
+
     # Minimum per-landmark visibility for a joint to be trusted this frame.
     # Below this the joint is likely occluded / out of frame, so we skip the
     # measurement rather than fabricate a fault from a guessed position.
@@ -54,6 +65,21 @@ class BaseExercise(ABC):
     # responsive (less smoothing); lower = smoother but laggier. 0.5 halves the
     # frame-to-frame jitter that otherwise inflates the fault counts.
     EMA_ALPHA: float = 0.5
+
+    # --- AIGym configuration, overridden by every subclass ------------------
+    # The three COCO-17 keypoints whose angle defines this movement, per side.
+    KPTS_LEFT: list = []
+    KPTS_RIGHT: list = []
+    # Rep turnover gates in degrees. AIGym counts a rep when the angle drops
+    # below DOWN_ANGLE having previously been above UP_ANGLE, so DOWN_ANGLE is
+    # always the smaller of the two regardless of which end of the movement the
+    # exercise itself calls "down".
+    UP_ANGLE: float = 160.0
+    DOWN_ANGLE: float = 90.0
+
+    def kpts(self) -> list:
+        """The keypoint triplet AIGym should measure for the analyzed side."""
+        return self.KPTS_LEFT if self.side == "left" else self.KPTS_RIGHT
 
     def __init__(self, side: str = "left"):
         self.side = side.lower()
@@ -80,14 +106,14 @@ class BaseExercise(ABC):
         self.rep_frames: int = 0
         self._rep_faults: list = []
         self._rep_praises: list = []
+        # Last rep total seen from AIGym, so we can spot the increments that
+        # mean "a rep just closed" (see _sync_reps).
+        self._last_count: int = 0
 
-    @staticmethod
-    def calculate_angle(a, b, c) -> float:
-        a, b, c = np.array(a), np.array(b), np.array(c)
-        radians = (np.arctan2(c[1] - b[1], c[0] - b[0])
-                   - np.arctan2(a[1] - b[1], a[0] - b[0]))
-        angle = np.abs(np.degrees(radians))
-        return 360.0 - angle if angle > 180.0 else angle
+    # Ultralytics' three-point angle, re-exported so subclasses can measure the
+    # *secondary* angles AIGym does not provide (it computes exactly one angle,
+    # from its configured keypoint triplet). Same math the primary angle uses.
+    calculate_angle = staticmethod(estimate_pose_angle)
 
     def lm(self, landmarks, idx) -> list:
         """Return an EMA-smoothed ``[x, y]`` for a landmark index."""
@@ -111,11 +137,10 @@ class BaseExercise(ABC):
         """True only when every given landmark clears VIS_THRESHOLD."""
         return all(self.visibility(landmarks, i) >= self.VIS_THRESHOLD for i in idxs)
 
-    # MediaPipe indices used only for orientation, not for any exercise's
-    # primary angle: nose, and the left/right ankle + foot-index (toe).
+    # COCO-17 indices used only for orientation, not for any exercise's
+    # primary angle: nose and the left/right ankle.
     _NOSE = 0
-    _ANKLE = {"left": 27, "right": 28}
-    _TOE = {"left": 31, "right": 32}
+    _ANKLE = {"left": 15, "right": 16}
 
     def _facing_sign(self, landmarks) -> int:
         """Which way the athlete faces the camera, as +1 (toward +x) or -1.
@@ -123,23 +148,39 @@ class BaseExercise(ABC):
         Every left/right check ("knee past toes", "torso pitching forward")
         is a statement about the *forward* direction, which flips depending on
         whether the lifter is filmed from their left or right and which way they
-        point. We infer it from the toe relative to the ankle (feet point the way
-        you face), falling back to the nose relative to the mid-hip. Defaults to
-        +1 when neither is usable, matching the original left-facing assumption.
+        point. We infer it from the nose relative to the hip. Defaults to +1 when
+        that is not usable, matching the original left-facing assumption.
+
+        Note: this used to prefer the toe relative to the ankle, since feet point
+        the way you face. COCO-17 has no foot/toe keypoints, so the nose-vs-hip
+        method that was the fallback is now the only signal -- weaker when the
+        lifter faces squarely toward or away from the camera.
         """
-        toe_idx, ankle_idx = self._TOE[self.side], self._ANKLE[self.side]
-        if self.visible(landmarks, toe_idx, ankle_idx):
-            toe = self.lm(landmarks, toe_idx)
-            ankle = self.lm(landmarks, ankle_idx)
-            if abs(toe[0] - ankle[0]) > 0.02:
-                return 1 if toe[0] >= ankle[0] else -1
-        hip_idx = 23 if self.side == "left" else 24
+        hip_idx = 11 if self.side == "left" else 12
         if self.visible(landmarks, self._NOSE, hip_idx):
             nose = self.lm(landmarks, self._NOSE)
             hip = self.lm(landmarks, hip_idx)
             if abs(nose[0] - hip[0]) > 0.02:
                 return 1 if nose[0] >= hip[0] else -1
         return 1
+
+    def _sync_reps(self, pose: PoseFrame, feedback: list, positives: list) -> None:
+        """Close a rep whenever AIGym's own counter advances.
+
+        AIGym is the single source of truth for *when* a rep happened; this just
+        mirrors its counter into our per-rep grading. It increments at the flexed
+        end of the movement (angle dropping past DOWN_ANGLE after having been
+        above UP_ANGLE), so a rep window runs bottom-to-bottom and still contains
+        one full extension and one full flexion -- which is all ``_evaluate_rep``
+        needs to grade depth, lock-out and tempo.
+        """
+        if pose.stage != "-":
+            self.stage = pose.stage
+        # Loop rather than assume a single step: a dropped frame can advance the
+        # count by more than one, and every rep still deserves its grading pass.
+        while self._last_count < pose.count:
+            self._last_count += 1
+            self._finish_rep(feedback, positives)
 
     def _track(self, angle: Optional[float]) -> None:
         """Fold a measured primary angle into the current rep's extrema/tempo."""
@@ -284,9 +325,10 @@ class BaseExercise(ABC):
         self.rep_frames = 0
         self._rep_faults = []
         self._rep_praises = []
+        self._last_count = 0
 
     @abstractmethod
-    def analyze_frame(self, landmarks) -> FrameResult:
+    def analyze_frame(self, pose: PoseFrame) -> FrameResult:
         ...
 
     @abstractmethod

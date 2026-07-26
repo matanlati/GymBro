@@ -1,68 +1,202 @@
+"""Pose source for the analysis pipeline, backed by Ultralytics ``solutions.AIGym``.
+
+AIGym owns the parts of the problem it already solves well: running the YOLO26
+pose model, tracking people across frames, computing the primary joint angle and
+running the up/down rep counter. This module is a thin adapter over it, so the
+exercise modules never re-derive any of that -- they read ``PoseFrame.angle`` /
+``.stage`` / ``.count`` straight off AIGym's ``SolutionResults`` and spend their
+logic budget on form faults instead.
+
+What this module adds on top of AIGym:
+
+* **Lifter locking** -- AIGym reports one entry per tracked person. A bystander
+  walking through frame would otherwise shift list indices and mix two people's
+  rep counts, so we lock onto a single track id (largest box on first sight) and
+  follow it.
+* **Normalized keypoints** -- AIGym works in pixels; every fault threshold in
+  ``exercises/`` is a fraction of frame width, so we surface ``xyn`` instead.
+* **A landmark shape the exercises already understand** -- ``Keypoint`` mirrors
+  the ``.x`` / ``.y`` / ``.visibility`` attribute access that ``BaseExercise``'s
+  ``lm()`` and ``visibility()`` helpers were already written against.
+"""
+
+import logging
 import os
-import pathlib
-import urllib.request
-import mediapipe as mp
-from mediapipe.tasks import python as mp_python
-from mediapipe.tasks.python import vision
+from dataclasses import dataclass
+from typing import Any, List, Optional
 
-_ROOT = pathlib.Path(__file__).parent.parent
+from ultralytics import solutions
+from ultralytics.solutions.solutions import SolutionAnnotator
+from ultralytics.utils import LOGGER as _ULTRALYTICS_LOGGER
 
-# Model variant. "full" is far more accurate than "lite" for the same landmark
-# schema; override with POSE_MODEL_VARIANT ("lite" | "full" | "heavy") if needed.
-_MODEL_VARIANT = os.getenv("POSE_MODEL_VARIANT", "full").lower()
-_MODEL_FILE = f"pose_landmarker_{_MODEL_VARIANT}.task"
-MODEL_PATH = str(_ROOT / _MODEL_FILE)
-MODEL_URL = (
-    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
-    f"pose_landmarker_{_MODEL_VARIANT}/float16/latest/{_MODEL_FILE}"
-)
+# Ultralytics logs at INFO/WARNING per *frame* -- most visibly "No tracks found"
+# on every frame where nobody is in shot, which for a full video is thousands of
+# lines per request. Errors still surface.
+_ULTRALYTICS_LOGGER.setLevel(logging.ERROR)
 
-POSE_CONNECTIONS = [
-    (11, 12), (11, 13), (13, 15), (12, 14), (14, 16),  # arms
-    (11, 23), (12, 24), (23, 24),                        # torso
-    (23, 25), (25, 27), (27, 29), (27, 31),              # left leg
-    (24, 26), (26, 28), (28, 30), (28, 32),              # right leg
-]
+# The one angle function for the whole service. Ultralytics' implementation is
+# mathematically identical to the hand-rolled one this module used to carry
+# (atan2 difference -> abs degrees -> 360-a when reflex), so we use theirs and
+# keep a single definition. Accepts plain [x, y] lists as well as numpy/torch.
+estimate_pose_angle = SolutionAnnotator.estimate_pose_angle
+
+# Model size knob: n | s | m | l | x. Nano is the default -- it is the variant
+# Ultralytics' own workout-monitoring examples use and is fast enough to keep
+# whole-video analysis interactive. Weights download automatically on first use.
+_MODEL_VARIANT = os.getenv("POSE_MODEL_VARIANT", "n").lower()
+MODEL_NAME = f"yolo26{_MODEL_VARIANT}-pose.pt"
+
+# COCO-17 keypoint indices, named so exercise modules and this file agree on
+# what each number means. YOLO pose models emit exactly these 17 points.
+NOSE = 0
+LEFT_EYE, RIGHT_EYE = 1, 2
+LEFT_EAR, RIGHT_EAR = 3, 4
+LEFT_SHOULDER, RIGHT_SHOULDER = 5, 6
+LEFT_ELBOW, RIGHT_ELBOW = 7, 8
+LEFT_WRIST, RIGHT_WRIST = 9, 10
+LEFT_HIP, RIGHT_HIP = 11, 12
+LEFT_KNEE, RIGHT_KNEE = 13, 14
+LEFT_ANKLE, RIGHT_ANKLE = 15, 16
 
 
-def ensure_model() -> str:
-    if not os.path.exists(MODEL_PATH):
-        print(f"Downloading pose model to {MODEL_PATH}...")
-        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
-        print("Model downloaded.")
-    return MODEL_PATH
+def _resolve_device() -> str:
+    """Inference device from POSE_DELEGATE ("cpu" | "gpu").
 
+    Dev machines set POSE_DELEGATE=cpu; the production GPU server leaves it at
+    the default. Ultralytics forwards this straight through to ``model.track``.
 
-def _resolve_delegate() -> "mp_python.BaseOptions.Delegate":
-    """Pick the inference delegate from POSE_DELEGATE ("cpu" | "gpu").
-
-    Dev machines run on CPU; the production GPU server sets POSE_DELEGATE=gpu.
-    Falls back to CPU on any unrecognized value.
+    Falls back to CPU when a GPU is asked for but CUDA is unavailable, so a
+    developer running the default config on a laptop gets slow analysis instead
+    of a hard failure mid-request.
     """
-    delegate = os.getenv("POSE_DELEGATE", "cpu").lower()
-    if delegate == "gpu":
-        return mp_python.BaseOptions.Delegate.GPU
-    return mp_python.BaseOptions.Delegate.CPU
+    if os.getenv("POSE_DELEGATE", "gpu").lower() != "gpu":
+        return "cpu"
+
+    import torch
+
+    if not torch.cuda.is_available():
+        logging.getLogger(__name__).warning(
+            "POSE_DELEGATE=gpu but CUDA is unavailable; falling back to CPU."
+        )
+        return "cpu"
+    return "cuda:0"
 
 
-def create_landmarker(model_path: str) -> vision.PoseLandmarker:
-    base_options = mp_python.BaseOptions(
-        model_asset_path=model_path,
-        delegate=_resolve_delegate(),
-    )
-    options = vision.PoseLandmarkerOptions(
-        base_options=base_options,
-        running_mode=vision.RunningMode.VIDEO,
-        min_pose_detection_confidence=0.5,
-        min_pose_presence_confidence=0.5,
-        min_tracking_confidence=0.5,
-    )
-    return vision.PoseLandmarker.create_from_options(options)
+@dataclass
+class Keypoint:
+    """One body landmark in normalized [0, 1] frame coordinates.
+
+    ``visibility`` is the model's per-keypoint confidence. It plays the role
+    MediaPipe's ``visibility`` used to: ``BaseExercise`` gates measurements on it
+    so an occluded joint is skipped rather than guessed at.
+    """
+
+    x: float
+    y: float
+    visibility: float
 
 
-def detect(landmarker: vision.PoseLandmarker, rgb_frame, timestamp_ms: int):
-    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-    result = landmarker.detect_for_video(mp_image, timestamp_ms)
-    if result.pose_landmarks:
-        return result.pose_landmarks[0]
-    return None
+@dataclass
+class PoseFrame:
+    """One frame of AIGym output, narrowed to the lifter we are following.
+
+    ``angle`` and ``keypoints`` are ``None`` on frames where nobody was tracked;
+    ``count`` still carries the last known rep total so the counter never appears
+    to go backwards when the lifter is briefly lost.
+    """
+
+    angle: Optional[float] = None
+    stage: str = "-"
+    count: int = 0
+    keypoints: Optional[List[Keypoint]] = None
+    plot_im: Any = None
+
+
+class PoseTracker:
+    """Runs one AIGym over a clip and reports on a single locked-on lifter."""
+
+    def __init__(self, exercise) -> None:
+        self.gym = solutions.AIGym(
+            model=MODEL_NAME,
+            kpts=exercise.kpts(),
+            up_angle=exercise.UP_ANGLE,
+            down_angle=exercise.DOWN_ANGLE,
+            device=_resolve_device(),
+            # Headless service: never try to open a window.
+            show=False,
+            # Silences the per-frame log line AIGym emits for every frame.
+            verbose=False,
+            # Drop AIGym's own angle/count/stage caption. It would duplicate the
+            # values overlay_renderer already prints in a fixed corner alongside
+            # the quality, tempo and coaching cues. The monitored joint is still
+            # drawn -- only the caption is gated on this flag.
+            show_labels=False,
+            line_width=2,
+        )
+        self._locked_id: Optional[int] = None
+        self._last_count: int = 0
+
+    def _select_index(self) -> Optional[int]:
+        """Index of the lifter we are following within this frame's track lists.
+
+        Locks onto the largest bounding box the first time anyone is seen (the
+        prominent, closest subject -- the person filming their set) and sticks
+        with that track id afterwards. If that id leaves the frame we re-lock,
+        which is the best available recovery: AIGym keys its rep state by track
+        id, so a lost track restarts counting either way.
+        """
+        track_ids = self.gym.track_ids
+        if not track_ids:
+            return None
+
+        if self._locked_id in track_ids:
+            return track_ids.index(self._locked_id)
+
+        boxes = self.gym.boxes
+        largest = max(
+            range(len(track_ids)),
+            key=lambda i: float(
+                (boxes[i][2] - boxes[i][0]) * (boxes[i][3] - boxes[i][1])
+            ),
+        )
+        self._locked_id = track_ids[largest]
+        return largest
+
+    def _keypoints(self, index: int) -> Optional[List[Keypoint]]:
+        """Normalized landmarks + confidence for the tracked lifter."""
+        kps = getattr(self.gym.tracks, "keypoints", None)
+        if kps is None or kps.xyn is None or index >= len(kps.xyn):
+            return None
+
+        xyn = kps.xyn[index].cpu().numpy()
+        # .data is (K, 3) as [x, y, conf] when the model emits confidence; older
+        # exports omit the third column, in which case we treat every detected
+        # point as fully visible rather than dropping the frame.
+        raw = kps.data[index].cpu().numpy() if kps.data is not None else None
+        confs = raw[:, 2] if raw is not None and raw.shape[1] > 2 else None
+
+        return [
+            Keypoint(
+                x=float(point[0]),
+                y=float(point[1]),
+                visibility=float(confs[i]) if confs is not None else 1.0,
+            )
+            for i, point in enumerate(xyn)
+        ]
+
+    def step(self, frame) -> PoseFrame:
+        """Feed one BGR frame to AIGym and return the locked lifter's state."""
+        results = self.gym(frame)
+
+        index = self._select_index()
+        if index is None:
+            return PoseFrame(count=self._last_count, plot_im=results.plot_im)
+
+        self._last_count = int(results.workout_count[index])
+        return PoseFrame(
+            angle=float(results.workout_angle[index]),
+            stage=str(results.workout_stage[index]),
+            count=self._last_count,
+            keypoints=self._keypoints(index),
+            plot_im=results.plot_im,
+        )

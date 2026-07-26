@@ -1,21 +1,12 @@
+"""Coaching overlay drawn on top of AIGym's annotated frame.
+
+AIGym already draws the monitored joint and stamps the angle/count/stage beside
+it, so there is no skeleton drawing here. What it does not know about -- the form
+quality score, rep tempo, and the fault/praise cues -- is what this module adds.
+"""
+
 import cv2
-from .pose_detector import POSE_CONNECTIONS
 from .exercises.base import FrameResult
-
-
-def draw_skeleton(frame, landmarks):
-    h, w, _ = frame.shape
-    for start_idx, end_idx in POSE_CONNECTIONS:
-        if start_idx < len(landmarks) and end_idx < len(landmarks):
-            s = landmarks[start_idx]
-            e = landmarks[end_idx]
-            cv2.line(frame,
-                     (int(s.x * w), int(s.y * h)),
-                     (int(e.x * w), int(e.y * h)),
-                     (0, 255, 0), 2)
-    for lm in landmarks:
-        cv2.circle(frame, (int(lm.x * w), int(lm.y * h)), 5, (0, 0, 255), -1)
-    return frame
 
 
 def _text_box(frame, text, position, font_scale=0.6, thickness=2,
