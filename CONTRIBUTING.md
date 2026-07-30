@@ -1,6 +1,6 @@
-# CLAUDE.md
+# Contributing
 
-Guidance for Claude Code when working in this repo.
+Guidance for working in this repo.
 
 ## What this project is
 
