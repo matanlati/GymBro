@@ -1,7 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 import dotenv from 'dotenv'
-dotenv.config({ path: path.resolve(__dirname, '../.env') })
+// Resolved from cwd so it works both in dev (ts-node from backend/) and in the
+// compiled prod layout (pm2 runs dist/src/server.js with cwd=backend/).
+dotenv.config({ path: path.resolve(process.cwd(), '.env') })
 
 import express from 'express'
 import cors from 'cors'

@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "sourceMap": false,
+    // Pinned so the emit stays dist/src/** even though only `src` is included.
+    // Without this, tsc infers rootDir=src and emits to dist/** instead,
+    // breaking `main`, `start`, and the dist/src/public frontend copy target.
+    "rootDir": "."
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "tests", "src/aiPlanEvaluation", "src/db/seed*.ts"]
+}
