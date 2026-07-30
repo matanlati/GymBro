@@ -8,8 +8,6 @@ module.exports = {
       exec_mode: 'fork',
       autorestart: true,
       max_memory_restart: '500M',
-      // A misconfigured .env exits instantly; back off and stop rather than
-      // spinning through hundreds of restarts.
       min_uptime: '10s',
       max_restarts: 5,
       restart_delay: 2000,

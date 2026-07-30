@@ -7,14 +7,12 @@ const IS_PROD = process.env.NODE_ENV === 'production'
 const accessCookieOptions: CookieOptions = {
   httpOnly: true,
   sameSite: 'lax',
-  secure: IS_PROD,
   maxAge: 15 * 60 * 1000,
 }
 
 const refreshCookieOptions: CookieOptions = {
   httpOnly: true,
   sameSite: 'lax',
-  secure: IS_PROD,
   maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 
