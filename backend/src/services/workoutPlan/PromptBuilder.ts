@@ -27,6 +27,8 @@ Instructions:
 - weeklyPlan must contain exactly ${questionnaireData.trainingDays} workout-day objects.
 - Do not include rest days, recovery days, or days without exercises in weeklyPlan.
 - Every weeklyPlan item must include day, focus, and a non-empty exercises array.
+- Every exercise object must include "name", "sets", and "reps".
+- "name", "sets", "reps", "durationMinutes", and "notes" must be strings, not numbers.
 - Consider the user's training level, injuries, and available equipment.
 - Include warm-up and cool-down if appropriate.
 - Provide sets and reps appropriate for their level.
@@ -67,6 +69,8 @@ IMPORTANT: Return ONLY the JSON object. Do not wrap it in markdown code blocks, 
 The previous response was rejected because it did not follow the required structure.
 Do not include entries such as { "day": "Wednesday (Rest Day)" }.
 Every weeklyPlan item must be a workout day with day, focus, and at least one exercise.
+Every exercise must include string fields "name", "sets", and "reps"; duration-based exercises
+must use "sets": "1", "reps": "N/A", and a string "durationMinutes" value.
 Return a corrected JSON object only.
 
 Previous invalid response:

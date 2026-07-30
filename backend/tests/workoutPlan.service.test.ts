@@ -12,6 +12,7 @@ import { WorkoutPlan } from '../src/models/WorkoutPlan.model'
 import WorkoutPlanService from '../src/services/workoutPlan/WorkoutPlanService'
 import AiModelService from '../src/services/workoutPlan/AiModelService'
 import RagRetrieverService from '../src/services/workoutPlan/RagRetrieverService'
+import { ResponseValidator } from '../src/services/workoutPlan/ResponseValidator'
 import { WorkoutPlan as WorkoutPlanDTO } from '../src/types'
 
 const MockWorkoutPlan = WorkoutPlan as jest.Mocked<typeof WorkoutPlan>
@@ -51,6 +52,118 @@ describe('WorkoutPlanService.generatePlan', () => {
     expect(MockAiModelService.generateResponse).toHaveBeenCalledTimes(2)
     expect(MockAiModelService.generateResponse.mock.calls[1][0]).toContain(
       'Do not include entries such as { "day": "Wednesday (Rest Day)" }.'
+    )
+  })
+})
+
+describe('ResponseValidator.validate', () => {
+  it('fills sets and reps for duration-based exercises when the model omits them', () => {
+    const plan = ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [{
+        day: 'Monday',
+        focus: 'Core',
+        exercises: [{ name: 'Plank', durationMinutes: '5' }],
+      }],
+    }))
+
+    expect(plan.weeklyPlan[0].exercises[0]).toEqual({
+      name: 'Plank',
+      sets: '1',
+      reps: 'N/A',
+      durationMinutes: '5',
+      notes: undefined,
+    })
+  })
+
+  it('omits blank optional exercise fields returned by the model', () => {
+    const plan = ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [{
+        day: 'Monday',
+        focus: 'Push',
+        exercises: [{
+          name: 'Bench',
+          sets: '3',
+          reps: '10',
+          notes: '',
+          durationMinutes: '   ',
+        }],
+      }],
+    }))
+
+    expect(plan.weeklyPlan[0].exercises[0]).toEqual({
+      name: 'Bench',
+      sets: '3',
+      reps: '10',
+      notes: undefined,
+      durationMinutes: undefined,
+    })
+  })
+
+  it('normalizes numeric set and rep values returned by the model', () => {
+    const plan = ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [{
+        day: 'Monday',
+        focus: 'Push',
+        exercises: [{ name: 'Bench', sets: 3, reps: 10, durationMinutes: 5 }],
+      }],
+    }))
+
+    expect(plan.weeklyPlan[0].exercises[0]).toEqual({
+      name: 'Bench',
+      sets: '3',
+      reps: '10',
+      durationMinutes: '5',
+      notes: undefined,
+    })
+  })
+
+  it('still rejects invalid optional exercise field types', () => {
+    expect(() => ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [{
+        day: 'Monday',
+        focus: 'Push',
+        exercises: [{ name: 'Bench', sets: '3', reps: '10', notes: ['bad'] }],
+      }],
+    }))).toThrow('notes must be a non-empty string when provided')
+  })
+
+  it('rejects normal exercises that omit reps', () => {
+    expect(() => ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [{
+        day: 'Monday',
+        focus: 'Push',
+        exercises: [{ name: 'Bench', sets: '3' }],
+      }],
+    }))).toThrow('weeklyPlan[0].exercises[0].reps must be a non-empty string')
+  })
+
+  it('rejects empty weekly plans and empty exercise lists', () => {
+    expect(() => ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [],
+    }))).toThrow('weeklyPlan must be a non-empty array')
+
+    expect(() => ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [{ day: 'Monday', focus: 'Push', exercises: [] }],
+    }))).toThrow('weeklyPlan[0].exercises must be a non-empty array')
+  })
+
+  it('rejects safety notes that are not strings', () => {
+    expect(() => ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      safetyNotes: ['Warm up', { text: 'bad' }],
+    }))).toThrow('safetyNotes[1] must be a non-empty string')
+  })
+
+  it('enforces the expected number of training days when provided', () => {
+    expect(() => ResponseValidator.validate(JSON.stringify(samplePlan), 2)).toThrow(
+      'weeklyPlan must contain exactly 2 workout days'
     )
   })
 })
