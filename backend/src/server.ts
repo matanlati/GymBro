@@ -1,4 +1,6 @@
 import fs from 'fs'
+import http from 'http'
+import https from 'https'
 import path from 'path'
 import dotenv from 'dotenv'
 // Resolved from cwd so it works both in dev (ts-node from backend/) and in the
@@ -65,9 +67,28 @@ if (publicDir) {
 
 app.use(errorHandler)
 
+// In development we serve plain HTTP; anywhere else we terminate TLS here with
+// the certs installed on the server.
+const isDev = (process.env.NODE_ENV || 'development') === 'development'
+const SSL_CERT_PATH = process.env.SSL_CERT_PATH || '/etc/ssl/cs/CSB.crt'
+const SSL_KEY_PATH = process.env.SSL_KEY_PATH || '/etc/ssl/cs/myserver.key'
+
+function createServer() {
+  if (isDev) return http.createServer(app)
+
+  const credentials = {
+    cert: fs.readFileSync(SSL_CERT_PATH),
+    key: fs.readFileSync(SSL_KEY_PATH),
+  }
+  return https.createServer(credentials, app)
+}
+
 connectDB()
   .then(() => {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+    const protocol = isDev ? 'http' : 'https'
+    createServer().listen(PORT, () =>
+      console.log(`Server running on ${protocol}://localhost:${PORT}`)
+    )
   })
   .catch((err: Error) => {
     console.error('Startup failed:', err.stack || err.message)
