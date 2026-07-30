@@ -1,0 +1,212 @@
+[
+  {
+    "profile_id": "PLAN-PROFILE-001",
+    "name": "Beginner muscle gain full gym",
+    "purpose": "Baseline beginner hypertrophy request with broad gym access.",
+    "questionnaire": {"age":"22","gender":"male","height":"178","weight":"72","fitnessGoal":"muscle_gain","trainingLevel":"beginner","trainingDays":"3","injuries":"","preferredWorkoutType":"strength","equipmentAvailable":"Gym, Dumbbells, Machines, Barbell"},
+    "expected": {"training_days":3,"equipment":["Gym","Dumbbells","Machines","Barbell"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-002",
+    "name": "Beginner weight loss at home",
+    "purpose": "Tests weight loss with minimal home equipment.",
+    "questionnaire": {"age":"34","gender":"female","height":"164","weight":"81","fitnessGoal":"weight_loss","trainingLevel":"beginner","trainingDays":"4","injuries":"","preferredWorkoutType":"mixed","equipmentAvailable":"Home, Bodyweight"},
+    "expected": {"training_days":4,"equipment":["Home","Bodyweight"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-003",
+    "name": "Intermediate strength barbell",
+    "purpose": "Tests strength programming with barbell-focused equipment.",
+    "questionnaire": {"age":"29","gender":"male","height":"183","weight":"88","fitnessGoal":"strength","trainingLevel":"intermediate","trainingDays":"4","injuries":"","preferredWorkoutType":"strength","equipmentAvailable":"Gym, Barbell"},
+    "expected": {"training_days":4,"equipment":["Gym","Barbell"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-004",
+    "name": "Advanced endurance limited days",
+    "purpose": "Tests an advanced athlete at the minimum supported frequency.",
+    "questionnaire": {"age":"31","gender":"female","height":"170","weight":"63","fitnessGoal":"endurance","trainingLevel":"advanced","trainingDays":"2","injuries":"","preferredWorkoutType":"cardio","equipmentAvailable":"Gym, Machines"},
+    "expected": {"training_days":2,"equipment":["Gym","Machines"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-005",
+    "name": "General fitness maximum days",
+    "purpose": "Tests the maximum frontend-supported training frequency.",
+    "questionnaire": {"age":"40","gender":"other","height":"175","weight":"76","fitnessGoal":"general_fitness","trainingLevel":"intermediate","trainingDays":"6","injuries":"","preferredWorkoutType":"mixed","equipmentAvailable":"Gym, Dumbbells, Machines, Bodyweight, Barbell, Kettlebells"},
+    "expected": {"training_days":6,"equipment":["Gym","Dumbbells","Machines","Bodyweight","Barbell","Kettlebells"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-006",
+    "name": "Beginner high availability",
+    "purpose": "Tests whether a beginner receives sensible volume across six days.",
+    "questionnaire": {"age":"19","gender":"male","height":"171","weight":"61","fitnessGoal":"general_fitness","trainingLevel":"beginner","trainingDays":"6","injuries":"","preferredWorkoutType":"mixed","equipmentAvailable":"Gym, Bodyweight"},
+    "expected": {"training_days":6,"equipment":["Gym","Bodyweight"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-007",
+    "name": "Advanced strength bodyweight only",
+    "purpose": "Difficult but valid strength request with limited equipment.",
+    "questionnaire": {"age":"27","gender":"female","height":"168","weight":"59","fitnessGoal":"strength","trainingLevel":"advanced","trainingDays":"3","injuries":"","preferredWorkoutType":"strength","equipmentAvailable":"Home, Bodyweight"},
+    "expected": {"training_days":3,"equipment":["Home","Bodyweight"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-008",
+    "name": "Intermediate hypertrophy machines",
+    "purpose": "Tests muscle gain with machine-only resistance choices.",
+    "questionnaire": {"age":"45","gender":"male","height":"180","weight":"92","fitnessGoal":"muscle_gain","trainingLevel":"intermediate","trainingDays":"5","injuries":"","preferredWorkoutType":"strength","equipmentAvailable":"Gym, Machines"},
+    "expected": {"training_days":5,"equipment":["Gym","Machines"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-009",
+    "name": "Endurance home cardio",
+    "purpose": "Tests endurance without gym equipment.",
+    "questionnaire": {"age":"26","gender":"female","height":"160","weight":"54","fitnessGoal":"endurance","trainingLevel":"beginner","trainingDays":"5","injuries":"","preferredWorkoutType":"cardio","equipmentAvailable":"Home, Bodyweight"},
+    "expected": {"training_days":5,"equipment":["Home","Bodyweight"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-010",
+    "name": "Weight loss kettlebells",
+    "purpose": "Tests weight loss with a single portable resistance modality.",
+    "questionnaire": {"age":"38","gender":"male","height":"176","weight":"101","fitnessGoal":"weight_loss","trainingLevel":"intermediate","trainingDays":"3","injuries":"","preferredWorkoutType":"mixed","equipmentAvailable":"Home, Kettlebells"},
+    "expected": {"training_days":3,"equipment":["Home","Kettlebells"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-011",
+    "name": "Knee pain general fitness",
+    "purpose": "Tests natural-language knee limitation handling.",
+    "questionnaire": {"age":"52","gender":"female","height":"162","weight":"74","fitnessGoal":"general_fitness","trainingLevel":"beginner","trainingDays":"3","injuries":"Chronic right knee pain; avoid deep knee flexion and jumping.","preferredWorkoutType":"mixed","equipmentAvailable":"Gym, Machines, Dumbbells"},
+    "expected": {"training_days":3,"equipment":["Gym","Machines","Dumbbells"],"constraints":["Chronic right knee pain","Avoid deep knee flexion","Avoid jumping"]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-012",
+    "name": "Lower back limitation strength",
+    "purpose": "Tests a strength request that excludes spinal loading.",
+    "questionnaire": {"age":"43","gender":"male","height":"185","weight":"96","fitnessGoal":"strength","trainingLevel":"intermediate","trainingDays":"4","injuries":"Recurring lower-back pain. Avoid conventional deadlifts and heavy axial loading.","preferredWorkoutType":"strength","equipmentAvailable":"Gym, Machines, Dumbbells"},
+    "expected": {"training_days":4,"equipment":["Gym","Machines","Dumbbells"],"constraints":["Recurring lower-back pain","Avoid conventional deadlifts","Avoid heavy axial loading"]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-013",
+    "name": "Shoulder injury hypertrophy",
+    "purpose": "Tests upper-body hypertrophy with an overhead restriction.",
+    "questionnaire": {"age":"36","gender":"female","height":"173","weight":"68","fitnessGoal":"muscle_gain","trainingLevel":"intermediate","trainingDays":"4","injuries":"Left shoulder impingement; no overhead pressing and avoid painful ranges.","preferredWorkoutType":"strength","equipmentAvailable":"Gym, Machines, Dumbbells"},
+    "expected": {"training_days":4,"equipment":["Gym","Machines","Dumbbells"],"constraints":["Left shoulder impingement","No overhead pressing","Avoid painful ranges"]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-014",
+    "name": "Ankle limitation endurance",
+    "purpose": "Tests low-impact endurance selection.",
+    "questionnaire": {"age":"48","gender":"male","height":"174","weight":"83","fitnessGoal":"endurance","trainingLevel":"beginner","trainingDays":"3","injuries":"Recovering from a left ankle sprain; use low-impact cardio and avoid running.","preferredWorkoutType":"cardio","equipmentAvailable":"Gym, Machines"},
+    "expected": {"training_days":3,"equipment":["Gym","Machines"],"constraints":["Left ankle sprain","Low-impact cardio","Avoid running"]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-015",
+    "name": "Wrist limitation bodyweight",
+    "purpose": "Tests a constraint that conflicts with common bodyweight movements.",
+    "questionnaire": {"age":"24","gender":"other","height":"169","weight":"66","fitnessGoal":"general_fitness","trainingLevel":"beginner","trainingDays":"2","injuries":"Wrist discomfort in extended positions; avoid floor push-ups and long planks.","preferredWorkoutType":"mixed","equipmentAvailable":"Home, Bodyweight"},
+    "expected": {"training_days":2,"equipment":["Home","Bodyweight"],"constraints":["Wrist discomfort","Avoid floor push-ups","Avoid long planks"]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-016",
+    "name": "Older beginner dumbbells",
+    "purpose": "Adds age diversity with conservative home resistance training.",
+    "questionnaire": {"age":"67","gender":"female","height":"158","weight":"69","fitnessGoal":"general_fitness","trainingLevel":"beginner","trainingDays":"2","injuries":"No diagnosed injury; balance is occasionally limited.","preferredWorkoutType":"strength","equipmentAvailable":"Home, Dumbbells"},
+    "expected": {"training_days":2,"equipment":["Home","Dumbbells"],"constraints":["Occasionally limited balance"]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-017",
+    "name": "Young advanced mixed",
+    "purpose": "Tests high-frequency advanced mixed programming.",
+    "questionnaire": {"age":"18","gender":"male","height":"190","weight":"84","fitnessGoal":"general_fitness","trainingLevel":"advanced","trainingDays":"6","injuries":"","preferredWorkoutType":"mixed","equipmentAvailable":"Gym, Dumbbells, Machines, Bodyweight, Barbell, Kettlebells"},
+    "expected": {"training_days":6,"equipment":["Gym","Dumbbells","Machines","Bodyweight","Barbell","Kettlebells"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-018",
+    "name": "Advanced muscle gain limited days",
+    "purpose": "Tests hypertrophy adequacy at minimum frequency.",
+    "questionnaire": {"age":"33","gender":"male","height":"182","weight":"86","fitnessGoal":"muscle_gain","trainingLevel":"advanced","trainingDays":"2","injuries":"","preferredWorkoutType":"strength","equipmentAvailable":"Gym, Dumbbells, Barbell"},
+    "expected": {"training_days":2,"equipment":["Gym","Dumbbells","Barbell"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-019",
+    "name": "Cardio preference muscle gain",
+    "purpose": "Difficult valid combination testing goal versus preference balance.",
+    "questionnaire": {"age":"30","gender":"female","height":"166","weight":"57","fitnessGoal":"muscle_gain","trainingLevel":"intermediate","trainingDays":"4","injuries":"","preferredWorkoutType":"cardio","equipmentAvailable":"Gym, Machines, Dumbbells"},
+    "expected": {"training_days":4,"equipment":["Gym","Machines","Dumbbells"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-020",
+    "name": "Strength preference endurance goal",
+    "purpose": "Difficult valid combination in the opposite direction.",
+    "questionnaire": {"age":"35","gender":"male","height":"179","weight":"79","fitnessGoal":"endurance","trainingLevel":"intermediate","trainingDays":"5","injuries":"","preferredWorkoutType":"strength","equipmentAvailable":"Gym, Barbell, Kettlebells"},
+    "expected": {"training_days":5,"equipment":["Gym","Barbell","Kettlebells"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-021",
+    "name": "Bodyweight weight loss high frequency",
+    "purpose": "Tests six-day weight loss programming without equipment.",
+    "questionnaire": {"age":"28","gender":"female","height":"155","weight":"78","fitnessGoal":"weight_loss","trainingLevel":"beginner","trainingDays":"6","injuries":"","preferredWorkoutType":"cardio","equipmentAvailable":"Home, Bodyweight"},
+    "expected": {"training_days":6,"equipment":["Home","Bodyweight"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-022",
+    "name": "Dumbbell-only strength",
+    "purpose": "Tests strength exercise selection without a barbell.",
+    "questionnaire": {"age":"41","gender":"male","height":"172","weight":"75","fitnessGoal":"strength","trainingLevel":"intermediate","trainingDays":"3","injuries":"","preferredWorkoutType":"strength","equipmentAvailable":"Home, Dumbbells"},
+    "expected": {"training_days":3,"equipment":["Home","Dumbbells"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-023",
+    "name": "Kettlebell general fitness",
+    "purpose": "Covers kettlebell-focused mixed training.",
+    "questionnaire": {"age":"37","gender":"female","height":"177","weight":"71","fitnessGoal":"general_fitness","trainingLevel":"advanced","trainingDays":"4","injuries":"","preferredWorkoutType":"mixed","equipmentAvailable":"Home, Kettlebells, Bodyweight"},
+    "expected": {"training_days":4,"equipment":["Home","Kettlebells","Bodyweight"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-024",
+    "name": "Machines-only weight loss",
+    "purpose": "Covers machines as the primary equipment choice.",
+    "questionnaire": {"age":"55","gender":"male","height":"168","weight":"94","fitnessGoal":"weight_loss","trainingLevel":"beginner","trainingDays":"4","injuries":"","preferredWorkoutType":"mixed","equipmentAvailable":"Gym, Machines"},
+    "expected": {"training_days":4,"equipment":["Gym","Machines"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-025",
+    "name": "Barbell advanced strength maximum",
+    "purpose": "Tests advanced volume and recovery at six days.",
+    "questionnaire": {"age":"25","gender":"female","height":"181","weight":"77","fitnessGoal":"strength","trainingLevel":"advanced","trainingDays":"6","injuries":"","preferredWorkoutType":"strength","equipmentAvailable":"Gym, Barbell"},
+    "expected": {"training_days":6,"equipment":["Gym","Barbell"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-026",
+    "name": "Unicode limitation input",
+    "purpose": "Verifies preservation of valid Unicode free text.",
+    "questionnaire": {"age":"32","gender":"other","height":"173","weight":"70","fitnessGoal":"general_fitness","trainingLevel":"intermediate","trainingDays":"3","injuries":"רגישות קלה בברך ימין — avoid jumping; café-work schedule.","preferredWorkoutType":"mixed","equipmentAvailable":"Gym, Dumbbells, Bodyweight"},
+    "expected": {"training_days":3,"equipment":["Gym","Dumbbells","Bodyweight"],"constraints":["Right-knee sensitivity","Avoid jumping"]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-027",
+    "name": "Whitespace free-text input",
+    "purpose": "Verifies accepted leading and trailing whitespace is preserved.",
+    "questionnaire": {"age":"46","gender":"female","height":"165","weight":"73","fitnessGoal":"endurance","trainingLevel":"intermediate","trainingDays":"4","injuries":"  Mild asthma; allow gradual warm-ups and avoid sudden all-out intervals.  ","preferredWorkoutType":"cardio","equipmentAvailable":"Gym, Machines"},
+    "expected": {"training_days":4,"equipment":["Gym","Machines"],"constraints":["Mild asthma","Gradual warm-ups","Avoid sudden all-out intervals"]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-028",
+    "name": "Long valid limitation input",
+    "purpose": "Tests a detailed but valid natural-language constraint.",
+    "questionnaire": {"age":"58","gender":"male","height":"187","weight":"108","fitnessGoal":"weight_loss","trainingLevel":"beginner","trainingDays":"3","injuries":"I have medical clearance for light-to-moderate exercise, but prolonged kneeling is uncomfortable, rapid direction changes aggravate my right knee, and high-impact jumping should be excluded. Prefer stable positions, gradual progressions, longer transitions, and low-impact conditioning. Stop any movement that causes sharp pain.","preferredWorkoutType":"mixed","equipmentAvailable":"Gym, Machines, Dumbbells"},
+    "expected": {"training_days":3,"equipment":["Gym","Machines","Dumbbells"],"constraints":["No prolonged kneeling","No rapid direction changes","No high-impact jumping","Low-impact conditioning"]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-029",
+    "name": "Small adult cardio minimum",
+    "purpose": "Adds low height and weight boundary coverage at two days.",
+    "questionnaire": {"age":"21","gender":"female","height":"145","weight":"45","fitnessGoal":"endurance","trainingLevel":"advanced","trainingDays":"2","injuries":"","preferredWorkoutType":"cardio","equipmentAvailable":"Home, Bodyweight"},
+    "expected": {"training_days":2,"equipment":["Home","Bodyweight"],"constraints":[]}
+  },
+  {
+    "profile_id": "PLAN-PROFILE-030",
+    "name": "Large adult hypertrophy full gym",
+    "purpose": "Adds high height and weight coverage with full hypertrophy equipment.",
+    "questionnaire": {"age":"64","gender":"male","height":"205","weight":"140","fitnessGoal":"muscle_gain","trainingLevel":"intermediate","trainingDays":"5","injuries":"No current injury; prioritize controlled tempo and manageable conditioning intensity.","preferredWorkoutType":"strength","equipmentAvailable":"Gym, Dumbbells, Machines, Barbell, Kettlebells"},
+    "expected": {"training_days":5,"equipment":["Gym","Dumbbells","Machines","Barbell","Kettlebells"],"constraints":["Controlled tempo","Manageable conditioning intensity"]}
+  }
+]
