@@ -3,6 +3,5 @@ node_modules/
 uploads/
 dist/
 *.log
-logs/
 .claude
 test-evidence/
