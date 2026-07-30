@@ -2700,8 +2700,41 @@ button {
 .trainee-session-history-title h2, .trainee-session-history-title p { margin: 0; }
 .trainee-session-history-title h2 { color: #111827; font-size: 17px; }
 .trainee-session-history-title p { color: #94a3b8; font-size: 11px; margin-top: 2px; }
-.trainee-plan-empty .gb-empty-state { display: grid; justify-items: center; gap: 8px; text-align: center; }
-.trainee-plan-empty .gb-empty-state > svg { color: #f97316; }
+.trainee-plan-empty {
+  overflow: hidden;
+  border-color: #fed7aa;
+  background: linear-gradient(135deg, #fff 0%, #fffaf7 100%);
+}
+.trainee-plan-empty .gb-empty-state {
+  min-height: 130px;
+  align-content: center;
+  gap: 14px;
+  padding: 28px 20px;
+}
+.trainee-plan-empty .gb-empty-state__icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #fff1e8;
+  color: #f97316;
+}
+.trainee-plan-empty .gb-empty-state__message {
+  display: grid;
+  max-width: 520px;
+  gap: 6px;
+  line-height: 1.55;
+}
+.trainee-plan-empty .gb-empty-state__message strong {
+  color: #172033;
+  font-size: 16px;
+}
+.trainee-plan-empty .gb-empty-state__message span {
+  display: block;
+  color: #64748b;
+}
+.trainee-plan-empty .gb-empty-state__action { margin-top: 2px; }
 .coach-managed-plan-message { display: grid; align-content: start; justify-items: start; gap: 16px; }
 
 @media (max-width: 780px) {

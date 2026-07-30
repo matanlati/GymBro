@@ -178,13 +178,13 @@ const WorkoutsPage = () => {
         </section>
       ) : (
         <Card className="trainee-plan-empty">
-          <EmptyState>
-            <Dumbbell size={26} />
+          <EmptyState
+            icon={<Dumbbell />}
+            action={!hasCoach && <Button onClick={openNewPlan}>Create Workout Plan</Button>}
+          >
             <strong>No active workout plan</strong>
             <span>Create a plan to see your weekly workouts and exercise overview here.</span>
-            {hasCoach
-              ? <span>Your coach has not assigned a workout plan yet.</span>
-              : <Button onClick={openNewPlan}>Create Workout Plan</Button>}
+            {hasCoach && <span>Your coach has not assigned a workout plan yet.</span>}
           </EmptyState>
         </Card>
       )}
