@@ -47,7 +47,7 @@ export function generatePlan(data: QuestionnaireData) {
 }
 
 export function getActivePlan() {
-  return client.get<WorkoutPlan>('/plans/active')
+  return client.get<WorkoutPlan | null>('/plans/active')
 }
 
 export function listPlans() {

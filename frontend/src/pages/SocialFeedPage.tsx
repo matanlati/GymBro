@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom'
 import { Alert, Button, Card, EmptyState, LoadingState, PageHeader } from '@gymbro/ui-kit'
 import { addComment, createPost, FeedScope, listPosts, toggleLike, WorkoutPost } from '../api/posts.api'
 import { listSessions, Session } from '../api/sessions.api'
-import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { useAuth } from '../context/AuthContext'
 import { Heart } from 'lucide-react'
 
@@ -19,9 +18,8 @@ const formatSessionDate = (iso: string) =>
 const initials = (name: string) =>
   name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join('') || 'G'
 
-const sessionName = (session: Session, plan: WorkoutPlan | null) => {
+const sessionName = (session: Session) => {
   if (session.title) return session.title
-  if (plan?._id === session.planId) return plan.weeklyPlan?.[session.dayIndex]?.focus ?? plan.title
   return session.exercises?.[0]?.name ? `${session.exercises[0].name} workout` : `Workout on ${formatSessionDate(session.scheduledDate)}`
 }
 
@@ -45,7 +43,6 @@ const SocialFeedPage = () => {
   } | null
   const [posts, setPosts] = useState<WorkoutPost[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
-  const [plan, setPlan] = useState<WorkoutPlan | null>(null)
   const [loading, setLoading] = useState(true)
   const [composerOpen, setComposerOpen] = useState(state?.openComposer === true)
   const [sessionId, setSessionId] = useState(state?.sessionId ?? '')
@@ -66,10 +63,7 @@ const SocialFeedPage = () => {
   const isShoutout = !!shoutoutTraineeId
 
   useEffect(() => {
-    Promise.all([
-      listSessions().then(({ data }) => setSessions(data.filter(session => !!session.completedAt))),
-      getActivePlan().then(({ data }) => setPlan(data)).catch(() => setPlan(null)),
-    ])
+    listSessions().then(({ data }) => setSessions(data.filter(session => !!session.completedAt)))
   }, [])
 
   useEffect(() => {
@@ -107,10 +101,10 @@ const SocialFeedPage = () => {
 
   useEffect(() => {
     if (isShoutout || !selectedSession) return
-    const name = sessionName(selectedSession, plan)
+    const name = sessionName(selectedSession)
     setWorkoutName(name)
     setPostTitle(name)
-  }, [isShoutout, selectedSession, plan])
+  }, [isShoutout, selectedSession])
 
   const openComposer = () => {
     setError('')
@@ -374,7 +368,7 @@ const SocialFeedPage = () => {
                     <option value="" disabled>Select workout</option>
                     {sessions.map(session => (
                       <option value={session._id} key={session._id}>
-                        {sessionName(session, plan)} - {formatSessionDate(session.scheduledDate)}
+                        {sessionName(session)} - {formatSessionDate(session.scheduledDate)}
                       </option>
                     ))}
                   </select>

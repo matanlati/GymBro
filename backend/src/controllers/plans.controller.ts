@@ -30,7 +30,6 @@ export async function listPlans(req: AuthRequest, res: Response) {
 export async function getActivePlan(req: AuthRequest, res: Response) {
   try {
     const plan = await WorkoutPlanService.getActivePlan(req.user!.userId)
-    if (!plan) return notFound(res, 'No active plan')
     return res.json(plan)
   } catch (err) {
     return serverError(res, err)
