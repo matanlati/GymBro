@@ -23,7 +23,10 @@ function requiredString(value: unknown, path: string): string {
 function optionalString(value: unknown, path: string): string | undefined {
   if (value === undefined || value === null) return undefined
   if (typeof value === 'number' && Number.isFinite(value)) return String(value)
-  if (typeof value === 'string' && value.trim()) return value
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed ? value : undefined
+  }
   throw new Error(`${path} must be a non-empty string when provided`)
 }
 

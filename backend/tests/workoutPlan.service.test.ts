@@ -12,6 +12,7 @@ import { WorkoutPlan } from '../src/models/WorkoutPlan.model'
 import WorkoutPlanService from '../src/services/workoutPlan/WorkoutPlanService'
 import AiModelService from '../src/services/workoutPlan/AiModelService'
 import RagRetrieverService from '../src/services/workoutPlan/RagRetrieverService'
+import { ResponseValidator } from '../src/services/workoutPlan/ResponseValidator'
 import { WorkoutPlan as WorkoutPlanDTO } from '../src/types'
 
 const MockWorkoutPlan = WorkoutPlan as jest.Mocked<typeof WorkoutPlan>
@@ -52,6 +53,63 @@ describe('WorkoutPlanService.generatePlan', () => {
     expect(MockAiModelService.generateResponse.mock.calls[1][0]).toContain(
       'Do not include entries such as { "day": "Wednesday (Rest Day)" }.'
     )
+  })
+})
+
+describe('ResponseValidator.validate', () => {
+  it('omits blank optional exercise fields returned by the model', () => {
+    const plan = ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [{
+        day: 'Monday',
+        focus: 'Push',
+        exercises: [{
+          name: 'Bench',
+          sets: '3',
+          reps: '10',
+          notes: '',
+          durationMinutes: '   ',
+        }],
+      }],
+    }))
+
+    expect(plan.weeklyPlan[0].exercises[0]).toEqual({
+      name: 'Bench',
+      sets: '3',
+      reps: '10',
+      notes: undefined,
+      durationMinutes: undefined,
+    })
+  })
+
+  it('normalizes numeric set and rep values returned by the model', () => {
+    const plan = ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [{
+        day: 'Monday',
+        focus: 'Push',
+        exercises: [{ name: 'Bench', sets: 3, reps: 10, durationMinutes: 5 }],
+      }],
+    }))
+
+    expect(plan.weeklyPlan[0].exercises[0]).toEqual({
+      name: 'Bench',
+      sets: '3',
+      reps: '10',
+      durationMinutes: '5',
+      notes: undefined,
+    })
+  })
+
+  it('still rejects invalid optional exercise field types', () => {
+    expect(() => ResponseValidator.validate(JSON.stringify({
+      ...samplePlan,
+      weeklyPlan: [{
+        day: 'Monday',
+        focus: 'Push',
+        exercises: [{ name: 'Bench', sets: '3', reps: '10', notes: ['bad'] }],
+      }],
+    }))).toThrow('notes must be a non-empty string when provided')
   })
 })
 
