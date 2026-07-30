@@ -13,11 +13,11 @@ class WorkoutPlanService {
     const prompt = PromptBuilder.buildPrompt(questionnaireData, retrievedContext)
     const aiResponse = await AiModelService.generateResponse(prompt)
     try {
-      return ResponseValidator.validate(aiResponse)
+      return ResponseValidator.validate(aiResponse, questionnaireData.trainingDays)
     } catch {
       const correctionPrompt = PromptBuilder.buildCorrectionPrompt(prompt, aiResponse)
       const correctedResponse = await AiModelService.generateResponse(correctionPrompt)
-      return ResponseValidator.validate(correctedResponse)
+      return ResponseValidator.validate(correctedResponse, questionnaireData.trainingDays)
     }
   }
 
