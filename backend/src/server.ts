@@ -1,7 +1,12 @@
 import fs from 'fs'
+import http from 'http'
+import https from 'https'
 import path from 'path'
 import dotenv from 'dotenv'
-dotenv.config({ path: path.resolve(__dirname, '../.env') })
+// Resolved from cwd so it works both in dev (ts-node from backend/) and in the
+// compiled prod layout (pm2 runs dist/src/server.js with cwd=backend/).
+const envPath = path.resolve(process.cwd(), '.env')
+dotenv.config({ path: envPath })
 
 import express from 'express'
 import cors from 'cors'
@@ -24,6 +29,7 @@ const app = express()
 const PORT = process.env.PORT || 3001
 const upload = multer({ dest: 'uploads/' })
 
+console.log('[env] file:', envPath, fs.existsSync(envPath) ? '✓ found' : '✗ NOT FOUND')
 console.log('[env] GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✓ loaded' : '✗ MISSING')
 console.log('[env] JWT_SECRET:', process.env.JWT_SECRET ? '✓ loaded' : '✗ MISSING')
 console.log('[env] MONGODB_URI:', process.env.MONGODB_URI ? '✓ loaded' : '✗ MISSING')
@@ -61,11 +67,30 @@ if (publicDir) {
 
 app.use(errorHandler)
 
+// In development we serve plain HTTP; anywhere else we terminate TLS here with
+// the certs installed on the server.
+const isDev = (process.env.NODE_ENV || 'development') === 'development'
+const SSL_CERT_PATH = process.env.SSL_CERT_PATH || '/etc/ssl/cs/CSB.crt'
+const SSL_KEY_PATH = process.env.SSL_KEY_PATH || '/etc/ssl/cs/myserver.key'
+
+function createServer() {
+  if (isDev) return http.createServer(app)
+
+  const credentials = {
+    cert: fs.readFileSync(SSL_CERT_PATH),
+    key: fs.readFileSync(SSL_KEY_PATH),
+  }
+  return https.createServer(credentials, app)
+}
+
 connectDB()
   .then(() => {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+    const protocol = isDev ? 'http' : 'https'
+    createServer().listen(PORT, () =>
+      console.log(`Server running on ${protocol}://localhost:${PORT}`)
+    )
   })
   .catch((err: Error) => {
-    console.error('Failed to connect to MongoDB:', err.message)
+    console.error('Startup failed:', err.stack || err.message)
     process.exit(1)
   })

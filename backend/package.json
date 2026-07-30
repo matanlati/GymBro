@@ -14,7 +14,9 @@
     "ai-plans:generate": "ts-node src/aiPlanEvaluation/runner.ts",
     "ai-plans:staging-csv": "ts-node src/aiPlanEvaluation/stagingCsv.ts",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "build:prod": "tsc -p tsconfig_prod.json",
+    "prod": "git pull && npm ci && npm --prefix ../frontend ci && npm --prefix ../frontend run build && npm run build:prod && mkdir -p dist/src/public && cp -r ../frontend/dist/* dist/src/public/ && pm2 startOrReload ecosystem.config.js --update-env"
   },
   "dependencies": {
     "@types/cookie-parser": "^1.4.10",

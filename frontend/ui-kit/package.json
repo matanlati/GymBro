@@ -12,9 +12,8 @@
       "import": "./src/index.ts"
     }
   },
-  "sideEffects": [
-    "**/*.css"
-  ],
+  "_sideEffectsNote": "Must stay true: the kit's styles are .less, so a glob like **/*.css marks them side-effect-free and Rollup drops tokens.less from the prod build, leaving every var(--gb-*) unresolved.",
+  "sideEffects": true,
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
