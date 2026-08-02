@@ -2166,6 +2166,174 @@ button {
   font-size: 12px;
 }
 
+.dropzone.is-locked {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.dropzone.is-locked:hover {
+  border-color: #e5e7eb;
+  background: transparent;
+}
+
+/* Trim step */
+.trimmer {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  text-align: left;
+}
+
+.trimmer.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.trimmer-video {
+  width: 100%;
+  max-height: 320px;
+  display: block;
+  background: #000;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+.trimmer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trimmer-controls .gb-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trimmer-duration {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.trimmer-track {
+  position: relative;
+  height: 44px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.trimmer-selection {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(249, 115, 22, 0.16);
+  border-left: 2px solid #f97316;
+  border-right: 2px solid #f97316;
+  pointer-events: none;
+}
+
+.trimmer-handle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 14px;
+  margin-left: -7px;
+  border-radius: 6px;
+  background: #f97316;
+  border: 1px solid #ea580c;
+  cursor: ew-resize;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  transition: background-color 0.15s;
+}
+
+/* Visible grip stays slim; the real hit target is padded out to ~44px so the
+   handle is comfortably draggable on touch without looking oversized. */
+.trimmer-handle::before {
+  content: '';
+  position: absolute;
+  inset: 0 -15px;
+}
+
+.trimmer-handle::after {
+  content: '';
+  width: 2px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 1px;
+}
+
+.trimmer-handle:hover {
+  background: #ea580c;
+}
+
+.trimmer-handle.is-dragging {
+  background: #ea580c;
+  transition: none;
+}
+
+.trimmer-handle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.28);
+}
+
+.trimmer-playhead {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 0;
+  width: 2px;
+  background: #0f172a;
+  border-radius: 1px;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.trimmer-times {
+  display: flex;
+  justify-content: space-between;
+  color: #6b7280;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trimmer-hint {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.trim-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.trim-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #f97316, #ea580c);
+  transition: width 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trimmer-handle,
+  .trim-progress span {
+    transition: none;
+  }
+}
+
 /* Side column */
 .aicoach-side {
   display: grid;
@@ -2465,6 +2633,15 @@ button {
 
   .aicoach-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .trimmer-video {
+    max-height: 220px;
+  }
+
+  .trimmer-controls {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

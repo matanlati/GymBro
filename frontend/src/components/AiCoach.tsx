@@ -9,6 +9,8 @@ import {
   EvaluationIssue,
   RecentAnalysis,
 } from '../api/video.api'
+import VideoTrimmer, { TrimRange } from './VideoTrimmer'
+import { cancelTrim, isTrimSupported, preloadTrimmer, trimVideo } from '../utils/videoTrim'
 
 // `value` is the pose-service registry key (sent to the API); `label` is the
 // human-facing name shown in the dropdown.
@@ -182,16 +184,35 @@ const ResultsPanel = ({ evaluation, onAnalyzeAnother }: { evaluation: Evaluation
   )
 }
 
+type SubmitPhase = 'idle' | 'preparing' | 'trimming' | 'analyzing'
+type TrimmerStatus = 'unsupported' | 'loading' | 'ready' | 'failed'
+
+// A range within this much of [0, duration] on both ends is treated as "the
+// whole clip" - ffmpeg is skipped and the original file uploads byte-for-byte.
+const FULL_RANGE_EPSILON = 0.05
+
 const AiCoach = () => {
   const [file, setFile] = useState<File | null>(null)
   const [exerciseType, setExerciseType] = useState(EXERCISE_TYPES[0].value)
   const [side, setSide] = useState<BodySide>('left')
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [phase, setPhase] = useState<SubmitPhase>('idle')
+  const [trimProgress, setTrimProgress] = useState(0)
+  const [trimmerStatus, setTrimmerStatus] = useState<TrimmerStatus>(
+    isTrimSupported() ? 'loading' : 'unsupported'
+  )
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const [recent, setRecent] = useState<RecentAnalysis[]>([])
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [duration, setDuration] = useState<number | null>(null)
+  const [range, setRange] = useState<TrimRange | null>(null)
+  const [previewFailed, setPreviewFailed] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const jobTokenRef = useRef(0)
+
+  const busy = phase !== 'idle'
 
   useEffect(() => {
     listAnalyses()
@@ -199,8 +220,25 @@ const AiCoach = () => {
       .catch(() => setRecent([]))
   }, [])
 
+  // Single place that owns the preview object URL's lifetime - covers both
+  // "picked a different file" and unmount cleanup.
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  // Terminates the ffmpeg worker if the user navigates away mid-job.
+  useEffect(() => () => cancelTrim(), [])
+
   const pickFile = (f: File | null) => {
+    if (busy) return
     setError(null)
+    setNotice(null)
     if (!f) return
     if (!ACCEPTED.includes(f.type)) {
       setError('Unsupported format. Use MP4, MOV, or WebM.')
@@ -210,12 +248,25 @@ const AiCoach = () => {
       setError('File is too large. Maximum size is 100MB.')
       return
     }
+    jobTokenRef.current += 1
+    setDuration(null)
+    setRange(null)
+    setPreviewFailed(false)
+    setTrimProgress(0)
     setFile(f)
+
+    if (isTrimSupported()) {
+      setTrimmerStatus('loading')
+      preloadTrimmer()
+        .then(() => setTrimmerStatus('ready'))
+        .catch(() => setTrimmerStatus('failed'))
+    }
   }
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setDragActive(false)
+    if (busy) return
     pickFile(e.dataTransfer.files?.[0] ?? null)
   }
 
@@ -225,25 +276,58 @@ const AiCoach = () => {
       setError('Please choose a video first.')
       return
     }
-    setLoading(true)
+    const token = ++jobTokenRef.current
+    setPhase('preparing')
     setError(null)
+    setNotice(null)
     setEvaluation(null)
+    setTrimProgress(0)
+
+    const isFullRange =
+      !range || duration == null || (range.start <= FULL_RANGE_EPSILON && range.end >= duration - FULL_RANGE_EPSILON)
+
+    let uploadFile = file
+    if (!isFullRange && range && trimmerStatus === 'ready' && !previewFailed) {
+      setPhase('trimming')
+      try {
+        uploadFile = await trimVideo(file, range.start, range.end, (ratio) => {
+          if (jobTokenRef.current === token) setTrimProgress(ratio)
+        })
+      } catch {
+        uploadFile = file
+        if (jobTokenRef.current === token) {
+          setNotice('Trimming failed — analyzing the full video instead.')
+        }
+      }
+    }
+
+    if (jobTokenRef.current !== token) return
+
+    setPhase('analyzing')
     try {
-      const { data } = await analyzeVideo(file, exerciseType, side)
+      const { data } = await analyzeVideo(uploadFile, exerciseType, side)
+      if (jobTokenRef.current !== token) return
       setEvaluation(data.evaluation)
       const { data: list } = await listAnalyses()
       setRecent(list)
     } catch {
-      setError('Failed to analyze video. Please try again.')
+      if (jobTokenRef.current === token) setError('Failed to analyze video. Please try again.')
     } finally {
-      setLoading(false)
+      if (jobTokenRef.current === token) setPhase('idle')
     }
   }
 
   const analyzeAnother = () => {
+    jobTokenRef.current += 1
     setEvaluation(null)
     setFile(null)
     setError(null)
+    setNotice(null)
+    setDuration(null)
+    setRange(null)
+    setPreviewFailed(false)
+    setTrimProgress(0)
+    setPhase('idle')
   }
 
   return (
@@ -288,13 +372,14 @@ const AiCoach = () => {
             </FormField>
 
             <div
-              className={dragActive ? 'dropzone active' : 'dropzone'}
-              onClick={() => inputRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+              className={`dropzone${dragActive ? ' active' : ''}${busy ? ' is-locked' : ''}`}
+              onClick={() => !busy && inputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); if (!busy) setDragActive(true) }}
               onDragLeave={() => setDragActive(false)}
               onDrop={onDrop}
               role="button"
-              tabIndex={0}
+              tabIndex={busy ? -1 : 0}
+              aria-disabled={busy}
             >
               <Icon name="upload" />
               {file ? (
@@ -313,13 +398,49 @@ const AiCoach = () => {
                 type="file"
                 accept="video/mp4,video/quicktime,video/webm"
                 hidden
+                disabled={busy}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => pickFile(e.target.files?.[0] ?? null)}
               />
             </div>
 
+            {file && previewUrl && !previewFailed && (
+              <VideoTrimmer
+                src={previewUrl}
+                value={range}
+                onChange={setRange}
+                onDurationChange={setDuration}
+                onPreviewError={() => setPreviewFailed(true)}
+                disabled={busy}
+                hint="Cuts snap to the nearest keyframe, so up to a second before your start point may be included."
+              />
+            )}
+
+            {file && previewFailed && (
+              <Alert variant="info">Can&rsquo;t preview this video here — it will be analyzed in full.</Alert>
+            )}
+
+            {notice && <Alert variant="info">{notice}</Alert>}
             {error && <Alert variant="error">{error}</Alert>}
 
-            <Button type="submit" fullWidth loading={loading} loadingLabel="Analyzing…" disabled={!file}>
+            {phase === 'trimming' && (
+              <div className="trim-progress" role="progressbar" aria-valuenow={Math.round(trimProgress * 100)} aria-valuemin={0} aria-valuemax={100}>
+                <span style={{ width: `${Math.round(trimProgress * 100)}%` }} />
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              fullWidth
+              loading={busy}
+              loadingLabel={
+                phase === 'preparing'
+                  ? 'Preparing…'
+                  : phase === 'trimming'
+                    ? `Trimming video… ${Math.round(trimProgress * 100)}%`
+                    : 'Analyzing…'
+              }
+              disabled={!file || busy}
+            >
               Analyze Video
             </Button>
           </form>
