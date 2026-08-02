@@ -9,7 +9,11 @@ What it adds on top of AIGym:
 
 * **Lifter locking** -- AIGym reports one entry per tracked person, so a
   bystander walking through frame would shift list indices and mix two people's
-  rep counts. We lock onto one track id and follow it.
+  rep counts. We pick the lifter by center-weighted bounding-box size, confirm
+  the choice over a few frames before committing, and follow that track id --
+  with a grace window so a brief dropout doesn't hand the lock to a bystander.
+  BoT-SORT + ReID (see ``botsort_reid.yaml``) keeps that id stable across
+  occlusion and people crossing, so the lock rarely has to re-select at all.
 * **Normalized keypoints** -- AIGym works in pixels; every fault threshold in
   ``exercises/`` is a fraction of frame width, so we surface ``xyn`` instead.
 * **A landmark shape the exercises understand** -- ``Keypoint`` mirrors the
@@ -39,6 +43,15 @@ estimate_pose_angle = SolutionAnnotator.estimate_pose_angle
 # analysis interactive. Weights download automatically on first use.
 _MODEL_VARIANT = os.getenv("POSE_MODEL_VARIANT", "n").lower()
 MODEL_NAME = f"yolo26{_MODEL_VARIANT}-pose.pt"
+
+# Tracker config passed to AIGym. Defaults to our BoT-SORT + ReID file next to
+# this module, which keeps the lifter's track id stable across occlusion and
+# people crossing. Override with POSE_TRACKER to fall back to stock
+# "botsort.yaml" / "bytetrack.yaml" or to point at another config.
+TRACKER_CFG = os.getenv(
+    "POSE_TRACKER",
+    os.path.join(os.path.dirname(__file__), "botsort_reid.yaml"),
+)
 
 # COCO-17 keypoint indices, named so exercise modules and this file agree on
 # what each number means. YOLO pose models emit exactly these 17 points.
@@ -105,6 +118,15 @@ class PoseFrame:
 class PoseTracker:
     """Runs one AIGym over a clip and reports on a single locked-on lifter."""
 
+    # Frames the same candidate must win before we commit the lock, so a person
+    # crossing frame before the lifter settles cannot steal it.
+    _CONFIRM_FRAMES = 5
+    # Frames the locked lifter may be missing before we give up and re-select.
+    # BoT-SORT's track_buffer usually restores the same id within this window,
+    # so we hold the lock across brief occlusions/exits instead of grabbing a
+    # bystander the moment the lifter blinks out.
+    _RELOCK_GRACE = 15
+
     def __init__(self, exercise) -> None:
         self.gym = solutions.AIGym(
             model=MODEL_NAME,
@@ -112,37 +134,89 @@ class PoseTracker:
             up_angle=exercise.UP_ANGLE,
             down_angle=exercise.DOWN_ANGLE,
             device=_resolve_device(),
+            tracker=TRACKER_CFG,
             verbose=False,
             line_width=2,
         )
         self._locked_id: Optional[int] = None
         self._last_count: int = 0
+        # Lock-selection state.
+        self._last_winner: Optional[int] = None
+        self._streak: int = 0
+        self._missing_frames: int = 0
 
-    def _select_index(self) -> Optional[int]:
+    @staticmethod
+    def _subject_score(box, width: int, height: int) -> float:
+        """Bounding-box area weighted by how centered it is in the frame.
+
+        Area alone picks the closest person, but a large bystander at the edge
+        would beat a centered lifter; multiplying by a center-proximity factor
+        (1 at the middle, falling to 0 toward the corners) keeps the subject the
+        clip is actually framed around.
+        """
+        area = (box[2] - box[0]) * (box[3] - box[1])
+        cx, cy = (box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0
+        dist = (((cx - width / 2.0) / width) ** 2
+                + ((cy - height / 2.0) / height) ** 2) ** 0.5
+        return float(area) * max(0.0, 1.0 - dist)
+
+    def _select_index(self, width: int, height: int) -> Optional[int]:
         """Index of the lifter we are following within this frame's track lists.
 
-        Locks onto the largest bounding box the first time anyone is seen -- the
-        closest subject, i.e. the person filming their set -- and sticks with
-        that track id. If it leaves the frame we re-lock, which is the best
-        available recovery: AIGym keys its rep state by track id, so a lost
-        track restarts counting either way.
+        Once locked we simply follow that track id. Choosing it is the careful
+        part: we score every track by center-weighted size and require the same
+        candidate to win ``_CONFIRM_FRAMES`` frames in a row before committing,
+        so a bystander who appears first or briefly looms large cannot capture
+        the lock. While the locked lifter is missing we hold the lock for
+        ``_RELOCK_GRACE`` frames (ReID usually brings the same id back) before
+        re-selecting; AIGym keys rep state by track id, so a true re-lock
+        restarts counting either way.
         """
         track_ids = self.gym.track_ids
         if not track_ids:
+            if self._locked_id is not None:
+                self._missing_frames += 1
+                if self._missing_frames > self._RELOCK_GRACE:
+                    self._reset_selection()
             return None
 
         if self._locked_id in track_ids:
+            self._missing_frames = 0
             return track_ids.index(self._locked_id)
 
+        # Locked lifter not in this frame: keep waiting out the grace window
+        # before we consider handing the lock to someone else.
+        if self._locked_id is not None:
+            self._missing_frames += 1
+            if self._missing_frames <= self._RELOCK_GRACE:
+                return None
+            self._reset_selection()
+
         boxes = self.gym.boxes
-        largest = max(
+        best = max(
             range(len(track_ids)),
-            key=lambda i: float(
-                (boxes[i][2] - boxes[i][0]) * (boxes[i][3] - boxes[i][1])
-            ),
+            key=lambda i: self._subject_score(boxes[i], width, height),
         )
-        self._locked_id = track_ids[largest]
-        return largest
+        winner_id = track_ids[best]
+
+        if winner_id == self._last_winner:
+            self._streak += 1
+        else:
+            self._last_winner, self._streak = winner_id, 1
+        if self._streak >= self._CONFIRM_FRAMES:
+            self._locked_id = winner_id
+            self._missing_frames = 0
+
+        # Follow the provisional best during the warm-up: a rep cannot complete
+        # in _CONFIRM_FRAMES frames, so reading its state early is harmless.
+        return best
+
+    def _reset_selection(self) -> None:
+        """Drop the lock and its selection state so re-selection starts clean."""
+        self._locked_id = None
+        self._last_winner = None
+        self._streak = 0
+        self._missing_frames = 0
 
     def _keypoints(self, index: int) -> Optional[List[Keypoint]]:
         """Normalized landmarks + confidence for the tracked lifter."""
@@ -170,7 +244,8 @@ class PoseTracker:
         """Feed one BGR frame to AIGym and return the locked lifter's state."""
         results = self.gym(frame)
 
-        index = self._select_index()
+        height, width = frame.shape[:2]
+        index = self._select_index(width, height)
         if index is None:
             return PoseFrame(count=self._last_count, plot_im=results.plot_im)
 
