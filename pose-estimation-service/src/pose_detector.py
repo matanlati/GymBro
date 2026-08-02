@@ -18,12 +18,17 @@ What it adds on top of AIGym:
   ``exercises/`` is a fraction of frame width, so we surface ``xyn`` instead.
 * **A landmark shape the exercises understand** -- ``Keypoint`` mirrors the
   attribute access ``BaseExercise.lm()`` and ``.visibility()`` expect.
+* **Jitter smoothing** -- the pose model predicts each frame independently, so
+  even a motionless joint drifts a little frame to frame. A One Euro Filter
+  (see ``_OneEuroFilter``) is applied per keypoint, tuned to damp that
+  still-frame noise without lagging behind a fast-moving joint mid-rep.
 """
 
 import logging
+import math
 import os
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 from ultralytics import solutions
 from ultralytics.solutions.solutions import SolutionAnnotator
@@ -41,7 +46,7 @@ estimate_pose_angle = SolutionAnnotator.estimate_pose_angle
 # Model size knob: n | s | m | l | x. Nano is the variant Ultralytics' own
 # workout-monitoring examples use and is fast enough to keep whole-video
 # analysis interactive. Weights download automatically on first use.
-_MODEL_VARIANT = os.getenv("POSE_MODEL_VARIANT", "n").lower()
+_MODEL_VARIANT = os.getenv("POSE_MODEL_VARIANT", "x").lower()
 MODEL_NAME = f"yolo26{_MODEL_VARIANT}-pose.pt"
 
 # Tracker config passed to AIGym. Defaults to our BoT-SORT + ReID file next to
@@ -86,6 +91,56 @@ def _resolve_device() -> str:
     return "cuda:0"
 
 
+# Smoothing knobs for the One Euro Filter (see `_OneEuroFilter`). min_cutoff
+# trades lag for jitter on a still joint; beta trades jitter for lag on a fast
+# one. Casiez et al.'s defaults (1.0 / 0.007) are tuned for mouse-pointer
+# smoothing; lifts move faster than a cursor, so beta is raised to keep the
+# skeleton from lagging behind a barbell during the concentric phase.
+_SMOOTH_MIN_CUTOFF = float(os.getenv("POSE_SMOOTH_MIN_CUTOFF", "1.0"))
+_SMOOTH_BETA = float(os.getenv("POSE_SMOOTH_BETA", "0.1"))
+
+
+class _OneEuroFilter:
+    """Adaptive low-pass filter for one scalar signal (Casiez et al., 2012).
+
+    Plain exponential smoothing needs a fixed cutoff: low enough to kill
+    still-frame jitter, but that same cutoff then lags behind a fast-moving
+    joint. This filter raises its own cutoff in proportion to the signal's
+    estimated speed, so a still keypoint gets smoothed hard while a keypoint
+    mid-rep is barely delayed.
+    """
+
+    def __init__(self, freq: float, min_cutoff: float, beta: float, d_cutoff: float = 1.0):
+        self._freq = freq
+        self._min_cutoff = min_cutoff
+        self._beta = beta
+        self._d_cutoff = d_cutoff
+        self._x_prev: Optional[float] = None
+        self._dx_prev: float = 0.0
+
+    @staticmethod
+    def _alpha(cutoff: float, freq: float) -> float:
+        tau = 1.0 / (2 * math.pi * cutoff)
+        te = 1.0 / freq
+        return 1.0 / (1.0 + tau / te)
+
+    def __call__(self, x: float) -> float:
+        if self._x_prev is None:
+            self._x_prev = x
+            return x
+
+        dx = (x - self._x_prev) * self._freq
+        a_d = self._alpha(self._d_cutoff, self._freq)
+        dx_hat = a_d * dx + (1 - a_d) * self._dx_prev
+
+        cutoff = self._min_cutoff + self._beta * abs(dx_hat)
+        a = self._alpha(cutoff, self._freq)
+        x_hat = a * x + (1 - a) * self._x_prev
+
+        self._x_prev, self._dx_prev = x_hat, dx_hat
+        return x_hat
+
+
 @dataclass
 class Keypoint:
     """One body landmark in normalized [0, 1] frame coordinates.
@@ -113,6 +168,11 @@ class PoseFrame:
     count: int = 0
     keypoints: Optional[List[Keypoint]] = None
     plot_im: Any = None
+
+
+# Distinct from any real track id (including `None`, used pre-lock) so the
+# smoother is always (re)built the first time `_keypoints` runs.
+_NO_SMOOTHER_BUILT_YET = object()
 
 
 class PoseTracker:
@@ -144,6 +204,12 @@ class PoseTracker:
         self._last_winner: Optional[int] = None
         self._streak: int = 0
         self._missing_frames: int = 0
+        # Per-keypoint jitter smoothing (17 (x, y) filter pairs), rebuilt
+        # whenever the locked identity changes so we never blend one person's
+        # trajectory into another's after a re-lock.
+        self._fps: float = getattr(exercise, "fps", 30.0) or 30.0
+        self._smoothers: Optional[List[Tuple[_OneEuroFilter, _OneEuroFilter]]] = None
+        self._smoothed_track_id: Any = _NO_SMOOTHER_BUILT_YET
 
     @staticmethod
     def _subject_score(box, width: int, height: int) -> float:
@@ -231,10 +297,22 @@ class PoseTracker:
         raw = kps.data[index].cpu().numpy() if kps.data is not None else None
         confs = raw[:, 2] if raw is not None and raw.shape[1] > 2 else None
 
+        # A fresh identity (new lock, or lock lost then re-acquired) must not
+        # be smoothed against the previous lifter's trajectory.
+        if self._smoothed_track_id != self._locked_id:
+            self._smoothers = [
+                (
+                    _OneEuroFilter(self._fps, _SMOOTH_MIN_CUTOFF, _SMOOTH_BETA),
+                    _OneEuroFilter(self._fps, _SMOOTH_MIN_CUTOFF, _SMOOTH_BETA),
+                )
+                for _ in range(len(xyn))
+            ]
+            self._smoothed_track_id = self._locked_id
+
         return [
             Keypoint(
-                x=float(point[0]),
-                y=float(point[1]),
+                x=self._smoothers[i][0](float(point[0])),
+                y=self._smoothers[i][1](float(point[1])),
                 visibility=float(confs[i]) if confs is not None else 1.0,
             )
             for i, point in enumerate(xyn)
