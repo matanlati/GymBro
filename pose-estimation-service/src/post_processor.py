@@ -13,6 +13,7 @@ the metrics, so the API never fails because of the LLM.
 import json
 import logging
 import os
+import time
 from typing import Any, Dict, List, Optional
 
 from .llm_client import LLMClient
@@ -659,8 +660,10 @@ def enrich_analysis(
     """
     prompt = build_enrichment_prompt(_build_analysis_payload(result))
 
+    started = time.perf_counter()
     try:
         client = client or LLMClient()
+        logger.info("Requesting LLM enrichment (model=%s)", client.config.default_model)
         response = client.generate_response(
             # Headroom matters more than it looks: the prompt asks for 3-5
             # positives, 3-5 recommendations, 2-4 tips and one entry per fault,
@@ -671,9 +674,15 @@ def enrich_analysis(
         raw_text = response.get("response") if isinstance(response, dict) else None
         if not raw_text:
             raise ValueError("Empty response from LLM")
-        return _parse_llm_response(raw_text, result, video_url)
+        enriched = _parse_llm_response(raw_text, result, video_url)
+        logger.info(
+            "LLM enrichment succeeded in %.2fs", time.perf_counter() - started
+        )
+        return enriched
     except Exception as error:  # noqa: BLE001 - enrichment must never break the API
         logger.warning(
-            "LLM enrichment failed, using deterministic response: %s", error
+            "LLM enrichment failed after %.2fs, using deterministic response: %s",
+            time.perf_counter() - started,
+            error,
         )
         return _deterministic_response(result, video_url)

@@ -27,27 +27,36 @@ What it adds on top of AIGym:
 import logging
 import math
 import os
+import time
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ultralytics import solutions
 from ultralytics.solutions.solutions import SolutionAnnotator
 from ultralytics.utils import LOGGER as _ULTRALYTICS_LOGGER
+from ultralytics.utils import YAML
+from ultralytics.utils.checks import check_yaml
+from ultralytics.utils.downloads import attempt_download_asset
+
+from .logging_config import ultralytics_log_level
 
 # Ultralytics logs at INFO/WARNING per *frame* -- most visibly "No tracks found"
 # on every frame where nobody is in shot, which for a full video is thousands of
 # lines per request. Errors still surface.
 _ULTRALYTICS_LOGGER.setLevel(logging.ERROR)
 
+logger = logging.getLogger(__name__)
+
 # The one angle function for the whole service. Accepts plain [x, y] lists as
 # well as numpy/torch.
 estimate_pose_angle = SolutionAnnotator.estimate_pose_angle
 
-# Model size knob: n | s | m | l | x. Nano is the variant Ultralytics' own
-# workout-monitoring examples use and is fast enough to keep whole-video
-# analysis interactive. Weights download automatically on first use.
-_MODEL_VARIANT = os.getenv("POSE_MODEL_VARIANT", "x").lower()
-MODEL_NAME = f"yolo26{_MODEL_VARIANT}-pose.pt"
+# Model size knob: n | s | m | l | x. Left unset it follows the inference
+# device -- the extra-large model is worth its cost on a GPU but is far too slow
+# for whole-video analysis on CPU, where medium keeps requests interactive. Set
+# POSE_MODEL_VARIANT to pin one explicitly (e.g. "n" on a weak CPU).
+_GPU_VARIANT = "x"
+_CPU_VARIANT = "m"
 
 # Tracker config passed to AIGym. Defaults to our BoT-SORT + ReID file next to
 # this module, which keeps the lifter's track id stable across occlusion and
@@ -71,7 +80,24 @@ LEFT_KNEE, RIGHT_KNEE = 13, 14
 LEFT_ANKLE, RIGHT_ANKLE = 15, 16
 
 
-def _resolve_device() -> str:
+# Resolved once per process and reused: the device probe imports torch and the
+# weights fetch may hit the network, neither of which belongs in a request. Each
+# is logged the first time it is computed, so the console records exactly what
+# this process is running with.
+_device: Optional[str] = None
+_model_name: Optional[str] = None
+_weights_path: Optional[str] = None
+_reid_weights_path: Optional[str] = None
+
+# Ultralytics' fallback ReID encoder for a BoT-SORT config that asks for ReID
+# with `model: auto` but whose detector head cannot supply backbone features --
+# which is what happens with the YOLO26 *pose* head, despite the comment in
+# botsort_reid.yaml. Mirrored from ultralytics/trackers/track.py
+# (on_predict_start), where it is a literal rather than an exported constant.
+_AUTO_REID_WEIGHTS = "yolo26n-cls.pt"
+
+
+def _detect_device() -> str:
     """Inference device from POSE_DELEGATE ("cpu" | "gpu").
 
     Falls back to CPU when a GPU is asked for but CUDA is unavailable, so a
@@ -84,11 +110,143 @@ def _resolve_device() -> str:
     import torch
 
     if not torch.cuda.is_available():
-        logging.getLogger(__name__).warning(
-            "POSE_DELEGATE=gpu but CUDA is unavailable; falling back to CPU."
-        )
+        logger.warning("POSE_DELEGATE=gpu but CUDA is unavailable; falling back to CPU.")
         return "cpu"
     return "cuda:0"
+
+
+def resolve_device() -> str:
+    """Cached inference device. Probes (and logs) once per process."""
+    global _device
+    if _device is None:
+        _device = _detect_device()
+        logger.info(
+            "Pose inference device: %s (POSE_DELEGATE=%s)",
+            _device,
+            os.getenv("POSE_DELEGATE", "gpu"),
+        )
+    return _device
+
+
+def model_name() -> str:
+    """Cached weights filename, e.g. "yolo26m-pose.pt"."""
+    global _model_name
+    if _model_name is None:
+        override = os.getenv("POSE_MODEL_VARIANT")
+        variant = (
+            override.lower()
+            if override
+            else (_GPU_VARIANT if resolve_device().startswith("cuda") else _CPU_VARIANT)
+        )
+        _model_name = f"yolo26{variant}-pose.pt"
+        logger.info(
+            "Pose model variant: %s -> %s (%s)",
+            variant,
+            _model_name,
+            "POSE_MODEL_VARIANT" if override else "device default",
+        )
+    return _model_name
+
+
+def _ensure_reid_weights() -> Optional[str]:
+    """Pre-fetch the tracker's ReID encoder weights, if its config uses any.
+
+    Same trap as the pose weights, one layer down: BoT-SORT builds its ReID
+    encoder on the first *tracked frame*, so an absent encoder is downloaded
+    mid-analysis. Called from ``ensure_model_weights`` so startup covers both.
+    """
+    global _reid_weights_path
+    if _reid_weights_path is not None:
+        return _reid_weights_path
+
+    cfg = YAML.load(check_yaml(TRACKER_CFG))
+    if not cfg.get("with_reid"):
+        logger.info("Tracker ReID is off, no encoder weights needed")
+        return None
+
+    name = cfg.get("model", "auto")
+    if name == "auto":
+        # Ultralytics decides between backbone features and this file only once
+        # the detector is loaded. Fetching it unconditionally costs a few MB of
+        # disk and buys the guarantee that no request ever downloads.
+        name = _AUTO_REID_WEIGHTS
+        logger.info(
+            "Tracker ReID model=auto - pre-fetching %s in case backbone features "
+            "are unavailable",
+            name,
+        )
+    if not str(name).endswith(".pt"):
+        logger.info("Tracker ReID encoder %s is not a weights file, skipping", name)
+        return None
+
+    with ultralytics_log_level(logging.INFO):
+        _reid_weights_path = os.path.abspath(attempt_download_asset(name))
+    logger.info("Tracker ReID encoder ready at %s", _reid_weights_path)
+    return _reid_weights_path
+
+
+def ensure_model_weights() -> str:
+    """Resolve the pose weights to a local path, downloading them at most once.
+
+    Called from the app's startup hook so the download never lands inside a
+    request -- ``YOLO(name)`` fetches weights on construction, and AIGym builds
+    one per clip, so without this the first analysis on a fresh box stalls on a
+    multi-hundred-MB download and can time out the caller. Subsequent calls
+    return the cached path without touching the filesystem or the network.
+    """
+    global _weights_path
+    if _weights_path is not None:
+        return _weights_path
+
+    name = model_name()
+    logger.info(
+        "Resolving pose weights %s (device=%s, tracker=%s)",
+        name,
+        resolve_device(),
+        TRACKER_CFG,
+    )
+
+    started = time.perf_counter()
+    if os.path.exists(name):
+        logger.info("Pose weights already present, no download needed")
+        _weights_path = os.path.abspath(name)
+    else:
+        logger.info(
+            "Pose weights not found locally - downloading from Ultralytics assets "
+            "(one time only, this process will not download again)"
+        )
+        # attempt_download_asset resolves the file without loading it into torch,
+        # and already checks the Ultralytics weights_dir as well as the CWD.
+        with ultralytics_log_level(logging.INFO):
+            _weights_path = os.path.abspath(attempt_download_asset(name))
+
+    size_mb = os.path.getsize(_weights_path) / 1e6
+    logger.info(
+        "Pose weights ready at %s (%.1f MB) in %.2fs",
+        _weights_path,
+        size_mb,
+        time.perf_counter() - started,
+    )
+
+    try:
+        _ensure_reid_weights()
+    except Exception:
+        # Non-fatal: the tracker will fetch it itself on the first frame. Log it
+        # so that in-request download is at least explained when it happens.
+        logger.exception("Could not pre-fetch tracker ReID weights")
+
+    return _weights_path
+
+
+def model_status() -> Dict[str, Any]:
+    """Model readiness for the /health payload."""
+    return {
+        "name": _model_name,
+        "weights_path": _weights_path,
+        "reid_weights_path": _reid_weights_path,
+        "device": _device,
+        "ready": _weights_path is not None,
+    }
 
 
 # Smoothing knobs for the One Euro Filter (see `_OneEuroFilter`). min_cutoff
@@ -188,15 +346,26 @@ class PoseTracker:
     _RELOCK_GRACE = 15
 
     def __init__(self, exercise) -> None:
+        # Pass the already-resolved absolute path rather than the bare filename:
+        # AIGym hands it to YOLO(), which would otherwise re-resolve it against
+        # the process CWD and download it if missing. Startup has normally run
+        # this already, so it is a cached no-op here.
+        weights = ensure_model_weights()
+        started = time.perf_counter()
         self.gym = solutions.AIGym(
-            model=MODEL_NAME,
+            model=weights,
             kpts=exercise.kpts(),
             up_angle=exercise.UP_ANGLE,
             down_angle=exercise.DOWN_ANGLE,
-            device=_resolve_device(),
+            device=resolve_device(),
             tracker=TRACKER_CFG,
             verbose=False,
             line_width=2,
+        )
+        logger.debug(
+            "AIGym ready for %s in %.2fs",
+            type(exercise).__name__,
+            time.perf_counter() - started,
         )
         self._locked_id: Optional[int] = None
         self._last_count: int = 0

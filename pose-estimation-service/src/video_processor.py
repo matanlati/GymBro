@@ -1,7 +1,9 @@
 import cv2
+import logging
 import os
 import subprocess
 import tempfile
+import time
 import requests
 import imageio_ffmpeg
 from datetime import datetime
@@ -13,7 +15,13 @@ from . import overlay_renderer
 from .exercises import get_exercise
 from .exercises.base import BaseExercise
 
+logger = logging.getLogger(__name__)
+
 OUTPUT_DIR = "output_videos"
+
+# Frames between progress lines while decoding a clip. DEBUG-only -- at INFO the
+# pipeline reports once, on completion.
+_PROGRESS_EVERY = 100
 
 
 @dataclass
@@ -34,12 +42,20 @@ class ProcessingResult:
 
 
 def download_video(url: str) -> str:
+    logger.info("Downloading source video")
+    started = time.perf_counter()
     response = requests.get(url, stream=True, timeout=30)
     response.raise_for_status()
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+    written = 0
     for chunk in response.iter_content(chunk_size=8192):
-        tmp.write(chunk)
+        written += tmp.write(chunk)
     tmp.close()
+    logger.info(
+        "Source video downloaded: %.1f MB in %.2fs",
+        written / 1e6,
+        time.perf_counter() - started,
+    )
     return tmp.name
 
 
@@ -47,6 +63,7 @@ def save_upload(data: bytes) -> str:
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     tmp.write(data)
     tmp.close()
+    logger.info("Upload buffered to disk: %.1f MB", len(data) / 1e6)
     return tmp.name
 
 
@@ -65,9 +82,18 @@ def _transcode_to_h264(src: str, dst: str) -> None:
         "-movflags", "+faststart", "-an",
         dst,
     ]
+    logger.info("Transcoding annotated video to H.264")
+    started = time.perf_counter()
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
+        logger.error("ffmpeg exited %d: %s", proc.returncode, proc.stderr.strip())
         raise RuntimeError(f"H.264 transcode failed: {proc.stderr.strip()}")
+    logger.info(
+        "Transcode done: %s (%.1f MB) in %.2fs",
+        os.path.basename(dst),
+        os.path.getsize(dst) / 1e6,
+        time.perf_counter() - started,
+    )
 
 
 def _output_path(exercise_type: str, output_filename: Optional[str]) -> str:
@@ -90,6 +116,15 @@ def _run_pipeline(
     fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    declared_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    logger.info(
+        "Clip opened: %dx%d @ %d fps, %d frames (~%.1fs)",
+        width,
+        height,
+        fps,
+        declared_frames,
+        declared_frames / fps if fps else 0.0,
+    )
 
     # Let the analyzer report per-rep durations in real seconds, not frames.
     exercise.fps = float(fps)
@@ -107,6 +142,7 @@ def _run_pipeline(
 
     frames_total = 0
     frames_with_pose = 0
+    started = time.perf_counter()
     try:
         while cap.isOpened():
             ret, frame = cap.read()
@@ -114,6 +150,13 @@ def _run_pipeline(
                 break
 
             frames_total += 1
+            if frames_total % _PROGRESS_EVERY == 0:
+                logger.debug(
+                    "Analyzed %d/%d frames (%d with pose)",
+                    frames_total,
+                    declared_frames,
+                    frames_with_pose,
+                )
             pose = tracker.step(frame)
             frame = pose.plot_im if pose.plot_im is not None else frame
 
@@ -129,6 +172,16 @@ def _run_pipeline(
         # Grade a last rep that AIGym counted but the clip ended before the
         # lifter completed, so our rep total matches AIGym's.
         exercise.finish_set()
+
+        elapsed = time.perf_counter() - started
+        logger.info(
+            "Pose pass done: %d frames, %d with pose (%.0f%%) in %.1fs (%.1f fps)",
+            frames_total,
+            frames_with_pose,
+            100.0 * frames_with_pose / frames_total if frames_total else 0.0,
+            elapsed,
+            frames_total / elapsed if elapsed else 0.0,
+        )
 
         cap.release()
         writer.release()
@@ -210,6 +263,10 @@ def _process(
     """
     exercise = get_exercise(exercise_type, side)
     out_path = _output_path(exercise_type, output_filename)
+    logger.info(
+        "Analyzing %s (side=%s) -> %s", exercise_type, side, os.path.basename(out_path)
+    )
+    started = time.perf_counter()
     video_path = None
     frames_total = frames_with_pose = 0
     try:
@@ -221,9 +278,16 @@ def _process(
                 os.unlink(video_path)
             except OSError:
                 pass
-    return _build_result(
+    result = _build_result(
         exercise, out_path, exercise_type, side, frames_total, frames_with_pose
     )
+    logger.info(
+        "Processing finished in %.1fs: %d reps, avg quality %.1f",
+        time.perf_counter() - started,
+        result.total_reps,
+        result.average_quality,
+    )
+    return result
 
 
 def process_video(

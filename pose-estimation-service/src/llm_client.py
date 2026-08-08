@@ -113,7 +113,15 @@ class LLMClient:
             "format": options.get("format", "json"),
             "options": model_options,
         }
-        return self._make_request("/api/generate", "POST", request)
+        started = time.perf_counter()
+        response = self._make_request("/api/generate", "POST", request)
+        logger.info(
+            "LLM %s responded in %.2fs (prompt %d chars)",
+            self.config.default_model,
+            time.perf_counter() - started,
+            len(request["prompt"]),
+        )
+        return response
 
     def list_available_models(self) -> Dict[str, Any]:
         return self._make_request("/api/tags", "GET")
