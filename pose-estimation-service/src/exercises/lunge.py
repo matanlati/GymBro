@@ -24,7 +24,7 @@ class Lunge(BaseExercise):
     # AIGym measures the front-knee angle (hip-knee-ankle).
     KPTS_LEFT = [11, 13, 15]
     KPTS_RIGHT = [12, 14, 16]
-    DOWN_ANGLE = 125.0
+    DOWN_ANGLE = 100.0
     UP_ANGLE = 155.0
     _DEPTH_GOOD = 100.0  # front thigh at parallel
 
