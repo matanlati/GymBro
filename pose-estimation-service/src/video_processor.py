@@ -1,6 +1,7 @@
 import cv2
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -18,6 +19,10 @@ from .exercises.base import BaseExercise
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = "output_videos"
+
+# Callers may name the annotated video (the backend derives it from the source
+# video's content hash). Restrict it to a plain .mp4 basename.
+_SAFE_OUTPUT_NAME = re.compile(r"^[A-Za-z0-9._-]+\.mp4$")
 
 # Frames between progress lines while decoding a clip. DEBUG-only -- at INFO the
 # pipeline reports once, on completion.
@@ -99,7 +104,11 @@ def _transcode_to_h264(src: str, dst: str) -> None:
 def _output_path(exercise_type: str, output_filename: Optional[str]) -> str:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     if output_filename:
-        return os.path.join(OUTPUT_DIR, output_filename)
+        # Caller-supplied, so it must never escape OUTPUT_DIR.
+        name = os.path.basename(output_filename)
+        if not _SAFE_OUTPUT_NAME.match(name):
+            raise ValueError(f"Invalid output_filename: {output_filename}")
+        return os.path.join(OUTPUT_DIR, name)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     return os.path.join(OUTPUT_DIR, f"{exercise_type}_{ts}.mp4")
 
