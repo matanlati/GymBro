@@ -68,6 +68,8 @@ const handleCoachError = (res: Response, err: unknown) => {
       return res.status(400).json({ error: 'TRAINEE_ALREADY_HAS_COACH', message: 'This trainee already has a coach' })
     case 'COACH_CAPACITY_REACHED':
       return res.status(409).json({ error: 'COACH_CAPACITY_REACHED', message: 'You have reached your trainee capacity. Increase it in your profile before inviting another trainee.' })
+    case 'TRAINEE_HAS_NO_COACH':
+      return res.status(400).json({ error: 'TRAINEE_HAS_NO_COACH', message: 'You are not currently working with a coach' })
     case 'INVITE_NOT_FOUND':
       return res.status(404).json({ error: 'INVITE_NOT_FOUND', message: 'Invite not found' })
     case 'USER_NOT_FOUND':
@@ -342,6 +344,15 @@ export async function listMyInvites(req: AuthRequest, res: Response) {
   try {
     const invites = await coachService.listMyInvites(req.user!.userId)
     return res.json(invites)
+  } catch (err) {
+    return handleCoachError(res, err)
+  }
+}
+
+export async function leaveCoach(req: AuthRequest, res: Response) {
+  try {
+    const result = await coachService.leaveCoach(req.user!.userId)
+    return res.json(result)
   } catch (err) {
     return handleCoachError(res, err)
   }

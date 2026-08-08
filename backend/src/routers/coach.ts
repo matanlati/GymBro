@@ -20,6 +20,7 @@ import {
   listCoachInvites,
   listCoachTodayWorkouts,
   listCoachTrainees,
+  leaveCoach,
   listMyInvites,
   removeCoachTrainee,
   removeCoachTraineeWorkoutType,
@@ -62,6 +63,7 @@ router.get('/trainees/:id/notes', getCoachTraineeNotes)
 router.put('/trainees/:id/notes', saveCoachTraineeNotes)
 router.delete('/trainees/:id', removeCoachTrainee)
 router.get('/my-invites', listMyInvites)
+router.delete('/my-coach', leaveCoach)
 router.post('/invites/:id/accept', acceptInvite)
 
 export default router

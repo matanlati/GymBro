@@ -658,6 +658,21 @@ export async function removeTrainee(coachUserId: string, traineeId: string) {
   return trainee
 }
 
+export async function leaveCoach(traineeUserId: string) {
+  const trainee = await requireUser(traineeUserId)
+  if (trainee.role !== 'trainee') throw new Error('TRAINEE_ONLY')
+  if (!trainee.coachId) throw new Error('TRAINEE_HAS_NO_COACH')
+
+  const coachId = trainee.coachId
+  await User.updateOne({ _id: trainee._id }, { $unset: { coachId: 1 } })
+  await CoachInvite.updateMany(
+    { traineeId: trainee._id, coachId, status: 'pending' },
+    { $set: { status: 'declined' } }
+  )
+
+  return { coachId: String(coachId), leftAt: new Date() }
+}
+
 export async function listMyInvites(traineeUserId: string) {
   const trainee = await requireUser(traineeUserId)
   if (trainee.role !== 'trainee') throw new Error('TRAINEE_ONLY')

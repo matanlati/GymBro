@@ -207,6 +207,10 @@ export function listMyCoachInvites() {
   return client.get<CoachInvite[]>('/coach/my-invites')
 }
 
+export function leaveMyCoach() {
+  return client.delete<{ coachId: string; leftAt: string }>('/coach/my-coach')
+}
+
 export function acceptCoachInvite(inviteId: string) {
   return client.post<CoachInvite>(`/coach/invites/${inviteId}/accept`)
 }
