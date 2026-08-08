@@ -11,8 +11,8 @@ import {
   ProgressSummary,
 } from '../api/progress.api'
 import { AxiosError } from 'axios'
-import { BarChart2, LogOut, Camera, Scale, UserRoundCheck, BellRing } from 'lucide-react'
-import { CoachAlertSettings, getCoachAlertSettings, listCoachTodayWorkouts, listCoachTrainees, updateCoachAlertSettings } from '../api/coach.api'
+import { BarChart2, LogOut, Camera, Scale, UserRoundCheck, UserRoundX, BellRing } from 'lucide-react'
+import { CoachAlertSettings, getCoachAlertSettings, leaveMyCoach, listCoachTodayWorkouts, listCoachTrainees, updateCoachAlertSettings } from '../api/coach.api'
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 function IconEmail() {
@@ -95,6 +95,9 @@ export default function ProfilePage() {
   const [settingsError, setSettingsError] = useState('')
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [coachOverview, setCoachOverview] = useState({ trainees: 0, pendingReviews: 0 })
+  const [confirmingLeaveCoach, setConfirmingLeaveCoach] = useState(false)
+  const [leavingCoach, setLeavingCoach] = useState(false)
+  const [leaveCoachError, setLeaveCoachError] = useState('')
 
   useEffect(() => {
     getMe().then(({ data }) => {
@@ -212,6 +215,21 @@ export default function ProfilePage() {
       setSettingsError(axiosErr.response?.data?.message || 'Failed to save coaching alert settings')
     } finally {
       setSettingsSaving(false)
+    }
+  }
+
+  async function handleLeaveCoach() {
+    setLeavingCoach(true)
+    setLeaveCoachError('')
+    try {
+      await leaveMyCoach()
+      setProfile(prev => prev ? { ...prev, coachId: undefined } : prev)
+      setConfirmingLeaveCoach(false)
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message: string }>
+      setLeaveCoachError(axiosErr.response?.data?.message || 'Failed to leave your coach')
+    } finally {
+      setLeavingCoach(false)
     }
   }
 
@@ -449,20 +467,58 @@ export default function ProfilePage() {
 
       {coach ? (
         <Card padding="none" style={{ ...styles.card, ...styles.coachCard }}>
-          <div style={styles.coachIcon}>
-            <UserRoundCheck size={20} strokeWidth={1.8} />
+          <div style={styles.coachRow}>
+            <div style={styles.coachIcon}>
+              <UserRoundCheck size={20} strokeWidth={1.8} />
+            </div>
+            {coach.photo ? (
+              <img src={coach.photo} alt="" style={styles.coachAvatarImage} />
+            ) : (
+              <div style={styles.coachAvatar}>{getInitials(coach.name)}</div>
+            )}
+            <div style={styles.coachDetails}>
+              <span style={styles.coachEyebrow}>Your coach</span>
+              <strong style={styles.coachName}>Coached by {coach.name}</strong>
+              <span style={styles.coachEmail}>{coach.email}</span>
+            </div>
+            <span style={styles.coachStatus}>Active</span>
+            {!confirmingLeaveCoach && (
+              <Button
+                variant="outline"
+                size="sm"
+                leadingIcon={<UserRoundX size={14} strokeWidth={1.8} />}
+                onClick={() => {
+                  setLeaveCoachError('')
+                  setConfirmingLeaveCoach(true)
+                }}
+              >
+                Leave Coach
+              </Button>
+            )}
           </div>
-          {coach.photo ? (
-            <img src={coach.photo} alt="" style={styles.coachAvatarImage} />
-          ) : (
-            <div style={styles.coachAvatar}>{getInitials(coach.name)}</div>
+          {confirmingLeaveCoach && (
+            <div style={styles.leaveCoachConfirm}>
+              <span style={styles.leaveCoachPrompt}>
+                Leave {coach.name}? They will lose access to your workouts and progress. You can accept a new invite later.
+              </span>
+              {leaveCoachError && <Alert variant="error">{leaveCoachError}</Alert>}
+              <div style={styles.leaveCoachActions}>
+                <Button variant="secondary" size="sm" onClick={() => setConfirmingLeaveCoach(false)} disabled={leavingCoach}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="solid"
+                  size="sm"
+                  style={styles.leaveCoachDanger}
+                  loading={leavingCoach}
+                  loadingLabel="Leaving…"
+                  onClick={handleLeaveCoach}
+                >
+                  Yes, Leave Coach
+                </Button>
+              </div>
+            </div>
           )}
-          <div style={styles.coachDetails}>
-            <span style={styles.coachEyebrow}>Your coach</span>
-            <strong style={styles.coachName}>Coached by {coach.name}</strong>
-            <span style={styles.coachEmail}>{coach.email}</span>
-          </div>
-          <span style={styles.coachStatus}>Active</span>
         </Card>
       ) : null}
 
@@ -680,13 +736,28 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 16,
   },
   coachCard: {
-    display: 'flex',
-    alignItems: 'center',
+    display: 'grid',
     gap: 12,
     padding: '14px 16px',
     borderColor: '#FED7AA',
     background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7ED 100%)',
   },
+  coachRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  leaveCoachConfirm: {
+    display: 'grid',
+    gap: 10,
+    padding: 12,
+    borderRadius: 10,
+    border: '1px solid #FECACA',
+    background: '#FEF2F2',
+  },
+  leaveCoachPrompt: { color: '#7F1D1D', fontSize: 12, lineHeight: 1.5 },
+  leaveCoachActions: { display: 'flex', justifyContent: 'flex-end', gap: 10 },
+  leaveCoachDanger: { backgroundColor: '#EF4444', borderColor: '#EF4444', color: '#FFFFFF' },
   coachIcon: {
     width: 38,
     height: 38,
