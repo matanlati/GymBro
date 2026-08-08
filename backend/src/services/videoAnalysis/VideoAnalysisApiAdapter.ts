@@ -36,7 +36,7 @@ class VideoAnalysisApiAdapter extends IVideoAnalysisService {
     const chunks: Buffer[] = []
 
     // Field names must match the FastAPI endpoint signature:
-    //   file: UploadFile, exercise_type: str, side: str
+    //   file: UploadFile, exercise_type: str, side: str, output_filename: Optional[str]
     chunks.push(Buffer.from(
       `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="file"; filename="${this.escapeHeaderValue(videoFile.originalname || 'video')}"\r\n` +
@@ -58,6 +58,16 @@ class VideoAnalysisApiAdapter extends IVideoAnalysisService {
         `--${boundary}\r\n` +
         'Content-Disposition: form-data; name="side"\r\n\r\n' +
         `${videoFile.side}\r\n`
+      ))
+    }
+
+    // Content-derived name so re-analyzing the same clip overwrites one file on the
+    // service instead of leaving another uuid-named copy behind.
+    if (videoFile.outputFilename) {
+      chunks.push(Buffer.from(
+        `--${boundary}\r\n` +
+        'Content-Disposition: form-data; name="output_filename"\r\n\r\n' +
+        `${videoFile.outputFilename}\r\n`
       ))
     }
 

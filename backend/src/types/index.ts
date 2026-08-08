@@ -38,7 +38,12 @@ export interface WorkoutPlan {
   progressionNotes: string
 }
 
-export type VideoFile = Express.Multer.File & { exerciseType?: string; side?: string }
+export type VideoFile = Express.Multer.File & {
+  exerciseType?: string
+  side?: string
+  // Content-derived name for the annotated video, passed through to the pose service.
+  outputFilename?: string
+}
 
 export type Severity = 'low' | 'medium' | 'high'
 
@@ -78,6 +83,8 @@ export interface VideoAnalysisResult {
 export interface AnalyzeResponse {
   analysisId?: string
   evaluation: Evaluation
+  // Present only when the evaluation was served from the content-hash cache.
+  cached?: boolean
 }
 
 // Row shape for the Recent Analyses list.

@@ -9,18 +9,34 @@ jest.mock('../src/services/videoAnalysis/PoseAnalysisService', () => ({
   __esModule: true,
   default: { saveAnalysis: jest.fn(), listRecent: jest.fn(), toRecentDto: jest.fn() },
 }))
+jest.mock('../src/services/videoAnalysis/AnalysisCacheService', () => ({
+  __esModule: true,
+  default: {
+    hashFile: jest.fn(),
+    buildKey: jest.fn(),
+    outputFilename: jest.fn(),
+    get: jest.fn(),
+    set: jest.fn(),
+  },
+}))
 
 import fs from 'fs'
 import { Response } from 'express'
 import { analyzeVideo, listAnalyses } from '../src/controllers/videoController'
 import StubAdapter from '../src/services/videoAnalysis/VideoAnalysisStubAdapter'
 import PoseAnalysisService from '../src/services/videoAnalysis/PoseAnalysisService'
+import AnalysisCacheService from '../src/services/videoAnalysis/AnalysisCacheService'
 import { AuthRequest, Evaluation } from '../src/types'
 
 const mockAnalyze = (StubAdapter as unknown as { analyze: jest.Mock }).analyze
 const mockSave = PoseAnalysisService.saveAnalysis as jest.Mock
 const mockList = PoseAnalysisService.listRecent as jest.Mock
 const mockToDto = PoseAnalysisService.toRecentDto as jest.Mock
+const mockHashFile = AnalysisCacheService.hashFile as jest.Mock
+const mockBuildKey = AnalysisCacheService.buildKey as jest.Mock
+const mockOutputFilename = AnalysisCacheService.outputFilename as jest.Mock
+const mockCacheGet = AnalysisCacheService.get as jest.Mock
+const mockCacheSet = AnalysisCacheService.set as jest.Mock
 
 const evaluation: Evaluation = {
   exerciseType: 'push-up',
@@ -48,7 +64,15 @@ const makeReq = (over: Partial<AuthRequest> = {}): AuthRequest =>
   } as unknown as AuthRequest)
 
 describe('analyzeVideo', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    // Default to a cache miss so the existing cases exercise the analyze path.
+    mockHashFile.mockResolvedValue('hash1')
+    mockBuildKey.mockReturnValue('hash1:push-up:left')
+    mockOutputFilename.mockReturnValue('hash1_push-up_left.mp4')
+    mockCacheGet.mockResolvedValue(null)
+    mockCacheSet.mockResolvedValue(undefined)
+  })
 
   it('returns 400 when no file is provided', async () => {
     const res = makeRes()
@@ -111,6 +135,82 @@ describe('analyzeVideo', () => {
     await analyzeVideo(makeReq(), res)
     expect((res.status as jest.Mock).mock.calls[0][0]).toBe(500)
     expect(fs.unlink).toHaveBeenCalled()
+  })
+})
+
+describe('analyzeVideo content-hash cache', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockHashFile.mockResolvedValue('hash1')
+    mockBuildKey.mockReturnValue('hash1:push-up:left')
+    mockOutputFilename.mockReturnValue('hash1_push-up_left.mp4')
+    mockCacheGet.mockResolvedValue(null)
+    mockCacheSet.mockResolvedValue(undefined)
+    mockSave.mockResolvedValue({ _id: 'pa1' })
+  })
+
+  it('stores the rewritten evaluation on a miss and tags the video with the hash', async () => {
+    const withVideo = { ...evaluation, analized_video_url: 'http://svc:8002/videos/hash1_push-up_left.mp4' }
+    mockAnalyze.mockResolvedValue({ evaluation: withVideo })
+    const req = makeReq()
+    const res = makeRes()
+
+    await analyzeVideo(req, res)
+
+    expect(mockAnalyze).toHaveBeenCalledTimes(1)
+    expect((req.file as { outputFilename?: string }).outputFilename).toBe('hash1_push-up_left.mp4')
+    expect(mockCacheSet).toHaveBeenCalledWith(
+      'hash1:push-up:left',
+      expect.objectContaining({ analized_video_url: '/api/video/stream/hash1_push-up_left.mp4' })
+    )
+    expect((res.json as jest.Mock).mock.calls[0][0].cached).toBeUndefined()
+  })
+
+  it('serves a hit without calling the pose service but still records history', async () => {
+    const cachedEvaluation = { ...evaluation, analized_video_url: '/api/video/stream/hash1_push-up_left.mp4' }
+    mockCacheGet.mockResolvedValue(cachedEvaluation)
+    const res = makeRes()
+
+    await analyzeVideo(makeReq(), res)
+
+    expect(mockAnalyze).not.toHaveBeenCalled()
+    expect(mockCacheSet).not.toHaveBeenCalled()
+    expect(mockSave).toHaveBeenCalledWith(
+      'user1',
+      'push-up',
+      '/api/video/stream/hash1_push-up_left.mp4',
+      cachedEvaluation
+    )
+    expect((res.json as jest.Mock).mock.calls[0][0]).toEqual({
+      analysisId: 'pa1',
+      evaluation: cachedEvaluation,
+      cached: true,
+    })
+    expect(fs.unlink).toHaveBeenCalledWith('/tmp/x.mp4', expect.any(Function))
+  })
+
+  it('falls back to a normal analysis when hashing fails', async () => {
+    mockHashFile.mockRejectedValue(new Error('read error'))
+    mockAnalyze.mockResolvedValue({ evaluation })
+    const res = makeRes()
+
+    await analyzeVideo(makeReq(), res)
+
+    expect(mockAnalyze).toHaveBeenCalledTimes(1)
+    expect(mockCacheSet).not.toHaveBeenCalled()
+    expect((res.json as jest.Mock).mock.calls[0][0].evaluation).toEqual(evaluation)
+    expect(res.status).not.toHaveBeenCalled()
+  })
+
+  it('still returns the evaluation when storing it in the cache fails', async () => {
+    mockAnalyze.mockResolvedValue({ evaluation })
+    mockCacheSet.mockRejectedValue(new Error('db down'))
+    const res = makeRes()
+
+    await analyzeVideo(makeReq(), res)
+
+    expect((res.json as jest.Mock).mock.calls[0][0].evaluation).toEqual(evaluation)
+    expect(res.status).not.toHaveBeenCalled()
   })
 })
 
