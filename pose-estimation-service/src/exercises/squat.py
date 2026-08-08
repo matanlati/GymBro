@@ -33,7 +33,7 @@ class Squat(BaseExercise):
     # Forgiving enough that a partial squat still counts and gets coached; the
     # depth grade below is what judges how deep it actually went.
     DOWN_ANGLE = 120.0
-    UP_ANGLE = 150.0
+    UP_ANGLE = 140.0
     _DEPTH_GOOD = 90.0  # at or below parallel
 
     def analyze_frame(self, pose: PoseFrame) -> FrameResult:

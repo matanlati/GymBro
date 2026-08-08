@@ -76,12 +76,24 @@ class BaseExercise(ABC):
     # than silently vanishing from the count -- a missing rep is confusing, a
     # counted-but-faulted rep is coaching. Two rules follow:
     #
-    #   * Every gate must be LOOSER than the grade target it feeds, or the grade
-    #     can never fail: if DOWN_ANGLE <= a min-angle target, every counted rep
-    #     satisfies it and its praise fires unconditionally.
-    #   * Keep at least ~30 deg of hysteresis between the two gates. The angle
-    #     has to cross both to count, so a narrow band lets keypoint jitter
-    #     oscillate across it and manufacture phantom reps.
+    #   * Every gate must be LOOSER than the grade target it feeds, and by a
+    #     margin of ~15 deg, not merely on the correct side of it. DOWN_ANGLE
+    #     stays above every min-angle target and UP_ANGLE below every max-angle
+    #     one. A gate level with its target makes the fault dead code -- lunge
+    #     briefly ran DOWN_ANGLE = _DEPTH_GOOD = 100, so every counted rep was
+    #     deeper than 100 by construction, "too shallow" could never fire and its
+    #     praise fired unconditionally. A gate only ~10 deg clear is nearly as
+    #     bad: the fault then catches near-misses and nothing else.
+    #   * Keep the two gates ~20 deg apart. The band used to be 30, on the theory
+    #     that a wider one is safer, but the cost landed on the wrong side: since
+    #     a rep only closes once the angle crosses back past UP_ANGLE, a high gate
+    #     meant a lifter who stopped short of lock-out re-armed nothing and the
+    #     whole set counted zero reps, and it pinned every rep's max angle just
+    #     under the lock-out grade so that grade could barely fail. Roughly
+    #     20 deg keeps partial reps counted and leaves the grades room to work.
+    #     The accepted cost: a narrower band sits closer to keypoint jitter, so a
+    #     lifter pausing right at a gate may produce a phantom rep. A duplicated
+    #     rep is visible and self-correcting; a missing one is just confusing.
     UP_ANGLE: float = 160.0
     DOWN_ANGLE: float = 90.0
     # The resting end of the movement, where the lifter starts and returns to,

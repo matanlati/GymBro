@@ -32,7 +32,7 @@ class LatPulldown(BaseExercise):
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
     DOWN_ANGLE = 115.0   # bar pulled down toward the chest
-    UP_ANGLE = 145.0     # arms extended back toward the stretch
+    UP_ANGLE = 135.0     # arms extended back toward the stretch
     # Grading thresholds read off the whole rep:
     _PULL_GOOD = 90.0     # elbow this closed = a full pull to the chest
     _STRETCH_GOOD = 155.0  # elbow this open = a full stretch at the top

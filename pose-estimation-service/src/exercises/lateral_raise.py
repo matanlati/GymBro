@@ -33,8 +33,8 @@ class LateralRaise(BaseExercise):
     # so the arms need not return to a dead hang to close the rep. Because this
     # gate no longer doubles as the height check, _HEIGHT_GOOD below took that
     # job over -- otherwise a short raise would be praised as "perfect height".
-    UP_ANGLE = 70.0
-    DOWN_ANGLE = 40.0
+    UP_ANGLE = 60.0
+    DOWN_ANGLE = 35.0
     # Unlike the presses and squats, this movement rests at the *closed* end --
     # you start and finish each rep with the arms hanging down. So a rep is
     # complete when the arms come back down, which is exactly where AIGym

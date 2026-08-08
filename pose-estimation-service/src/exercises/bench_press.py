@@ -33,7 +33,7 @@ class BenchPress(BaseExercise):
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
     DOWN_ANGLE = 120.0
-    UP_ANGLE = 150.0
+    UP_ANGLE = 140.0
     # Grading thresholds (read off the whole rep, not one frame):
     _DEPTH_GOOD = 95.0     # bar reached the chest
     _LOCKOUT_GOOD = 165.0  # arms locked out at the top

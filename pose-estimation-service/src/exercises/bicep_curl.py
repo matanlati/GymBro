@@ -30,8 +30,14 @@ class BicepCurl(BaseExercise):
     # so its caption reads "down" at the top of a curl. Nothing keys off that.
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    DOWN_ANGLE = 70.0
-    UP_ANGLE = 150.0
+    # The elbow sweeps roughly 170 (arm hanging) down to 55-60 at the squeeze --
+    # a side view rarely reads below ~58 even on a hard contraction. Both gates
+    # therefore sit in the middle of that sweep: DOWN at 70 was only ~12 deg off
+    # the deepest angle a real curl produces, so a slightly shorter curl crossed
+    # nothing and counted zero reps, and UP at 150 demanded an almost straight
+    # arm to re-arm the next one.
+    DOWN_ANGLE = 90.0
+    UP_ANGLE = 115.0
     _TOP_GATE = 40.0  # full-squeeze grade in _evaluate_rep
     _SWING_RANGE = 0.12  # horizontal elbow travel (frac of frame) that reads as swing
 

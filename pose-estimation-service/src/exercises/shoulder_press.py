@@ -27,11 +27,12 @@ class ShoulderPress(BaseExercise):
     # AIGym measures the elbow angle (shoulder-elbow-wrist).
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    # DOWN_ANGLE was 100, stricter than the 110 deg bottom grade below, so every
-    # counted rep passed that grade and its praise fired unconditionally. The
-    # gate now sits above the grade, which is the rule for all of these.
+    # DOWN_ANGLE sits above the 110 deg bottom grade below, so a press that stops
+    # short of shoulder height still counts and is then faulted for it. UP_ANGLE
+    # stays at 150 rather than dropping to DOWN + 20, to leave the lockout grade
+    # room to fail.
     UP_ANGLE = 150.0
-    DOWN_ANGLE = 120.0
+    DOWN_ANGLE = 130.0
     _LOCKOUT_GOOD = 165.0  # locked out overhead
     _BOTTOM_GOOD = 110.0   # lowered to shoulder height
 

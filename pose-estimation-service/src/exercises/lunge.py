@@ -24,8 +24,11 @@ class Lunge(BaseExercise):
     # AIGym measures the front-knee angle (hip-knee-ankle).
     KPTS_LEFT = [11, 13, 15]
     KPTS_RIGHT = [12, 14, 16]
-    DOWN_ANGLE = 100.0
-    UP_ANGLE = 155.0
+    # DOWN_ANGLE has to stay clear of _DEPTH_GOOD below: a rep is only counted
+    # once the knee closes past the gate, so a gate at 100 would make "deeper
+    # than 100" true of every counted rep and the shallow-depth fault dead code.
+    DOWN_ANGLE = 125.0
+    UP_ANGLE = 145.0
     _DEPTH_GOOD = 100.0  # front thigh at parallel
 
     def analyze_frame(self, pose: PoseFrame) -> FrameResult:

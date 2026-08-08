@@ -31,7 +31,7 @@ class Deadlift(BaseExercise):
     KPTS_RIGHT = [6, 12, 14]
     # Loose enough that a partial or rack pull still counts; the lockout grade
     # below is what judges whether the hips actually finished.
-    UP_ANGLE = 155.0
+    UP_ANGLE = 135.0
     DOWN_ANGLE = 115.0
     _LOCKOUT_GOOD = 165.0  # hips fully extended at the top
 

@@ -31,8 +31,8 @@ class TricepsExtension(BaseExercise):
     # AIGym measures the elbow angle (shoulder-elbow-wrist).
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    DOWN_ANGLE = 115.0   # forearm lowered behind the head
-    UP_ANGLE = 150.0     # arm extended toward lock-out
+    DOWN_ANGLE = 110.0   # forearm lowered behind the head
+    UP_ANGLE = 135.0     # arm extended toward lock-out
     # Grading thresholds read off the whole rep:
     _LOCKOUT_GOOD = 165.0  # full extension overhead
     _STRETCH_GOOD = 80.0   # deep stretch behind the head
