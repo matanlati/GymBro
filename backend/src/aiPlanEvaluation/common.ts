@@ -20,7 +20,7 @@ export const CSV_COLUMNS = [
   'run_id', 'test_id', 'profile_id', 'repetition', 'provider', 'model',
   'prompt_version', 'knowledge_base_version', 'generation_time_ms',
   'generation_status', 'schema_valid', 'expected_days', 'generated_days',
-  'days_correct', 'equipment_adherent', 'constraint_adherent',
+  'days_correct', 'equipment_adherent', 'catalog_resolution_rate', 'constraint_adherent',
   'goal_relevance_rating', 'personalization_rating', 'constraint_rating',
   'weekly_structure_rating', 'completeness_rating', 'clarity_rating',
   'safety_rating', 'overall_rating', 'unavailable_equipment_defect',
@@ -45,6 +45,105 @@ export interface ValidationResult {
   missing_fields: string[]
   type_errors: string[]
   warnings: string[]
+}
+
+export interface EquipmentAdherence {
+  /** Prescribed exercises whose name resolves to a catalog entry. */
+  resolved: number
+  total: number
+  /** Resolved exercises the user actually has equipment for. */
+  adherent: number
+  /** adherent / resolved, or null when nothing resolved. */
+  rate: number | null
+  /**
+   * resolved / total — the share of prescribed exercises that are real catalog
+   * entries at all. A grounded plan scores near 1; an ungrounded model that
+   * invents names scores near 0, which is what `rate` alone cannot show.
+   */
+  resolution_rate: number | null
+  violations: string[]
+}
+
+/**
+ * Maps the questionnaire equipment vocabulary onto free-exercise-db values.
+ * Mirrors ExerciseRetriever's EQUIPMENT_MAP — kept local so the evaluation
+ * harness stays runnable without a database connection.
+ */
+const EVAL_EQUIPMENT_MAP: Record<string, string[]> = {
+  gym: ['barbell', 'dumbbell', 'cable', 'machine', 'body only', 'bands', 'kettlebells',
+    'e-z curl bar', 'exercise ball', 'medicine ball', 'foam roll', 'other', 'none'],
+  home: ['body only', 'bands', 'dumbbell', 'exercise ball', 'foam roll', 'medicine ball', 'none'],
+  dumbbells: ['dumbbell', 'body only', 'none'],
+  machines: ['machine', 'cable', 'body only', 'none'],
+  bodyweight: ['body only', 'none'],
+  barbell: ['barbell', 'e-z curl bar', 'body only', 'none'],
+  kettlebells: ['kettlebells', 'body only', 'none'],
+}
+
+let catalogCache: Map<string, string> | null = null
+
+/** name (lowercased) -> equipment, from the vendored exercise catalog. */
+export function loadExerciseCatalog(root = findProjectRoot()): Map<string, string> {
+  if (catalogCache) return catalogCache
+  const file = path.join(root, 'knowledge-base', 'exercises.json')
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as {
+    name: string
+    equipment?: string | null
+  }[]
+  catalogCache = new Map(raw.map(item => [item.name.toLowerCase(), (item.equipment || 'none').toLowerCase()]))
+  return catalogCache
+}
+
+/**
+ * Percentage of prescribed exercises that resolve to catalog entries the user
+ * actually has equipment for. Only computable now that a controlled
+ * exercise-equipment catalog exists.
+ */
+export function computeEquipmentAdherence(
+  plan: unknown,
+  equipmentAvailable: string[],
+  root = findProjectRoot()
+): EquipmentAdherence {
+  const catalog = loadExerciseCatalog(root)
+  const allowed = new Set<string>()
+  for (const item of equipmentAvailable) {
+    const values = EVAL_EQUIPMENT_MAP[item.toLowerCase()]
+    if (values) values.forEach(value => allowed.add(value))
+  }
+
+  const weeklyPlan = (plan as { weeklyPlan?: unknown })?.weeklyPlan
+  const names: string[] = []
+  if (Array.isArray(weeklyPlan)) {
+    for (const day of weeklyPlan) {
+      const exercises = (day as { exercises?: unknown })?.exercises
+      if (!Array.isArray(exercises)) continue
+      for (const exercise of exercises) {
+        const name = (exercise as { name?: unknown })?.name
+        if (typeof name === 'string' && name.trim()) names.push(name.trim())
+      }
+    }
+  }
+
+  const violations: string[] = []
+  let resolved = 0
+  let adherent = 0
+
+  for (const name of names) {
+    const equipment = catalog.get(name.toLowerCase())
+    if (equipment === undefined) continue
+    resolved += 1
+    if (!allowed.size || allowed.has(equipment)) adherent += 1
+    else violations.push(`${name} (requires ${equipment})`)
+  }
+
+  return {
+    resolved,
+    total: names.length,
+    adherent,
+    rate: resolved ? adherent / resolved : null,
+    resolution_rate: names.length ? resolved / names.length : null,
+    violations,
+  }
 }
 
 export function findProjectRoot(): string {
@@ -109,7 +208,8 @@ export function validateGeneratedPlan(response: unknown, expectedDays: number): 
   const missing: string[] = []
   const types: string[] = []
   const warnings = [
-    'Equipment adherence requires human review; no controlled exercise-equipment mapping exists.',
+    'Equipment adherence is computed automatically for exercises that resolve to the '
+      + 'vendored catalog (knowledge-base/exercises.json); unresolved names still need review.',
     'Constraint adherence requires human review; constraints are handled as natural language.',
     'Internal LLM retry and correction counts are not exposed by the production API.',
   ]

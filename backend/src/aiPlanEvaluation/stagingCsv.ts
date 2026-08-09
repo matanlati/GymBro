@@ -1,7 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 import {
-  CSV_COLUMNS, ValidationResult, atomicWrite, csvEscape, findProjectRoot,
+  CSV_COLUMNS, ValidationResult, atomicWrite, computeEquipmentAdherence, csvEscape,
+  findProjectRoot, readProfiles,
 } from './common'
 
 interface ManifestRun {
@@ -40,6 +41,8 @@ if (fs.existsSync(output)) {
   }
 }
 
+const profilesById = new Map(readProfiles(root).map(profile => [profile.profile_id, profile]))
+
 const rows = [CSV_COLUMNS.join(',')]
 for (const run of manifest.runs) {
   if (run.status === 'PENDING') continue
@@ -52,6 +55,21 @@ for (const run of manifest.runs) {
   }
   const metadata = JSON.parse(fs.readFileSync(metadataFile, 'utf8')) as Record<string, unknown>
   const validation = JSON.parse(fs.readFileSync(validationFile, 'utf8')) as ValidationResult
+
+  // Automated equipment adherence: computable now that a controlled
+  // exercise-equipment catalog exists. Blank when the plan is unreadable.
+  const responseFile = path.join(directory, 'response.json')
+  const expectedEquipment = profilesById.get(run.profile_id)?.expected.equipment ?? []
+  let equipmentAdherent: string = ''
+  let catalogResolutionRate: string = ''
+  if (fs.existsSync(responseFile)) {
+    const plan = JSON.parse(fs.readFileSync(responseFile, 'utf8')) as unknown
+    const adherence = computeEquipmentAdherence(plan, expectedEquipment, root)
+    if (adherence.rate !== null) equipmentAdherent = adherence.rate.toFixed(3)
+    if (adherence.resolution_rate !== null) {
+      catalogResolutionRate = adherence.resolution_rate.toFixed(3)
+    }
+  }
   const values: Record<string, unknown> = {
     run_id: run.run_id,
     test_id: `${batchId}-${run.profile_id}-R${run.repetition}`,
@@ -67,7 +85,8 @@ for (const run of manifest.runs) {
     expected_days: validation.expected_days,
     generated_days: validation.generated_days,
     days_correct: validation.days_correct,
-    equipment_adherent: '',
+    equipment_adherent: equipmentAdherent,
+    catalog_resolution_rate: catalogResolutionRate,
     constraint_adherent: '',
     evidence_path: path.relative(root, directory).replace(/\\/g, '/'),
   }
@@ -76,4 +95,5 @@ for (const run of manifest.runs) {
 
 atomicWrite(output, `${rows.join('\n')}\n`)
 console.log(`PASS wrote ${rows.length - 1} objective staging row(s) to ${output}`)
-console.log('WARNING all reviewer ratings, subjective defects, equipment adherence, and constraint adherence remain blank')
+console.log('WARNING all reviewer ratings, subjective defects, and constraint adherence remain blank')
+console.log('NOTE equipment_adherent is computed automatically against knowledge-base/exercises.json')
