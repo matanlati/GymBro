@@ -34,6 +34,7 @@ The codebase is mid-implementation and diverges from `PLAN.md` in places. Trust 
 - **Backend folder layout**: PLAN.md describes `src/modules/<domain>/`. Actual layout is flatter: `src/controllers/`, `src/routers/`, `src/services/`, `src/models/`, `src/middleware/`. Follow the existing layout when adding files.
 - **WorkoutPlan schema**: PLAN.md prescribes `weeks[].sessions[].exercises[]`. The LLM prompt produces (and we persist) `weeklyPlan[].exercises[]` — a single week, no `sessions` layer. Will be widened when `WorkoutSession` is introduced; existing rows will need a migration script.
 - **Auth transport**: PLAN.md says `Authorization: Bearer <token>`. Code uses an httpOnly `accessToken` cookie (`middleware/auth.ts`) and the Axios client sends `withCredentials: true`. Refresh flow lives at `POST /api/auth/refresh`.
+- **RAG retrieval**: real vector retrieval, not the substring match the code originally shipped. The corpus is two `docType`s in the `exercisedocs` collection — `exercise` (873 records vendored to `knowledge-base/exercises.json` from free-exercise-db, MIT) and `knowledge` (15 chunks flattened from `training-knowledge.json`). Embeddings come from `all-minilm` (384-dim) on the same authenticated LLM host via `POST /api/embed`. Similarity is computed **in Node** (`VectorStore.ts`, cached `Float32Array`, full scan) because the self-hosted MongoDB has no `$vectorSearch` — that is Atlas-only. Retrieval is two-stage: hard metadata filters (equipment, level, injury contraindications) then per-muscle-group cosine ranking. Run `npm run rag:ingest` before generating plans; without it retrieval degrades to empty and generation still works.
 - **Implemented surface so far**: auth, users, video analyze, workout-plan generate + persist (`/api/plans/*`). Sessions, set logging, progress, and social endpoints from PLAN.md are **not yet built**.
 
 ## Tech stack (actual)
@@ -49,6 +50,7 @@ The codebase is mid-implementation and diverges from `PLAN.md` in places. Trust 
 ```bash
 # Backend (from backend/)
 npm install
+npm run rag:ingest   # embed + upsert the RAG corpus into MongoDB (required once before plan generation)
 npm run dev          # ts-node src/server.ts — runs on PORT (default 3001)
 npm run build        # tsc → dist/
 npm start            # node dist/server.js
