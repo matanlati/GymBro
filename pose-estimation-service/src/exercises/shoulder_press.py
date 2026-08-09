@@ -27,12 +27,22 @@ class ShoulderPress(BaseExercise):
     # AIGym measures the elbow angle (shoulder-elbow-wrist).
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
+    # The elbow sweeps ~80-90 at the shoulders (90-100 deg of flexion) up to
+    # ~172 at lockout overhead.
     # DOWN_ANGLE sits above the 110 deg bottom grade below, so a press that stops
     # short of shoulder height still counts and is then faulted for it. UP_ANGLE
     # stays at 150 rather than dropping to DOWN + 20, to leave the lockout grade
     # room to fail.
     UP_ANGLE = 150.0
     DOWN_ANGLE = 130.0
+    # A press rests at the *flexed* end: the bar starts racked at the shoulders
+    # and returns there between reps, so the rep is complete when it comes back
+    # down, which is exactly where AIGym increments. Closing at "up" instead
+    # deferred each grade to the next lockout, which put the back-arch cue below
+    # on the wrong rep. Same shape as lateral_raise; see REP_CLOSES_AT in
+    # base.py for what that offset breaks.
+    REP_CLOSES_AT = "down"
+    # Strict tier (see base.py).
     _LOCKOUT_GOOD = 165.0  # locked out overhead
     _BOTTOM_GOOD = 110.0   # lowered to shoulder height
 
