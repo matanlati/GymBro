@@ -68,7 +68,19 @@ class BaseExercise(ABC):
     # always the smaller of the two regardless of which end of the movement the
     # exercise itself calls "down".
     #
-    # COUNT GENEROUSLY, GRADE HONESTLY. These gates decide only whether a rep
+    # "down"/"up" name the JOINT ANGLE, not the lifter's direction: "down" is
+    # flexed (small angle), "up" is extended (large angle). A curl is the case
+    # that makes this jarring -- the lifter's "up" (the squeeze) is AIGym's
+    # "down", and its on-video caption says so. Read every threshold in these
+    # files as the *interior* three-point angle, where 180 deg is a straight
+    # limb. Published ROM figures are flexion, measured from the other end, so
+    # they convert as `interior = 180 - flexion`; lateral raise is the one
+    # exception, since hip-shoulder-elbow already *is* abduction and its
+    # numbers transfer directly.
+    #
+    # TWO TIERS OF THRESHOLD LIVE IN THESE FILES, TUNED IN OPPOSITE DIRECTIONS.
+    #
+    # TIER 1, these gates: GRACEFUL. They decide only whether a rep
     # *happened*, so they are set forgivingly: a lifter who stops a little short,
     # or whose angle reads shallow because of camera foreshortening, should still
     # see their rep counted. Judging the range is the grading thresholds' job
@@ -76,18 +88,65 @@ class BaseExercise(ABC):
     # than silently vanishing from the count -- a missing rep is confusing, a
     # counted-but-faulted rep is coaching. Two rules follow:
     #
-    #   * Every gate must be LOOSER than the grade target it feeds, or the grade
-    #     can never fail: if DOWN_ANGLE <= a min-angle target, every counted rep
-    #     satisfies it and its praise fires unconditionally.
-    #   * Keep at least ~30 deg of hysteresis between the two gates. The angle
-    #     has to cross both to count, so a narrow band lets keypoint jitter
-    #     oscillate across it and manufacture phantom reps.
+    #   * Every gate must be LOOSER than the grade target it feeds, and by a
+    #     margin of ~15 deg, not merely on the correct side of it. DOWN_ANGLE
+    #     stays above every min-angle target and UP_ANGLE below every max-angle
+    #     one. A gate level with its target makes the fault dead code -- lunge
+    #     briefly ran DOWN_ANGLE = _DEPTH_GOOD = 100, so every counted rep was
+    #     deeper than 100 by construction, "too shallow" could never fire and its
+    #     praise fired unconditionally. A gate only ~10 deg clear is nearly as
+    #     bad: the fault then catches near-misses and nothing else.
+    #   * Keep the two gates ~20 deg apart. The band used to be 30, on the theory
+    #     that a wider one is safer, but the cost landed on the wrong side: since
+    #     a rep only closes once the angle crosses back past UP_ANGLE, a high gate
+    #     meant a lifter who stopped short of lock-out re-armed nothing and the
+    #     whole set counted zero reps, and it pinned every rep's max angle just
+    #     under the lock-out grade so that grade could barely fail. Roughly
+    #     20 deg keeps partial reps counted and leaves the grades room to work.
+    #     The accepted cost: a narrower band sits closer to keypoint jitter, so a
+    #     lifter pausing right at a gate may produce a phantom rep. A duplicated
+    #     rep is visible and self-correcting; a missing one is just confusing.
+    #
+    # TIER 2, the grading thresholds each subclass evaluates for itself
+    # (``_DEPTH_GOOD``, ``_LOCKOUT_GOOD``, ``_TOP_GATE``, ``_STRETCH_GOOD``,
+    # ...): STRICT. That is where the coaching happens, so they sit at the real
+    # standard rather than at what is easy to hit. Keeping tier 1 loose is what
+    # buys the room to be strict here: the partial rep is counted, and then told
+    # it was partial.
+    #
+    # But STRICT IS NOT THE SAME AS UNREACHABLE. A threshold set past what a 2D
+    # side view can physically produce is not demanding, it is broken -- its
+    # praise becomes dead code and its fault fires on 100% of reps, including
+    # perfect ones, which teaches the lifter nothing. bicep_curl's _TOP_GATE sat
+    # at 40 deg, a goniometer figure the camera never reads through soft tissue
+    # and foreshortening, so every curl was called short. Sanity-check a new
+    # threshold against the angles the model actually emits, not against
+    # anatomy: a message that fires on every rep, or on none, is outside the
+    # measurable range.
     UP_ANGLE: float = 160.0
     DOWN_ANGLE: float = 90.0
     # The resting end of the movement, where the lifter starts and returns to,
     # and therefore where a rep is complete enough to grade. See ``_sync_reps``
-    # for why grading waits for it. "up" suits everything that starts extended;
-    # movements that rest closed, like a lateral raise, override to "down".
+    # for why grading waits for it. The test is simply "which end does the
+    # lifter rest at?" -- "up" suits everything that rests extended, while the
+    # three movements that rest flexed override to "down": lateral raise (arms
+    # hanging), deadlift (bar on the floor) and shoulder press (bar racked at
+    # the shoulders).
+    #
+    # Getting this wrong does not break the rep count -- AIGym owns that -- so
+    # it fails silently, which is how deadlift and shoulder press stayed wrong
+    # for a while. It fails *subtly*, too: closing at the far end offsets each
+    # graded window by half a rep, but the boundary still lands on the UP_ANGLE
+    # crossing, so the window keeps enclosing exactly one peak and one trough
+    # and ``rep_min_angle`` / ``rep_max_angle`` / ``rom`` still look right. What
+    # actually goes wrong is the other two:
+    #
+    #   * Per-frame faults -- the ones gated on ``self.stage`` -- land one rep
+    #     early, because the phase the offset window contains belongs to the
+    #     *next* rep. A "hips shooting up" on rep 3's pull was reported as rep 2.
+    #   * ``duration_s`` is wrong at the set's boundaries: the first rep's window
+    #     also swallows the opening phase (~+45%) and the last is cut short by
+    #     ``finish_set`` (~-35%).
     REP_CLOSES_AT: str = "up"
 
     def __init__(self, side: str = "left"):

@@ -20,5 +20,21 @@ dependencies = [
     "requests>=2.32.5",
     "uvicorn>=0.40.0",
     "python-multipart>=0.0.9",
-    "torch>=2.13.0",
+    # Pinned to a CUDA 12.1 build rather than plain "torch>=2.13.0": the default
+    # PyPI wheel bundles CUDA 13, which needs a driver newer than what's on this
+    # box (545.29.06, tops out at CUDA 12.3 per `nvidia-smi`). cu121 is the
+    # newest CUDA build below that ceiling; torch caps at 2.5.1 there, which is
+    # fine since ultralytics only requires torch>=1.8.0. Bump this pin (and the
+    # source index below) if the host driver is ever upgraded.
+    "torch==2.5.1",
+    "torchvision==0.20.1",
 ]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu121" }
+torchvision = { index = "pytorch-cu121" }
+
+[[tool.uv.index]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true

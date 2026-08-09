@@ -31,9 +31,11 @@ class LatPulldown(BaseExercise):
     # AIGym measures the elbow angle (shoulder-elbow-wrist).
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
+    # The elbow sweeps ~165 at the overhead stretch down to ~80-90 with the bar
+    # at the chest (90-100 deg of flexion).
     DOWN_ANGLE = 115.0   # bar pulled down toward the chest
-    UP_ANGLE = 145.0     # arms extended back toward the stretch
-    # Grading thresholds read off the whole rep:
+    UP_ANGLE = 135.0     # arms extended back toward the stretch
+    # Grading thresholds, strict tier (see base.py), read off the whole rep:
     _PULL_GOOD = 90.0     # elbow this closed = a full pull to the chest
     _STRETCH_GOOD = 155.0  # elbow this open = a full stretch at the top
     _SWAY_RANGE = 0.10     # shoulder-over-hip horizontal travel that reads as swing

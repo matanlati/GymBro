@@ -29,10 +29,19 @@ class Deadlift(BaseExercise):
     # AIGym measures hip extension (shoulder-hip-knee).
     KPTS_LEFT = [5, 11, 13]
     KPTS_RIGHT = [6, 12, 14]
-    # Loose enough that a partial or rack pull still counts; the lockout grade
-    # below is what judges whether the hips actually finished.
-    UP_ANGLE = 155.0
+    # The hip sweeps ~65-80 (bar on the floor, hip flexed 100-115 deg) up to
+    # ~175 at a tall lockout. Loose enough that a partial or rack pull still
+    # counts; the lockout grade below is what judges whether the hips finished.
+    UP_ANGLE = 135.0
     DOWN_ANGLE = 115.0
+    # A conventional deadlift rests at the *flexed* end -- the bar starts on the
+    # floor and is set back down between reps -- so the rep is complete when the
+    # hips fold back down, which is exactly where AIGym increments. Closing at
+    # "up" instead deferred each grade to the next lockout, which put the
+    # "hips shooting up" cue below on the wrong rep. Same shape as
+    # lateral_raise; see REP_CLOSES_AT in base.py for what that offset breaks.
+    REP_CLOSES_AT = "down"
+    # Strict tier (see base.py).
     _LOCKOUT_GOOD = 165.0  # hips fully extended at the top
 
     def analyze_frame(self, pose: PoseFrame) -> FrameResult:

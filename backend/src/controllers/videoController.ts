@@ -2,6 +2,7 @@ import fs from 'fs'
 import { Response } from 'express'
 import { AuthRequest, VideoFile, Evaluation, ALLOWED_EXERCISE_TYPES, ALLOWED_SIDES } from '../types'
 import PoseAnalysisService from '../services/videoAnalysis/PoseAnalysisService'
+import AnalysisCacheService from '../services/videoAnalysis/AnalysisCacheService'
 import { streamVideoFromService, toBackendVideoUrl, isSafeFilename } from '../services/videoAnalysis/videoProxy'
 
 const VideoAnalysisService = process.env.VIDEO_ANALYSIS_SERVICE_URL
@@ -49,16 +50,46 @@ export const analyzeVideo = async (req: AuthRequest, res: Response): Promise<voi
   try {
     videoFile.exerciseType = exerciseType
     if (side) videoFile.side = side
-    const result = await VideoAnalysisService.analyze(videoFile)
-    const evaluation = extractEvaluation(result)
-    if (!evaluation) {
-      res.status(502).json({ error: 'BAD_GATEWAY', message: 'Evaluator returned no evaluation' })
-      return
+
+    // The pipeline is a pure function of (video bytes, exerciseType, side), so an
+    // identical upload can reuse a stored result instead of re-running it. A hashing
+    // or lookup failure must degrade to a normal analysis, never fail the request.
+    let cacheKey: string | null = null
+    let hit: Evaluation | null = null
+    try {
+      const hash = await AnalysisCacheService.hashFile(videoFile.path)
+      videoFile.outputFilename = AnalysisCacheService.outputFilename(hash, exerciseType, side)
+      cacheKey = AnalysisCacheService.buildKey(hash, exerciseType, side)
+      hit = await AnalysisCacheService.get(cacheKey)
+    } catch (cacheError) {
+      console.error('Analysis cache lookup failed:', cacheError)
     }
 
-    // The microservice returns an internal URL (e.g. http://localhost:8000/videos/x.mp4)
-    // the browser can't reach. Rewrite it to a backend stream endpoint that proxies it.
-    evaluation.analized_video_url = toBackendVideoUrl(evaluation.analized_video_url)
+    let evaluation: Evaluation
+    if (hit) {
+      console.log(`Analysis cache hit for ${cacheKey}`)
+      evaluation = hit
+    } else {
+      const result = await VideoAnalysisService.analyze(videoFile)
+      const analyzed = extractEvaluation(result)
+      if (!analyzed) {
+        res.status(502).json({ error: 'BAD_GATEWAY', message: 'Evaluator returned no evaluation' })
+        return
+      }
+
+      // The microservice returns an internal URL (e.g. http://localhost:8000/videos/x.mp4)
+      // the browser can't reach. Rewrite it to a backend stream endpoint that proxies it.
+      analyzed.analized_video_url = toBackendVideoUrl(analyzed.analized_video_url)
+      evaluation = analyzed
+
+      if (cacheKey) {
+        try {
+          await AnalysisCacheService.set(cacheKey, evaluation)
+        } catch (cacheError) {
+          console.error('Failed to store analysis in cache:', cacheError)
+        }
+      }
+    }
 
     // Persistence failure must not lose the result the user is waiting on.
     let analysisId: string | undefined
@@ -74,7 +105,7 @@ export const analyzeVideo = async (req: AuthRequest, res: Response): Promise<voi
       console.error('Failed to persist pose analysis:', saveError)
     }
 
-    res.json({ analysisId, evaluation })
+    res.json({ analysisId, evaluation, ...(hit ? { cached: true } : {}) })
   } catch (error) {
     console.error('Video analysis error:', error)
     res.status(500).json({

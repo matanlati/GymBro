@@ -56,7 +56,7 @@ estimate_pose_angle = SolutionAnnotator.estimate_pose_angle
 # for whole-video analysis on CPU, where medium keeps requests interactive. Set
 # POSE_MODEL_VARIANT to pin one explicitly (e.g. "n" on a weak CPU).
 _GPU_VARIANT = "x"
-_CPU_VARIANT = "m"
+_CPU_VARIANT = "l"
 
 # Tracker config passed to AIGym. Defaults to our BoT-SORT + ReID file next to
 # this module, which keeps the lifter's track id stable across occlusion and

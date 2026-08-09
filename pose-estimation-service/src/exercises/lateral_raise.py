@@ -29,17 +29,23 @@ class LateralRaise(BaseExercise):
     # AIGym measures the abduction angle (hip-shoulder-elbow).
     KPTS_LEFT = [11, 5, 7]
     KPTS_RIGHT = [12, 6, 8]
+    # The one movement whose published ROM transfers with no conversion: this
+    # hip-shoulder-elbow angle *is* shoulder abduction, measured from the same
+    # arms-down origin the literature uses (see base.py), so ~15 at a dead hang
+    # up through the 70-90 band where the medial delt peaks. Applying the
+    # `interior = 180 - flexion` conversion here would be a bug.
     # Loosened so a raise that stops short of shoulder height still counts, and
     # so the arms need not return to a dead hang to close the rep. Because this
     # gate no longer doubles as the height check, _HEIGHT_GOOD below took that
     # job over -- otherwise a short raise would be praised as "perfect height".
-    UP_ANGLE = 70.0
-    DOWN_ANGLE = 40.0
+    UP_ANGLE = 60.0
+    DOWN_ANGLE = 35.0
     # Unlike the presses and squats, this movement rests at the *closed* end --
     # you start and finish each rep with the arms hanging down. So a rep is
     # complete when the arms come back down, which is exactly where AIGym
     # increments, not when they reach the top.
     REP_CLOSES_AT = "down"
+    # Strict tier (see base.py).
     _HEIGHT_GOOD = 80.0    # below this = the raise fell short of shoulder height
     _HEIGHT_HIGH = 110.0   # above this = raising too high / shrugging
 

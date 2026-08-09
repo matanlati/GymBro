@@ -25,12 +25,18 @@ class Pushup(BaseExercise):
     # AIGym measures the elbow angle (shoulder-elbow-wrist).
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    # These used to be 90/100 -- a 10 deg band, narrow enough that elbow jitter
-    # around the threshold could manufacture reps. Widened and loosened so a
-    # partial push-up counts and is graded on depth instead.
-    DOWN_ANGLE = 120.0
-    UP_ANGLE = 155.0
-    _DEPTH_GOOD = 70.0  # deepest elbow angle of a full-depth push-up
+    # The accepted full-depth standard is >=90 deg of elbow flexion, i.e. an
+    # interior angle of 90 or below; the top is a near-straight ~175.
+    # The reference gates for the whole set (see base.py): count once the elbow
+    # has clearly bent, and re-arm the next rep well before lock-out so a partial
+    # push-up registers and is graded on depth instead of vanishing.
+    DOWN_ANGLE = 100.0
+    UP_ANGLE = 120.0
+    # Strict tier (see base.py), but strict means "the real standard", not
+    # "deeper than the standard": at 70 this demanded ~110 deg of flexion, so a
+    # correct full-depth push-up was still told it was shallow. 85 holds the
+    # >=90 deg standard and keeps the 15 deg clearance from DOWN_ANGLE.
+    _DEPTH_GOOD = 85.0  # deepest elbow angle of a full-depth push-up
 
     def analyze_frame(self, pose: PoseFrame) -> FrameResult:
         landmarks = pose.keypoints
