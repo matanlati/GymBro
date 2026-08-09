@@ -9,6 +9,7 @@ import {
   FormField,
   Input,
   LoadingState,
+  Modal,
 } from '@gymbro/ui-kit'
 import type { SelectOption } from '@gymbro/ui-kit'
 import {
@@ -190,15 +191,6 @@ export default function GoalsAchievements({
     }
   }
 
-  useEffect(() => {
-    if (!showAchievementHistory) return
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowAchievementHistory(false)
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [showAchievementHistory])
-
   if (loading) return <LoadingState label="Loading goals and achievements..." />
 
   return (
@@ -339,32 +331,13 @@ export default function GoalsAchievements({
       </Card>
 
       {showAchievementHistory && (
-        <div
-          className="coach-modal-backdrop"
-          role="presentation"
-          onClick={() => setShowAchievementHistory(false)}
+        <Modal
+          panelClassName="achievement-history-modal"
+          title="Achievement history"
+          description="Every milestone you have unlocked, newest first."
+          closeLabel="Close achievement history"
+          onClose={() => setShowAchievementHistory(false)}
         >
-          <section
-            className="coach-modal achievement-history-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="achievement-history-title"
-            onClick={event => event.stopPropagation()}
-          >
-            <div className="coach-modal-head achievement-history-head">
-              <div>
-                <h2 id="achievement-history-title">Achievement history</h2>
-                <p>Every milestone you have unlocked, newest first.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAchievementHistory(false)}
-                aria-label="Close achievement history"
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
-            </div>
-
             <div className="achievement-history-content">
               {historyLoading ? (
                 <LoadingState label="Loading achievement history..." />
@@ -393,8 +366,7 @@ export default function GoalsAchievements({
                 </ul>
               )}
             </div>
-          </section>
-        </div>
+        </Modal>
       )}
     </div>
   )

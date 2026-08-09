@@ -1,0 +1,51 @@
+.gb-avatar {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  font-weight: 800;
+  line-height: 1;
+
+  &--sm {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  &--md {
+    width: 38px;
+    height: 38px;
+    font-size: 12px;
+  }
+
+  &--lg {
+    width: 40px;
+    height: 40px;
+    font-size: 13px;
+  }
+
+  &--circle {
+    border-radius: var(--gb-radius-pill);
+  }
+
+  &--rounded {
+    border-radius: var(--gb-radius-md);
+  }
+
+  /* Tones apply to the initials only; a photo covers the tile entirely. */
+  &--soft {
+    color: var(--gb-accent-deep);
+    background: #ffedd5;
+  }
+
+  &--solid {
+    color: #ffffff;
+    background: #f97316;
+  }
+
+  &__photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}

@@ -1,0 +1,94 @@
+.gb-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.gb-modal {
+  width: min(440px, 100%);
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: var(--gb-surface);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+
+  &--md {
+    width: min(620px, 100%);
+  }
+
+  &--lg {
+    width: min(760px, 100%);
+  }
+
+  /* Confirm layout: icon over a centered title, buttons centered under it. */
+  &--center {
+    text-align: center;
+
+    .gb-modal__head {
+      display: block;
+      margin-bottom: 22px;
+    }
+
+    .gb-modal__title {
+      margin: 12px 0 8px;
+    }
+
+    .gb-modal__actions {
+      justify-content: center;
+    }
+  }
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  &__title {
+    margin: 0 0 4px;
+    color: var(--gb-text-heading);
+    font-size: 20px;
+  }
+
+  &__description {
+    margin: 0;
+    color: var(--gb-text-muted);
+    font-size: 13px;
+  }
+
+  &__close {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e5e7eb;
+    border-radius: var(--gb-radius-sm);
+    background: var(--gb-surface);
+    color: var(--gb-text-muted);
+    cursor: pointer;
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 720px) {
+  .gb-modal-backdrop {
+    padding: 12px;
+  }
+}

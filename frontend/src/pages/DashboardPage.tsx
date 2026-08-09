@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Card, CardHeader, IconTile } from '@gymbro/ui-kit'
-import type { IconTileTone } from '@gymbro/ui-kit'
+import { Avatar, Button, Card, CardHeader, Icon, IconTile } from '@gymbro/ui-kit'
+import type { IconName, IconTileTone } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { getOrCreateToday, listSessions, Session } from '../api/sessions.api'
 import { getSummary, ProgressSummary } from '../api/progress.api'
 import { acceptCoachInvite, clearCoachProgressLookout, CoachDashboardSummary, CoachDashboardTrainee, CoachInvite, CoachProgressLookout, CoachTodayWorkout, getCoachDashboardSummary, getCoachProgressLookout, listCoachTodayWorkouts, listMyCoachInvites, reviewCoachWorkout } from '../api/coach.api'
 import WorkoutSchedulerModal from '../components/WorkoutSchedulerModal'
-
-type IconName = 'home' | 'dumbbell' | 'spark' | 'chart' | 'user' | 'share' |
-  'calendar' | 'trend' | 'target' | 'weight' | 'trophy' | 'check' | 'chevronLeft' | 'chevronRight' | 'x'
 
 interface DashboardStatCard {
   label: string
@@ -21,33 +18,6 @@ interface DashboardStatCard {
   detailDescription?: string
   detailMode?: 'workouts' | 'not-started' | 'inactive' | 'pb'
   trainees?: CoachDashboardTrainee[]
-}
-
-function Icon({ name }: { name: IconName }) {
-  const common = {
-    width: '18', height: '18', viewBox: '0 0 24 24', fill: 'none',
-    stroke: 'currentColor', strokeWidth: '2',
-    strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
-  }
-  switch (name) {
-    case 'home':     return <svg {...common}><path d="m3 10 9-7 9 7" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></svg>
-    case 'dumbbell': return <svg {...common}><path d="m6 6 12 12" /><path d="m4 8 4-4" /><path d="m16 20 4-4" /><path d="m2 10 8-8" /><path d="m14 22 8-8" /></svg>
-    case 'spark':    return <svg {...common}><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z" /><path d="m19 3 .8 2.2L22 6l-2.2.8L19 9l-.8-2.2L16 6l2.2-.8Z" /></svg>
-    case 'chart':    return <svg {...common}><path d="M4 19V5" /><path d="M4 19h16" /><path d="m7 15 4-4 3 3 5-7" /></svg>
-    case 'user':     return <svg {...common}><path d="M20 21a8 8 0 0 0-16 0" /><circle cx="12" cy="7" r="4" /></svg>
-    case 'share':    return <svg {...common}><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 10.5 6.8-4" /><path d="m8.6 13.5 6.8 4" /></svg>
-    case 'calendar': return <svg {...common}><path d="M8 2v4" /><path d="M16 2v4" /><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18" /></svg>
-    case 'trend':    return <svg {...common}><path d="m4 16 5-5 4 4 7-7" /><path d="M14 8h6v6" /></svg>
-    case 'target':   return <svg {...common}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg>
-    case 'weight':   return <svg {...common}><path d="M6.5 8a5.5 5.5 0 0 1 11 0" /><path d="M5 8h14l-2 13H7Z" /><path d="M10 12h4" /></svg>
-    case 'trophy':   return <svg {...common}><path d="M8 21h8" /><path d="M12 17v4" /><path d="M7 4h10v5a5 5 0 0 1-10 0Z" /><path d="M5 6H3a3 3 0 0 0 3 3h1" /><path d="M19 6h2a3 3 0 0 1-3 3h-1" /></svg>
-    case 'check':    return <svg {...common}><path d="m20 6-11 11-5-5" /></svg>
-    case 'chevronLeft': return <svg {...common}><path d="m15 18-6-6 6-6" /></svg>
-    case 'chevronRight': return <svg {...common}><path d="m9 18 6-6-6-6" /></svg>
-    case 'x': return <svg {...common}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-    default:         return null
-  }
 }
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -473,7 +443,7 @@ function Dashboard() {
               <div className="dashboard-stat-trainee-list">
                 {(selectedCoachStat.trainees ?? []).map(trainee => (
                   <div className="dashboard-stat-trainee" key={trainee._id}>
-                    <span className="dashboard-stat-avatar">{trainee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+                    <Avatar name={trainee.name} size="sm" />
                     <div>
                       <strong>{trainee.name}</strong>
                       <small>{trainee.email}</small>
@@ -512,9 +482,7 @@ function Dashboard() {
                 <div className="coach-workout-queue">
                   {coachTodayWorkouts.map(workout => (
                     <div className={workout.reviewedAt ? 'coach-workout-row reviewed' : 'coach-workout-row'} key={workout.sessionId}>
-                      <span className="coach-workout-avatar">
-                        {workout.trainee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}
-                      </span>
+                      <Avatar name={workout.trainee.name} size="md" />
                       <div>
                         <strong>{workout.trainee.name}</strong>
                         <span>{workout.title}</span>
@@ -599,7 +567,7 @@ function Dashboard() {
                 <div className="coach-lookout-list">
                   {progressLookout.map(item => (
                     <button type="button" key={item.trainee._id} onClick={() => setSelectedLookout(item)}>
-                      <span className="dashboard-stat-avatar">{item.trainee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+                      <Avatar name={item.trainee.name} size="sm" />
                       <span><strong>{item.trainee.name}</strong><small>{item.stalledWorkouts.length} stalled {item.stalledWorkouts.length === 1 ? 'workout type' : 'workout types'}</small></span>
                       <Icon name="chevronRight" />
                     </button>

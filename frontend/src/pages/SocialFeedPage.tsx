@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Alert, Button, Card, EmptyState, LoadingState, PageHeader } from '@gymbro/ui-kit'
+import { Alert, Avatar, Button, Card, EmptyState, LoadingState, PageHeader } from '@gymbro/ui-kit'
 import { addComment, createPost, FeedScope, listPosts, toggleLike, WorkoutPost } from '../api/posts.api'
 import { listSessions, Session } from '../api/sessions.api'
 import { useAuth } from '../context/AuthContext'
@@ -14,9 +14,6 @@ const formatPostDate = (iso: string) =>
 
 const formatSessionDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-
-const initials = (name: string) =>
-  name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join('') || 'G'
 
 const sessionName = (session: Session) => {
   if (session.title) return session.title
@@ -275,7 +272,7 @@ const SocialFeedPage = () => {
             >
               <div className="feed-detail-head">
                 <div className="feed-post-author">
-                  <span className="feed-avatar">{initials(selectedPost.userId?.name ?? 'GymBro')}</span>
+                  <Avatar name={selectedPost.userId?.name ?? 'GymBro'} size="sm" fallback="G" />
                   <div>
                     <strong>{selectedPost.userId?.name ?? 'GymBro User'}</strong>
                     <small>{formatPostDate(selectedPost.postDate)}</small>

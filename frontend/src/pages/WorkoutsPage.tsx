@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Badge, Button, Card, EmptyState, LoadingState, PageHeader } from '@gymbro/ui-kit'
+import { Alert, Badge, Button, Card, EmptyState, LoadingState, Modal, PageHeader } from '@gymbro/ui-kit'
 import { listSessions, getOrCreateToday, Session } from '../api/sessions.api'
 import { getActivePlan, WorkoutPlan } from '../api/plans.api'
 import { useAuth } from '../context/AuthContext'
@@ -233,20 +233,17 @@ const WorkoutsPage = () => {
       </Card>
 
       {showWorkoutChooser && plan ? (
-        <div className="coach-modal-backdrop" role="presentation" onClick={() => startingDayIndex === null && setShowWorkoutChooser(false)}>
-          <section
-            className="coach-modal workout-chooser-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="choose-workout-title"
-            onClick={event => event.stopPropagation()}
-          >
-            <div className="coach-modal-head">
-              <div>
-                <h2 id="choose-workout-title">Which workout do you want to start?</h2>
-                <p>Choose one from your active workout plan.</p>
-              </div>
-            </div>
+        <Modal
+          panelClassName="workout-chooser-modal"
+          title="Which workout do you want to start?"
+          description="Choose one from your active workout plan."
+          hideCloseButton
+          dismissDisabled={startingDayIndex !== null}
+          onClose={() => setShowWorkoutChooser(false)}
+          actions={
+            <Button variant="secondary" disabled={startingDayIndex !== null} onClick={() => setShowWorkoutChooser(false)}>Cancel</Button>
+          }
+        >
             <div className="workout-chooser-options">
               {plan.weeklyPlan.map((workout, dayIndex) => workout.isArchived ? null : (
                 <button
@@ -267,11 +264,7 @@ const WorkoutsPage = () => {
                 </button>
               ))}
             </div>
-            <div className="coach-modal-actions">
-              <Button variant="secondary" disabled={startingDayIndex !== null} onClick={() => setShowWorkoutChooser(false)}>Cancel</Button>
-            </div>
-          </section>
-        </div>
+        </Modal>
       ) : null}
 
       {plannerDayIndex !== undefined && plan ? (
@@ -288,26 +281,19 @@ const WorkoutsPage = () => {
       ) : null}
 
       {showReplacePlanWarning ? (
-        <div className="coach-modal-backdrop" role="presentation" onClick={() => setShowReplacePlanWarning(false)}>
-          <section
-            className="coach-modal"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="replace-plan-title"
-            onClick={event => event.stopPropagation()}
-          >
-            <div className="coach-modal-head">
-              <div>
-                <h2 id="replace-plan-title">Create a new workout plan?</h2>
-                <p>Your current active plan will be deleted when the new plan is successfully created. Completed workout history and progress will remain available.</p>
-              </div>
-            </div>
-            <div className="coach-modal-actions">
+        <Modal
+          role="alertdialog"
+          title="Create a new workout plan?"
+          description="Your current active plan will be deleted when the new plan is successfully created. Completed workout history and progress will remain available."
+          hideCloseButton
+          onClose={() => setShowReplacePlanWarning(false)}
+          actions={
+            <>
               <Button variant="secondary" onClick={() => setShowReplacePlanWarning(false)}>Cancel</Button>
               <Button onClick={() => navigate('/plans/new')}>Continue</Button>
-            </div>
-          </section>
-        </div>
+            </>
+          }
+        />
       ) : null}
     </main>
   )
