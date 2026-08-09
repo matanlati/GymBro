@@ -7,7 +7,7 @@ class BicepCurl(BaseExercise):
 
     GOOD FORM
       - Full range each rep: near-full elbow extension at the bottom (~160 deg)
-        and a hard squeeze at the top (~40 deg or less).
+        and a hard squeeze at the top (~60 deg or less, as a side view reads it).
       - The upper arm/elbow stays pinned to the side; only the forearm moves.
       - The weight is curled by the biceps, not swung up with the torso/shoulder.
       - Controlled lift, slow (~2-3 s) lowering.
@@ -30,15 +30,21 @@ class BicepCurl(BaseExercise):
     # so its caption reads "down" at the top of a curl. Nothing keys off that.
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
-    # The elbow sweeps roughly 170 (arm hanging) down to 55-60 at the squeeze --
-    # a side view rarely reads below ~58 even on a hard contraction. Both gates
-    # therefore sit in the middle of that sweep: DOWN at 70 was only ~12 deg off
-    # the deepest angle a real curl produces, so a slightly shorter curl crossed
+    # Elbow flexion ROM is ~150 deg (Physiopedia goniometry), i.e. an interior
+    # floor near 30 deg -- but that is a goniometer on a bare arm. Read through
+    # joint centres on a foreshortened side view, the elbow sweeps roughly 170
+    # (arm hanging) down to only 55-60 at the squeeze. Both gates therefore sit
+    # in the middle of that measured sweep: DOWN at 70 was only ~12 deg off the
+    # deepest angle a real curl produces, so a slightly shorter curl crossed
     # nothing and counted zero reps, and UP at 150 demanded an almost straight
     # arm to re-arm the next one.
     DOWN_ANGLE = 90.0
     UP_ANGLE = 115.0
-    _TOP_GATE = 40.0  # full-squeeze grade in _evaluate_rep
+    # Strict tier (see base.py): the full-squeeze grade in _evaluate_rep. Held
+    # at the bottom of what the camera can resolve, not at the anatomical limit
+    # -- this sat at 40 deg, below the ~58 floor the comment above describes, so
+    # the praise was dead code and every curl was faulted as short.
+    _TOP_GATE = 60.0
     _SWING_RANGE = 0.12  # horizontal elbow travel (frac of frame) that reads as swing
 
     def __init__(self, side: str = "left"):
