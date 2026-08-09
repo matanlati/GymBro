@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { AxiosError } from 'axios'
-import { Alert, Button, Card, FormField, FormRow, Input, Select, Textarea } from '@gymbro/ui-kit'
+import { Alert, Button, Card, FormField, FormRow, Icon, Input, Select, Textarea } from '@gymbro/ui-kit'
+import type { IconName } from '@gymbro/ui-kit'
 import { generatePlan, type WorkoutPlan } from '../api/plans.api'
+
+// The questionnaire draws its icons a step larger than the app default.
+const ICON_SIZE = 28
 
 type StepInfo = {
   title: string
@@ -55,76 +59,6 @@ const equipmentOptions = [
   'Barbell',
   'Kettlebells',
 ]
-
-type IconName = 'target' | 'dumbbell' | 'bolt' | 'rings' | 'home' | 'brand'
-
-function FormIcon({ name }: { name: IconName }) {
-  const common = {
-    width: '28',
-    height: '28',
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: '2',
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
-  }
-
-  switch (name) {
-    case 'target':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <circle cx="12" cy="12" r="5" />
-          <circle cx="12" cy="12" r="1" />
-        </svg>
-      )
-    case 'dumbbell':
-      return (
-        <svg {...common}>
-          <path d="m6 6 12 12" />
-          <path d="m4 8 4-4" />
-          <path d="m16 20 4-4" />
-          <path d="m2 10 8-8" />
-          <path d="m14 22 8-8" />
-        </svg>
-      )
-    case 'bolt':
-      return (
-        <svg {...common}>
-          <path d="M13 2 4 14h7l-1 8 9-12h-7Z" />
-        </svg>
-      )
-    case 'rings':
-      return (
-        <svg {...common}>
-          <circle cx="9" cy="12" r="5" />
-          <circle cx="15" cy="12" r="5" />
-        </svg>
-      )
-    case 'home':
-      return (
-        <svg {...common}>
-          <path d="m3 10 9-7 9 7" />
-          <path d="M5 10v10h14V10" />
-          <path d="M10 20v-6h4v6" />
-        </svg>
-      )
-    case 'brand':
-      return (
-        <svg {...common}>
-          <path d="m6 6 12 12" />
-          <path d="m4 8 4-4" />
-          <path d="m16 20 4-4" />
-          <path d="m2 10 8-8" />
-          <path d="m14 22 8-8" />
-        </svg>
-      )
-    default:
-      return null
-  }
-}
 
 type FormData = {
   age: string
@@ -468,7 +402,7 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
                 type="button"
                 onClick={() => selectValue('fitnessGoal', option.value)}
               >
-                <FormIcon name={option.icon} />
+                <Icon name={option.icon} size={ICON_SIZE} />
                 <span>{option.label}</span>
               </button>
             ))}
@@ -531,7 +465,7 @@ function Questionnaire({ onBack }: { onBack: () => void }) {
 
       <div className="questionnaire-brand">
         <span>
-          <FormIcon name="brand" />
+          <Icon name="dumbbell" size={ICON_SIZE} />
         </span>
         <strong>GymBro</strong>
       </div>

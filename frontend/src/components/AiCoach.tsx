@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, DragEvent, ChangeEvent, FormEvent } from 'react'
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, FormField, IconTile, PageHeader, Select, scoreTone } from '@gymbro/ui-kit'
+import { Alert, Badge, Button, Card, CardHeader, EmptyState, FormField, Icon, IconTile, PageHeader, Select, scoreTone } from '@gymbro/ui-kit'
 import type { BadgeTone, SelectOption } from '@gymbro/ui-kit'
 import {
   analyzeVideo,
@@ -46,25 +46,6 @@ const TIPS = [
   'Complete at least 3–5 reps in the video',
   'Wear form-fitting clothes for better tracking',
 ]
-
-type IconName = 'camera' | 'upload' | 'check' | 'alert' | 'activity' | 'trend'
-
-const Icon = ({ name }: { name: IconName }) => {
-  const common = {
-    width: '18', height: '18', viewBox: '0 0 24 24', fill: 'none',
-    stroke: 'currentColor', strokeWidth: '2',
-    strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
-  }
-  switch (name) {
-    case 'camera':   return <svg {...common}><path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" /></svg>
-    case 'upload':   return <svg {...common}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m17 8-5-5-5 5" /><path d="M12 3v12" /></svg>
-    case 'check':    return <svg {...common}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg>
-    case 'alert':    return <svg {...common}><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
-    case 'activity': return <svg {...common}><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
-    case 'trend':    return <svg {...common}><path d="m4 16 5-5 4 4 7-7" /><path d="M14 8h6v6" /></svg>
-  }
-}
 
 const severityTone = (severity: string): BadgeTone =>
   severity === 'high' ? 'danger' : severity === 'medium' ? 'warning' : 'neutral'
@@ -139,7 +120,7 @@ const ResultsPanel = ({ evaluation, onAnalyzeAnother }: { evaluation: Evaluation
           <h3>What went well</h3>
           <ul className="positive-list">
             {evaluation.positiveFeedback.map(item => (
-              <li key={item}><span className="tip-check"><Icon name="check" /></span>{item}</li>
+              <li key={item}><span className="tip-check"><Icon name="checkCircle" /></span>{item}</li>
             ))}
           </ul>
         </div>
@@ -461,7 +442,7 @@ const AiCoach = () => {
             <CardHeader title="Tips for Best Results" />
             <ul>
               {TIPS.map(tip => (
-                <li key={tip}><span className="tip-check"><Icon name="check" /></span>{tip}</li>
+                <li key={tip}><span className="tip-check"><Icon name="checkCircle" /></span>{tip}</li>
               ))}
             </ul>
           </Card>
