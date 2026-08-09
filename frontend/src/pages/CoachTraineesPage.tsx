@@ -2,17 +2,19 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
   Alert,
+  Avatar,
   Button,
   Card,
   EmptyState,
   FormField,
   Input,
   LoadingState,
+  Modal,
   PageHeader,
   Textarea,
 } from "@gymbro/ui-kit";
 import { AxiosError } from "axios";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   CoachInvite,
   CoachUser,
@@ -25,14 +27,6 @@ import {
 } from "../api/coach.api";
 import { useAuth } from "../context/AuthContext";
 import { getMe } from "../api/users.api";
-
-const initials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "T";
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
@@ -241,9 +235,7 @@ export default function CoachTraineesPage() {
                         }}
                       >
                         <td>
-                          <span className="coach-avatar">
-                            {initials(trainee.name)}
-                          </span>
+                          <Avatar name={trainee.name} size="sm" tone="solid" fallback="T" />
                           <strong>{trainee.name}</strong>
                         </td>
                         <td>{trainee.email}</td>
@@ -289,9 +281,13 @@ export default function CoachTraineesPage() {
               <div className="coach-list">
                 {pendingInvites.map((invite) => (
                   <article className="coach-list-item" key={invite._id}>
-                    <span className="coach-avatar">
-                      {initials(invite.traineeId?.name ?? invite.traineeEmail)}
-                    </span>
+                    <Avatar
+                      name={invite.traineeId?.name ?? invite.traineeEmail}
+                      size="lg"
+                      tone="solid"
+                      shape="rounded"
+                      fallback="T"
+                    />
                     <div>
                       <strong>
                         {invite.traineeId?.name ?? invite.traineeEmail}
@@ -308,32 +304,12 @@ export default function CoachTraineesPage() {
       )}
 
       {modalOpen ? (
-        <div
-          className="coach-modal-backdrop"
-          role="presentation"
-          onClick={closeModal}
+        <Modal
+          title="Add Trainee"
+          description="Send an invite to an existing trainee account."
+          closeLabel="Close add trainee modal"
+          onClose={closeModal}
         >
-          <section
-            className="coach-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Add trainee"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="coach-modal-head">
-              <div>
-                <h2>Add Trainee</h2>
-                <p>Send an invite to an existing trainee account.</p>
-              </div>
-              <button
-                type="button"
-                aria-label="Close add trainee modal"
-                onClick={closeModal}
-              >
-                x
-              </button>
-            </div>
-
             <form className="coach-invite-form" onSubmit={submitInvite}>
               <FormField label="Trainee email">
                 <Input
@@ -345,7 +321,7 @@ export default function CoachTraineesPage() {
                 />
               </FormField>
               {error ? <Alert variant="error">{error}</Alert> : null}
-              <div className="coach-modal-actions">
+              <div className="gb-modal__actions">
                 <Button variant="secondary" onClick={closeModal}>
                   Cancel
                 </Button>
@@ -358,51 +334,37 @@ export default function CoachTraineesPage() {
                 </Button>
               </div>
             </form>
-          </section>
-        </div>
+        </Modal>
       ) : null}
 
       {capacityModalOpen ? (
-        <div className="coach-modal-backdrop" role="presentation" onClick={() => setCapacityModalOpen(false)}>
-          <section className="coach-modal" role="alertdialog" aria-modal="true" aria-labelledby="capacity-alert-title" onClick={(event) => event.stopPropagation()}>
-            <div className="coach-modal-head">
-              <div>
-                <h2 id="capacity-alert-title">Trainee capacity reached</h2>
-                <p>You currently coach {trainees.length} of {traineeCapacity} allowed trainees.</p>
-              </div>
-              <button type="button" aria-label="Close capacity alert" onClick={() => setCapacityModalOpen(false)}><X size={17} /></button>
-            </div>
+        <Modal
+          role="alertdialog"
+          title="Trainee capacity reached"
+          description={`You currently coach ${trainees.length} of ${traineeCapacity} allowed trainees.`}
+          closeLabel="Close capacity alert"
+          onClose={() => setCapacityModalOpen(false)}
+        >
             <div className="coach-invite-form">
               <Alert variant="info">Increase your maximum trainee capacity before sending another invitation.</Alert>
-              <div className="coach-modal-actions">
+              <div className="gb-modal__actions">
                 <Button variant="secondary" onClick={() => setCapacityModalOpen(false)}>Close</Button>
                 <Button onClick={() => navigate('/profile')}>Open Profile Settings</Button>
               </div>
             </div>
-          </section>
-        </div>
+        </Modal>
       ) : null}
 
       {selectedTrainee ? (
-        <div className="coach-modal-backdrop" role="presentation" onClick={closeTrainee}>
-          <section
-            className="coach-modal coach-trainee-detail-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="trainee-detail-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="coach-modal-head coach-trainee-detail-head">
-              <div className="coach-trainee-detail-identity">
-                <span className="coach-avatar">{initials(selectedTrainee.name)}</span>
-                <div>
-                  <h2 id="trainee-detail-title">{selectedTrainee.name}</h2>
-                  <p>{selectedTrainee.email}</p>
-                </div>
-              </div>
-              <button type="button" aria-label="Close trainee details" onClick={closeTrainee}><X size={17} /></button>
-            </div>
-
+        <Modal
+          panelClassName="coach-trainee-detail-modal"
+          size="md"
+          icon={<Avatar name={selectedTrainee.name} size="lg" tone="solid" fallback="T" />}
+          title={selectedTrainee.name}
+          description={selectedTrainee.email}
+          closeLabel="Close trainee details"
+          onClose={closeTrainee}
+        >
             <div className="coach-trainee-info-grid">
               <div><span>Age</span><strong>{displayValue(selectedTrainee.age, " years")}</strong></div>
               <div><span>Height</span><strong>{displayValue(selectedTrainee.heightCm, " cm")}</strong></div>
@@ -428,13 +390,12 @@ export default function CoachTraineesPage() {
                 />
               )}
               {notesError ? <Alert variant="error">{notesError}</Alert> : null}
-              <div className="coach-modal-actions">
+              <div className="gb-modal__actions">
                 <Button variant="secondary" onClick={closeTrainee}>Cancel</Button>
                 <Button type="submit" loading={notesSaving} loadingLabel="Saving..." disabled={notesLoading}>Save Notes</Button>
               </div>
             </form>
-          </section>
-        </div>
+        </Modal>
       ) : null}
     </main>
   );

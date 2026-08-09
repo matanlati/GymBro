@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, Card, FormField, Input, LoadingState, PageHeader, Select, Textarea } from '@gymbro/ui-kit'
+import { Alert, Avatar, Button, Card, FormField, initials, Input, LoadingState, PageHeader, Select, Textarea } from '@gymbro/ui-kit'
 import { useAuth } from '../context/AuthContext'
 import { getMe, updateMe, uploadPhoto, UserProfile, UpdateProfileData } from '../api/users.api'
 import {
@@ -238,10 +238,6 @@ export default function ProfilePage() {
     navigate('/login')
   }
 
-  function getInitials(name: string) {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-  }
-
   const formatGoal = (goal?: string) =>
     goal
       ? goal.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
@@ -297,7 +293,7 @@ export default function ProfilePage() {
           <div style={styles.avatarContainer}>
             {profile.photo
               ? <img src={profile.photo} alt="Profile" style={styles.avatarImg} />
-              : <div style={styles.avatar}>{getInitials(profile.name)}</div>
+              : <div style={styles.avatar}>{initials(profile.name)}</div>
             }
           </div>
           <Button
@@ -471,11 +467,7 @@ export default function ProfilePage() {
             <div style={styles.coachIcon}>
               <UserRoundCheck size={20} strokeWidth={1.8} />
             </div>
-            {coach.photo ? (
-              <img src={coach.photo} alt="" style={styles.coachAvatarImage} />
-            ) : (
-              <div style={styles.coachAvatar}>{getInitials(coach.name)}</div>
-            )}
+            <Avatar name={coach.name} photoUrl={coach.photo} size="md" tone="solid" />
             <div style={styles.coachDetails}>
               <span style={styles.coachEyebrow}>Your coach</span>
               <strong style={styles.coachName}>Coached by {coach.name}</strong>
