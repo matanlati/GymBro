@@ -30,10 +30,14 @@ class Squat(BaseExercise):
     # AIGym measures the knee angle (hip-knee-ankle).
     KPTS_LEFT = [11, 13, 15]
     KPTS_RIGHT = [12, 14, 16]
+    # The knee sweeps ~175 (standing) down to ~80-90 at parallel and 50-70 on a
+    # deep squat; the literature's "90-100 deg of knee flexion" at parallel is
+    # the same thing measured from the other end (interior = 180 - flexion).
     # Forgiving enough that a partial squat still counts and gets coached; the
     # depth grade below is what judges how deep it actually went.
     DOWN_ANGLE = 120.0
     UP_ANGLE = 140.0
+    # Strict tier (see base.py).
     _DEPTH_GOOD = 90.0  # at or below parallel
 
     def analyze_frame(self, pose: PoseFrame) -> FrameResult:

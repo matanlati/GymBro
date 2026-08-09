@@ -32,9 +32,14 @@ class BenchPress(BaseExercise):
     # the push-up so a partial-range rep still registers - see the class note.
     KPTS_LEFT = [5, 7, 9]
     KPTS_RIGHT = [6, 8, 10]
+    # The elbow sweeps ~175 (locked out) down to ~70-90 with the bar on the
+    # chest. NB: the "45-75 deg" figures in bench-press coaching articles are
+    # elbow *flare relative to the torso*, a frontal-plane measure this
+    # shoulder-elbow-wrist angle cannot see at all. Don't copy them here.
     DOWN_ANGLE = 120.0
     UP_ANGLE = 140.0
-    # Grading thresholds (read off the whole rep, not one frame):
+    # Grading thresholds, strict tier (see base.py), read off the whole rep
+    # rather than one frame:
     _DEPTH_GOOD = 95.0     # bar reached the chest
     _LOCKOUT_GOOD = 165.0  # arms locked out at the top
     _BAR_DRIFT = 0.12      # wrist-over-elbow horizontal offset (frac of frame)
