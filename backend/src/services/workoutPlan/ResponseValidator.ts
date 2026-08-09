@@ -57,8 +57,22 @@ function parseExpectedDays(value: string | number | undefined): number | undefin
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
 }
 
+/** Duration-only entries (warm-ups, cooldowns, mobility) are not main exercises. */
+function isMainExercise(exercise: { reps?: unknown; durationMinutes?: unknown; name?: unknown }): boolean {
+  const name = typeof exercise.name === 'string' ? exercise.name.toLowerCase() : ''
+  if (/warm-?up|cool-?down|stretch|mobility/.test(name)) return false
+  const reps = exercise.reps
+  const isDurationOnly = exercise.durationMinutes !== undefined
+    && (reps === undefined || (typeof reps === 'string' && reps.trim().toUpperCase() === 'N/A'))
+  return !isDurationOnly
+}
+
 export class ResponseValidator {
-  static validate(response: string, expectedTrainingDays?: string | number): WorkoutPlan {
+  static validate(
+    response: string,
+    expectedTrainingDays?: string | number,
+    minExercisesPerDay?: number
+  ): WorkoutPlan {
     try {
       console.error('ResponseValidator input length:', response.length)
       console.error('ResponseValidator input preview:', response.slice(0, 100))
@@ -84,6 +98,15 @@ export class ResponseValidator {
           }
           if (!day.exercises.length) {
             throw new Error(`weeklyPlan[${dayIndex}].exercises must be a non-empty array`)
+          }
+          if (minExercisesPerDay !== undefined) {
+            const mainCount = day.exercises.filter(isMainExercise).length
+            if (mainCount < minExercisesPerDay) {
+              throw new Error(
+                `weeklyPlan[${dayIndex}].exercises must contain at least `
+                + `${minExercisesPerDay} main exercises, got ${mainCount}`
+              )
+            }
           }
           return {
             day: requiredString(day.day, `weeklyPlan[${dayIndex}].day`),

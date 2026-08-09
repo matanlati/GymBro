@@ -1,6 +1,6 @@
 import RagRetrieverService from './RagRetrieverService'
 import AiModelService from './AiModelService'
-import { PromptBuilder } from './PromptBuilder'
+import { PromptBuilder, minExercisesPerDay } from './PromptBuilder'
 import { ResponseValidator } from './ResponseValidator'
 import { QuestionnaireData, WorkoutPlan as WorkoutPlanDTO } from '../../types'
 import { WorkoutPlan, IWorkoutPlan } from '../../models/WorkoutPlan.model'
@@ -8,16 +8,22 @@ import { toExerciseKey } from '../../utils/exerciseKey'
 
 class WorkoutPlanService {
   async generatePlan(questionnaireData: QuestionnaireData): Promise<WorkoutPlanDTO> {
-    const searchQuery = this.buildSearchQuery(questionnaireData)
-    const retrievedContext = await RagRetrieverService.retrieve(searchQuery)
-    const prompt = PromptBuilder.buildPrompt(questionnaireData, retrievedContext)
+    const retrieval = await RagRetrieverService.retrieve(questionnaireData)
+    const prompt = PromptBuilder.buildPrompt(questionnaireData, retrieval)
+    const minPerDay = minExercisesPerDay(questionnaireData.trainingLevel)
     const aiResponse = await AiModelService.generateResponse(prompt)
     try {
-      return ResponseValidator.validate(aiResponse, questionnaireData.trainingDays)
+      return ResponseValidator.validate(aiResponse, questionnaireData.trainingDays, minPerDay)
     } catch {
       const correctionPrompt = PromptBuilder.buildCorrectionPrompt(prompt, aiResponse)
       const correctedResponse = await AiModelService.generateResponse(correctionPrompt)
-      return ResponseValidator.validate(correctedResponse, questionnaireData.trainingDays)
+      try {
+        return ResponseValidator.validate(correctedResponse, questionnaireData.trainingDays, minPerDay)
+      } catch {
+        // The retry still came up short on volume. A thin plan beats no plan, so
+        // accept it if it is otherwise structurally valid.
+        return ResponseValidator.validate(correctedResponse, questionnaireData.trainingDays)
+      }
     }
   }
 
@@ -74,10 +80,6 @@ class WorkoutPlanService {
     if (!plan) throw new Error('PLAN_NOT_FOUND')
     if (plan.userId.toString() !== userId) throw new Error('FORBIDDEN')
     await plan.deleteOne()
-  }
-
-  private buildSearchQuery(data: QuestionnaireData): string {
-    return `${data.trainingLevel} ${data.fitnessGoal} workout plan ${data.trainingDays} days per week${data.injuries ? ' with ' + data.injuries : ''}`
   }
 
   private deriveTitle(plan: WorkoutPlanDTO): string {
