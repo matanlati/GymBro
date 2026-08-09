@@ -9,6 +9,7 @@ import {
   FormField,
   Input,
   LoadingState,
+  Modal,
 } from '@gymbro/ui-kit'
 import {
   BodyMeasurement,
@@ -285,31 +286,24 @@ export default function BodyMeasurements({
       </div>
 
       {pendingDelete && (
-        <div
-          className="coach-modal-backdrop"
-          role="presentation"
-          onClick={closeDeleteDialog}
-        >
-          <section
-            className="coach-modal measurement-delete-modal"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="measurement-delete-title"
-            aria-describedby="measurement-delete-description"
-            onClick={event => event.stopPropagation()}
-          >
-            <div className="measurement-delete-icon" aria-hidden="true">
+        <Modal
+          panelClassName="measurement-delete-modal"
+          role="alertdialog"
+          align="center"
+          hideCloseButton
+          icon={
+            <span className="measurement-delete-icon" aria-hidden="true">
               <Trash2 size={22} />
-            </div>
-            <div className="measurement-delete-copy">
-              <h2 id="measurement-delete-title">Delete measurement?</h2>
-              <p id="measurement-delete-description">
-                The entry from {new Date(pendingDelete.measuredAt).toLocaleDateString('en-US', {
-                  month: 'long', day: 'numeric', year: 'numeric',
-                })} will be permanently removed.
-              </p>
-            </div>
-            <div className="coach-modal-actions">
+            </span>
+          }
+          title="Delete measurement?"
+          description={`The entry from ${new Date(pendingDelete.measuredAt).toLocaleDateString('en-US', {
+            month: 'long', day: 'numeric', year: 'numeric',
+          })} will be permanently removed.`}
+          dismissDisabled={deleting}
+          onClose={closeDeleteDialog}
+          actions={
+            <>
               <Button variant="secondary" onClick={closeDeleteDialog} disabled={deleting}>
                 Cancel
               </Button>
@@ -322,9 +316,9 @@ export default function BodyMeasurements({
               >
                 Delete entry
               </Button>
-            </div>
-          </section>
-        </div>
+            </>
+          }
+        />
       )}
     </Card>
   )

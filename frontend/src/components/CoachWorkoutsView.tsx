@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Alert, Badge, Button, Card, EmptyState, FormField, Input, LoadingState, PageHeader, Textarea } from '@gymbro/ui-kit'
-import { Dumbbell, History, Pencil, Plus, Trash2, UserRound, X } from 'lucide-react'
+import { Alert, Badge, Button, Card, EmptyState, FormField, Input, LoadingState, Modal, PageHeader, Textarea } from '@gymbro/ui-kit'
+import { Dumbbell, History, Pencil, Plus, Trash2, UserRound } from 'lucide-react'
 import { AxiosError } from 'axios'
 import {
   CoachManagedWorkoutSession,
@@ -255,15 +255,14 @@ export default function CoachWorkoutsView() {
       )}
 
       {editor ? (
-        <div className="coach-modal-backdrop" role="presentation" onClick={() => !saving && setEditor(null)}>
-          <section className="coach-modal coach-workout-editor-modal" role="dialog" aria-modal="true" aria-labelledby="workout-editor-title" onClick={event => event.stopPropagation()}>
-            <div className="coach-modal-head">
-              <div>
-                <h2 id="workout-editor-title">{editor.dayIndex === null ? 'Create workout type' : 'Edit workout type'}</h2>
-                <p>Changes affect future sessions. Previous trainee logs stay unchanged.</p>
-              </div>
-              <button type="button" aria-label="Close workout editor" onClick={() => !saving && setEditor(null)}><X size={18} /></button>
-            </div>
+        <Modal
+          panelClassName="coach-workout-editor-modal"
+          title={editor.dayIndex === null ? 'Create workout type' : 'Edit workout type'}
+          description="Changes affect future sessions. Previous trainee logs stay unchanged."
+          closeLabel="Close workout editor"
+          dismissDisabled={saving}
+          onClose={() => setEditor(null)}
+        >
             <form className="coach-workout-editor-form" onSubmit={saveWorkout}>
               <FormField label="Workout name">
                 <Input value={editor.name} maxLength={100} placeholder="Upper Body Strength" required onChange={event => setEditor(current => current ? { ...current, name: event.target.value } : current)} />
@@ -300,27 +299,32 @@ export default function CoachWorkoutsView() {
                 ))}
               </div>
               {editorError && <Alert variant="error">{editorError}</Alert>}
-              <div className="coach-modal-actions">
+              <div className="gb-modal__actions">
                 <Button type="button" variant="secondary" disabled={saving} onClick={() => setEditor(null)}>Cancel</Button>
                 <Button type="submit" loading={saving} loadingLabel="Saving...">{editor.dayIndex === null ? 'Create Workout' : 'Save Changes'}</Button>
               </div>
             </form>
-          </section>
-        </div>
+        </Modal>
       ) : null}
 
       {workoutToRemove ? (
-        <div className="coach-modal-backdrop" role="presentation" onClick={() => !removing && setWorkoutToRemove(null)}>
-          <section className="coach-modal coach-remove-workout-modal" role="alertdialog" aria-modal="true" aria-labelledby="remove-workout-title" onClick={event => event.stopPropagation()}>
-            <div className="coach-remove-workout-icon"><Trash2 size={22} /></div>
-            <h2 id="remove-workout-title">Remove {workoutToRemove.name}?</h2>
-            <p>This workout will no longer appear in the trainee’s active plan. Previously recorded sessions and progress history will be kept.</p>
-            <div className="coach-modal-actions">
+        <Modal
+          panelClassName="coach-remove-workout-modal"
+          role="alertdialog"
+          align="center"
+          hideCloseButton
+          icon={<span className="coach-remove-workout-icon"><Trash2 size={22} /></span>}
+          title={`Remove ${workoutToRemove.name}?`}
+          description="This workout will no longer appear in the trainee’s active plan. Previously recorded sessions and progress history will be kept."
+          dismissDisabled={removing}
+          onClose={() => setWorkoutToRemove(null)}
+          actions={
+            <>
               <Button variant="secondary" disabled={removing} onClick={() => setWorkoutToRemove(null)}>Cancel</Button>
               <Button loading={removing} loadingLabel="Removing..." onClick={removeWorkout}>Remove Workout</Button>
-            </div>
-          </section>
-        </div>
+            </>
+          }
+        />
       ) : null}
     </main>
   )

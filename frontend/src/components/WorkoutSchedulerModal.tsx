@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Alert, Button } from '@gymbro/ui-kit'
-import { CalendarDays, X } from 'lucide-react'
+import { Alert, Button, Modal } from '@gymbro/ui-kit'
+import { CalendarDays } from 'lucide-react'
 import { WorkoutPlan } from '../api/plans.api'
 import { scheduleSession, Session } from '../api/sessions.api'
 
@@ -73,13 +73,22 @@ export default function WorkoutSchedulerModal({ plan, sessions, initialDate, ini
   }
 
   return (
-    <div className="coach-modal-backdrop workout-planner-backdrop" role="presentation" onClick={() => !saving && onClose()}>
-      <section className="coach-modal workout-planner-modal" role="dialog" aria-modal="true" aria-labelledby="workout-planner-title" onClick={event => event.stopPropagation()}>
-        <div className="coach-modal-head">
-          <div><h2 id="workout-planner-title">Plan a Workout</h2><p>Choose a day and a workout from your active plan.</p></div>
-          <button type="button" aria-label="Close workout planner" disabled={saving} onClick={onClose}><X size={17} /></button>
-        </div>
-
+    <Modal
+      className="workout-planner-backdrop"
+      panelClassName="workout-planner-modal"
+      size="lg"
+      title="Plan a Workout"
+      description="Choose a day and a workout from your active plan."
+      closeLabel="Close workout planner"
+      dismissDisabled={saving}
+      onClose={onClose}
+      actions={
+        <>
+          <Button variant="secondary" disabled={saving} onClick={onClose}>Cancel</Button>
+          <Button loading={saving} loadingLabel="Scheduling..." onClick={submit}>Schedule Workout</Button>
+        </>
+      }
+    >
         <div className="workout-planner-week">
           {days.map(date => {
             const key = dateKey(date)
@@ -114,11 +123,6 @@ export default function WorkoutSchedulerModal({ plan, sessions, initialDate, ini
         </div>
 
         {error && <Alert variant="error">{error}</Alert>}
-        <div className="coach-modal-actions">
-          <Button variant="secondary" disabled={saving} onClick={onClose}>Cancel</Button>
-          <Button loading={saving} loadingLabel="Scheduling..." onClick={submit}>Schedule Workout</Button>
-        </div>
-      </section>
-    </div>
+    </Modal>
   )
 }
